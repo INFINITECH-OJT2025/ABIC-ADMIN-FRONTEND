@@ -366,6 +366,14 @@ export default function AdminHeadSidebar() {
               <Clock size={18} />
               <span>Tardiness</span>
             </Link>
+            <Link
+              href="/admin-head/attendance/warning-letter"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <FileText size={18} />
+              <span>Letter</span>
+            </Link>
+
           </div>
         </div>
 

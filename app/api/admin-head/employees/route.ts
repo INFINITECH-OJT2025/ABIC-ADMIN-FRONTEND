@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
 
-    let sqlQuery = "SELECT id, CONCAT(first_name, ' ', last_name) AS name, email, department, created_at FROM employees"
+    let sqlQuery = "SELECT id, first_name, last_name, CONCAT(first_name, ' ', last_name) AS name, email, department, position, gender, created_at FROM employees"
     const values: any[] = []
 
     if (status) {
