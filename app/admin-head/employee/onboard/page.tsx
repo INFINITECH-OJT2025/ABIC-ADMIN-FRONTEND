@@ -413,7 +413,7 @@ function OnboardPageContent() {
     // Override batch if provided in query param
     if (batchParam) {
       const bId = parseInt(batchParam)
-      if (!isNaN(bId) && bId >= 1 && bId <= 6) {
+      if (!isNaN(bId) && bId >= 1 && bId <= 7) {
         setCurrentBatch(bId)
       }
     }
@@ -717,7 +717,6 @@ function OnboardPageContent() {
 
       if (emp) {
         setOnboardingEmployeeId(String(emp?.id ?? id))
-        setProgressionFormData(emp)
         setOnboardFormData({
           first_name: toPlainString(emp.first_name),
           last_name: toPlainString(emp.last_name),
@@ -725,6 +724,10 @@ function OnboardPageContent() {
           position: toPlainString(emp.position),
           onboarding_date: toIsoDate(emp.onboarding_date || emp.date_hired),
           department: toPlainString(emp.department),
+        })
+        setProgressionFormData({
+          ...emp,
+          date_hired: toIsoDate(emp.date_hired || emp.onboarding_date)
         })
         setChecklistData({
           name: `${emp.first_name} ${emp.last_name}`,
@@ -1613,7 +1616,7 @@ function OnboardPageContent() {
                 <div className="h-8 w-px bg-white/10" />
                 <div className="flex flex-col">
                   <span className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">
-                    {view === 'checklist' ? 'Last Updated' : `Batch ${currentBatch} of 6`}
+                    {view === 'checklist' ? 'Last Updated' : `Batch ${currentBatch} of 7`}
                   </span>
                   <span className="text-xl font-black text-white tracking-tight">
                     {view === 'checklist' ? (completionDateText || '—') : batches[currentBatch - 1].title}
@@ -1756,124 +1759,138 @@ function OnboardPageContent() {
           )}
 
           {view === 'checklist' && checklistData && (
-            <div className="max-w-[1600px] mx-auto py-4 px-6 md:px-8 text-stone-900">
-              {/* Task List Section */}
-              <Card className="rounded-2xl border-2 border-[#FFE5EC] shadow-2xl bg-white overflow-hidden mb-12">
-                {/* Progress Banner */}
-                <div className="bg-[#FFE5EC]/20 p-4 md:px-8 border-b border-[#FFE5EC]">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="text-[11px] font-black text-[#800020] uppercase tracking-widest">Process Onboarding Progress</h3>
-                    <span className="text-sm font-black text-[#A4163A] bg-white px-3 py-0.5 rounded-full shadow-sm border border-[#FFE5EC]">
-                      {Object.keys(completedTasks).length} / {onboardingTasks.length} Completed
-                    </span>
+            <div className="max-w-[1000px] mx-auto py-12 px-6 text-stone-900 animate-in fade-in zoom-in-95 duration-700">
+              {/* Premium Coupon Bond Look */}
+              <div className="relative bg-[#FCFBF7] shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-sm border-[1px] border-stone-200 overflow-hidden before:content-[''] before:absolute before:inset-0 before:border-[16px] before:border-double before:border-stone-100/50 before:pointer-events-none">
+                
+                {/* Decorative Header */}
+                <div className="pt-16 pb-12 px-12 text-center border-b-[1px] border-dashed border-stone-300 mx-12">
+                   <div className="mb-6 flex justify-center">
+                     <div className="w-16 h-16 bg-[#A4163A] rounded-full flex items-center justify-center shadow-lg transform -rotate-12 outline outline-offset-4 outline-1 outline-dashed outline-[#A4163A]">
+                        <LucideSave className="text-white w-8 h-8" />
+                     </div>
+                   </div>
+                   <h2 className="text-3xl font-serif font-black tracking-tighter text-stone-800 mb-2 uppercase italic">Onboarding Assessment Docket</h2>
+                   <div className="flex items-center justify-center gap-4 text-xs font-black tracking-[0.3em] text-[#A4163A] uppercase">
+                     <span>Serial No. OP-{onboardingEmployeeId?.slice(-6).toUpperCase() || 'NEW'}</span>
+                     <div className="w-1.5 h-1.5 rounded-full bg-stone-300" />
+                     <span>EST. 1995</span>
+                   </div>
+                </div>
+
+                {/* Progress Strip */}
+                <div className="px-12 py-8 bg-[#F5F2EA]/30">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex flex-col">
+                       <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest leading-none mb-1 text-left">Filing Representative</span>
+                       <span className="text-lg font-serif font-bold text-stone-800 leading-none text-left">{checklistData.name}</span>
+                    </div>
+                    <div className="text-right flex flex-col items-end">
+                       <span className="text-[10px] font-black text-[#A4163A] uppercase tracking-widest leading-none mb-1">Completion Index</span>
+                       <span className="text-3xl font-serif font-black text-stone-900 leading-none">{completionPercentage}%</span>
+                    </div>
                   </div>
-                  <div className="w-full bg-white h-2.5 rounded-full overflow-hidden border border-[#FFE5EC] shadow-inner p-0.5">
-                    <div
-                      className="bg-gradient-to-r from-[#A4163A] to-[#630C22] h-full rounded-full transition-all duration-1000 ease-out shadow-sm"
-                      style={{ width: `${(Object.keys(completedTasks).length / onboardingTasks.length) * 100}%` }}
+                  <div className="w-full h-1 bg-stone-200 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-[#A4163A] transition-all duration-1000 shadow-[0_0_10px_rgba(164,22,58,0.4)]" 
+                      style={{ width: `${completionPercentage}%` }}
                     />
                   </div>
                 </div>
 
-                <Table>
-                  <TableHeader className="bg-[#FFE5EC]/40">
-                    <TableRow className="border-b border-[#FFE5EC] hover:bg-transparent">
-                      <TableHead className="w-[200px] text-center font-black text-[#800020] uppercase tracking-[0.12em] text-[9px] py-3">Completed Date</TableHead>
-                      <TableHead className="w-[100px] text-center font-black text-[#800020] uppercase tracking-[0.12em] text-[9px] py-3">Status</TableHead>
-                      <TableHead className="font-black text-[#800020] uppercase tracking-[0.12em] text-[9px] py-3">
-                        <div className="flex items-center justify-between">
-                          <span>Tasks</span>
-                          <button 
-                            onClick={toggleAllTasks}
-                            className="text-[8px] normal-case bg-white/50 hover:bg-rose-50 text-[#800020] px-2 py-1 rounded-md border border-[#FFE5EC] transition-all font-black shadow-sm"
-                          >
-                            {onboardingTasks.every(task => completedTasks[task]) ? 'UNCHECK ALL' : 'CHECK ALL'}
-                          </button>
-                        </div>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loadingTasks ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="py-8 text-center">
-                          <div className="flex flex-col items-center justify-center text-slate-400">
-                             <Loader2 className="h-6 w-6 animate-spin mb-2" />
-                             <span className="text-xs font-medium">Loading tasks...</span>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : onboardingTasks.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="py-8 text-center text-slate-500 text-sm font-medium">
-                          No onboarding tasks found for this department.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      onboardingTasks.map((task, index) => (
-                      <TableRow 
-                        key={index} 
-                        className="border-b border-rose-50/30 last:border-0 hover:bg-[#FFE5EC]/5 transition-colors group cursor-pointer"
-                        onClick={() => toggleTask(task)}
-                      >
-                        <TableCell className="text-center py-2.5 font-mono text-[10px] font-bold text-slate-400">
-                          {completedTasks[task] || '-'}
-                        </TableCell>
-                        <TableCell className="py-2.5">
-                          <div className="flex justify-center">
-                            <div className={cn(
-                              "w-5 h-5 rounded flex items-center justify-center transition-all border-2",
-                                completedTasks[task]
-                                  ? (savedTasks.has(task) ? "bg-emerald-700 border-emerald-700 opacity-60 cursor-not-allowed" : "bg-emerald-500 border-emerald-500 text-white shadow-sm")
-                                  : "border-slate-200 bg-white hover:border-[#A4163A]"
-                            )}>
-                              {completedTasks[task] && <Check className="h-3.5 w-3.5" />}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-2.5">
-                          <span className={cn(
-                            "text-sm font-bold transition-all duration-300",
-                            completedTasks[task] ? "text-slate-300 line-through" : "text-slate-700"
-                          )}>
-                            {task}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    )))}
-                  </TableBody>
-                </Table>
-
-                {/* Table Footer */}
-                <div className="p-4 md:px-8 bg-slate-50/50 border-t border-[#FFE5EC] flex flex-col md:flex-row justify-between items-center gap-4">
-                  <div className="flex items-center gap-3">
-                    <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] italic">
-                      ADMINISTRATION FRAMEWORK • ABIC HR
-                    </p>
-                  </div>
-                  
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={async () => {
-                        const success = await handleSaveChecklist(false)
-                        if (success) setView('update-info')
-                      }}
-                      disabled={Object.keys(completedTasks).length < onboardingTasks.length || isSaving}
-                      className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-95 transition-all rounded-xl disabled:opacity-50"
-                    >
-                      {isSaving ? 'SAVING...' : 'PROCEED TO DATA ENTRY'}
-                    </Button>
-                    <Button 
-                      onClick={() => confirmSaveProgress('checklist')} 
-                      disabled={isSaving}
-                      className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-[#A4163A] hover:bg-[#800020] text-white shadow-lg active:scale-95 transition-all rounded-xl"
-                    >
-                      {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
-                      {isSaving ? 'SAVING...' : 'SAVE PROGRESS'}
-                    </Button>
-                  </div>
+                {/* Task Checklist area */}
+                <div className="px-12 py-10">
+                   <div className="border-[1px] border-stone-300 rounded-sm">
+                      <Table>
+                        <TableHeader className="bg-stone-50 border-b-[1px] border-stone-300">
+                          <TableRow className="hover:bg-transparent">
+                            <TableHead className="w-[180px] font-black text-stone-500 uppercase tracking-widest text-[9px] py-4 text-center">Filing Date</TableHead>
+                            <TableHead className="w-[100px] font-black text-stone-500 uppercase tracking-widest text-[9px] py-4 text-center">Seal</TableHead>
+                            <TableHead className="font-black text-stone-500 uppercase tracking-widest text-[9px] py-4 text-left">Task Description</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {loadingTasks ? (
+                            <TableRow><TableCell colSpan={3} className="py-20 text-center text-stone-400 italic font-serif">Retreiving assessment records...</TableCell></TableRow>
+                          ) : onboardingTasks.length === 0 ? (
+                            <TableRow><TableCell colSpan={3} className="py-20 text-center text-stone-400 italic font-serif text-lg">No required tasks identified</TableCell></TableRow>
+                          ) : (
+                            onboardingTasks.map((task, index) => (
+                              <TableRow 
+                                key={index} 
+                                onClick={() => toggleTask(task)}
+                                className="border-b-[1px] border-dashed border-stone-200 last:border-0 hover:bg-stone-50 transition-colors cursor-pointer group"
+                              >
+                                <TableCell className="text-center py-4 text-[10px] font-bold text-stone-400 font-mono">
+                                  {completedTasks[task] || 'PENDING'}
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <div className="flex justify-center">
+                                    <div className={cn(
+                                      "w-6 h-6 rounded-full border-[1.5px] flex items-center justify-center transition-all",
+                                      completedTasks[task] 
+                                        ? "border-[#A4163A] bg-[#A4163A]/10 text-[#A4163A] scale-110 shadow-sm"
+                                        : "border-stone-300 group-hover:border-[#A4163A]"
+                                    )}>
+                                      {completedTasks[task] && <Check className="h-4 w-4 stroke-[3px]" />}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="py-4">
+                                  <span className={cn(
+                                    "text-sm font-serif font-bold transition-all duration-500",
+                                    completedTasks[task] ? "text-stone-300 line-through" : "text-stone-700"
+                                  )}>
+                                    {task}
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                   </div>
                 </div>
-              </Card>
+
+                {/* Footer Controls */}
+                <div className="mt-4 px-12 pb-12 pt-6 border-t-[1px] border-dashed border-stone-300 mx-12 flex flex-col md:flex-row justify-between items-center gap-8">
+                   <div className="flex flex-col items-center md:items-start opacity-70">
+                      <p className="text-[10px] font-black tracking-widest text-stone-400 uppercase mb-1">Authenticated by</p>
+                      <p className="text-xl font-serif font-bold italic text-stone-800">ABIC Administration</p>
+                   </div>
+
+                   <div className="flex gap-4">
+                     <Button 
+                       onClick={() => confirmSaveProgress('checklist')} 
+                       disabled={isSaving}
+                       variant="outline"
+                       className="h-14 px-8 border-stone-300 rounded-sm font-black text-[11px] uppercase tracking-widest hover:bg-stone-50 transition-all shadow-sm"
+                     >
+                       {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                       {isSaving ? 'Filing...' : 'Save Progress'}
+                     </Button>
+                     <Button
+                       onClick={async () => {
+                         const success = await handleSaveChecklist(false)
+                         if (success) {
+                           setCurrentBatch(1)
+                           setView('update-info')
+                         }
+                       }}
+                       disabled={Object.keys(completedTasks).length < onboardingTasks.length || isSaving}
+                       className="h-14 px-10 bg-[#A4163A] hover:bg-[#800020] text-white rounded-sm font-black text-[11px] uppercase tracking-widest shadow-xl transform active:scale-95 transition-all"
+                     >
+                       Proceed to Official Filing
+                       <ChevronRight className="ml-2 w-4 h-4" />
+                     </Button>
+                   </div>
+                </div>
+                
+                {/* Decorative Pattern Footer */}
+                <div className="h-6 bg-[#A4163A] flex items-center justify-center overflow-hidden">
+                   <div className="w-full h-px border-t-[1px] border-dashed border-white/30" />
+                </div>
+              </div>
             </div>
           )}
 

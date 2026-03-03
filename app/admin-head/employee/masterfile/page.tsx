@@ -580,11 +580,12 @@ export default function MasterfilePage() {
 
   const checkCompleteness = (emp: any) => {
     if (!emp) return { isComplete: false, status: 'Incomplete', batchId: 1 }
-    const employmentDate = emp.date_hired || emp.onboarding_date
 
-    // Batch 1: Employment Information
-    if (!emp.position || emp.position.toString().trim() === '' || !employmentDate) {
-      return { isComplete: false, status: 'Pending: Employment Information', batchId: 1 }
+    // Batch 1: Employee Details (Manual override for onboarding flow)
+    // If the employee is still 'pending' and hasn't finished the profile,
+    // we want them to go through Batch 1. We require date_hired to be explicitly set.
+    if (!emp.position || emp.position.toString().trim() === '' || !emp.date_hired) {
+      return { isComplete: false, status: 'Pending: Employee Details', batchId: 1 }
     }
 
     // Batch 2: Personal Information
@@ -1110,12 +1111,13 @@ export default function MasterfilePage() {
                         const isTerminationPending = employee.status === 'termination_pending' || employee.status === 'resignation_pending'
                         const isRehirePending = employee.status === 'rehire_pending'
                         const checklistTasksComplete =
-                          Number(employee.onboarding_tasks?.total ?? 0) > 0 &&
-                          Number(employee.onboarding_tasks?.done ?? 0) === Number(employee.onboarding_tasks?.total ?? 0)
+                          !!employee.onboarding_tasks?.isComplete ||
+                          (Number(employee.onboarding_tasks?.total ?? 0) > 0 &&
+                          Number(employee.onboarding_tasks?.done ?? 0) === Number(employee.onboarding_tasks?.total ?? 0))
                         
                         // Use default logic if NOT termination pending
                         const { isComplete, status, batchId } = checkCompleteness(employee as any)
-                        const isFullyComplete = isComplete && employee.onboarding_tasks?.isComplete
+                        const isFullyComplete = isComplete && checklistTasksComplete
                         const savedBatchId = rehireBatchProgress[String(employee.id)]
                         const displayBatchId = isRehirePending && Number.isFinite(savedBatchId) ? savedBatchId : batchId
                         const batchLabel = batchLabelById[displayBatchId] || 'Employee Details'
@@ -1175,18 +1177,14 @@ export default function MasterfilePage() {
                               ) : (
                                 <div className="flex flex-col gap-1 items-start">
                                   <Badge variant="outline" className={`text-[10px] font-bold shadow-none uppercase tracking-wider rounded-full ${isRehirePending ? 'text-blue-700 bg-blue-50 border-blue-200' : 'text-orange-600 bg-orange-50 border-orange-200'}`}>
-                                    {!isComplete
-                                      ? status
-                                      : isRehirePending
-                                        ? "PENDING: COMPLETE & FINISH REHIRE"
-                                        : "PENDING: ONBOARDING CHECKLIST"}
+                                    {!checklistTasksComplete
+                                      ? "PENDING: onboarding process"
+                                      : (!isComplete ? status : (isRehirePending ? "PENDING: COMPLETE & FINISH REHIRE" : "PENDING: ONBOARDING CHECKLIST"))}
                                   </Badge>
                                   {employee.onboarding_tasks && (
-                                    <span className="text-[9px] font-medium text-slate-400 mt-1 pl-1">
-                                      {isRehirePending
-                                        ? (checklistTasksComplete
-                                            ? `Batch ${displayBatchId}: ${batchLabel}`
-                                            : `Tasks: ${employee.onboarding_tasks.done}/${employee.onboarding_tasks.total}`)
+                                    <span className="text-[9px] font-bold text-slate-500 mt-1 pl-1">
+                                      {checklistTasksComplete
+                                        ? `Batch ${displayBatchId}: ${batchLabel}`
                                         : `Tasks: ${employee.onboarding_tasks.done}/${employee.onboarding_tasks.total}`}
                                     </span>
                                   )}

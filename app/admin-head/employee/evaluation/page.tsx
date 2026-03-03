@@ -4,7 +4,8 @@ import React, { useEffect, useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { X, Calendar, UserCheck, TrendingUp, PieChart, Search, Download } from 'lucide-react'
+import { X, Calendar, UserCheck, TrendingUp, PieChart, Search, Download, Plus } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { Skeleton } from "@/components/ui/skeleton"
 import { getApiUrl } from '@/lib/api'
 import { Input } from '@/components/ui/input'
@@ -33,6 +34,7 @@ interface Evaluation {
 }
 
 export default function EvaluationPage() {
+  const router = useRouter()
   const [employees, setEmployees] = useState<Employee[]>([])
   const [evaluations, setEvaluations] = useState<Record<string, Evaluation>>({})
   const [persistedEvaluations, setPersistedEvaluations] = useState<Record<string, Evaluation>>({})
@@ -291,9 +293,16 @@ export default function EvaluationPage() {
             <p className="text-rose-100 text-lg font-medium">Manage employee evaluations and performance reviews</p>
           </div>
           <div className="flex gap-4">
-            <Button className="bg-white/10 hover:bg-white/20 text-white border border-white/30 backdrop-blur-sm px-6 h-12 rounded-xl font-bold transition-all flex items-center gap-2">
+            <Button className="bg-white/10 hover:bg-white/20 text-white border border-white/30 backdrop-blur-sm px-6 h-12 rounded-xl font-bold transition-all flex items-center gap-2 text-sm md:text-base">
               <Download className="w-5 h-5" />
               Export Report
+            </Button>
+            <Button 
+              onClick={() => router.push('/admin-head/employee/evaluation/evaluate_employee')}
+              className="bg-white text-[#4A081A] hover:bg-rose-50 px-6 h-12 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg text-sm md:text-base"
+            >
+              <Plus className="w-5 h-5" />
+              Evaluate an Employee
             </Button>
           </div>
         </div>
