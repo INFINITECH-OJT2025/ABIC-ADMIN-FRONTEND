@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
     ArrowLeft,
     Save,
@@ -25,13 +26,16 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { getApiUrl } from '@/lib/api'
 
 // --- Default Templates ---
-const DEFAULT_TARDINESS_TEMPLATE = {
+const DEFAULT_TARDINESS_REGULAR_TEMPLATE = {
     title: 'TARDINESS WARNING LETTER',
     subject: 'Written Warning - Frequent Tardiness',
     headerLogo: 'ABIC Realty',
     body: `Dear {{salutation}} {{last_name}},
+
+Good day.
 
 This letter serves as a Formal Warning regarding your tardiness. Please be reminded that your scheduled time-in is {{shift_time}}, with a five (5)-minute grace period until {{grace_period}}, in accordance with company policy.
 
@@ -49,83 +53,282 @@ Please be reminded of the following:
 This notice shall be documented accordingly. Your cooperation and compliance are expected.
 
 Thank you.`,
-    footer: 'This is a system-generated notice.'
+    footer: 'Admin Supervisor/HR',
+    signatoryName: 'AIZLE MARIE M. ATIENZA'
+}
+
+const DEFAULT_TARDINESS_PROBEE_TEMPLATE = {
+    title: 'TARDINESS WARNING LETTER',
+    subject: 'Tardiness Notice',
+    headerLogo: 'ABIC Realty',
+    body: `Dear {{salutation}} {{last_name}},
+
+This letter serves as a formal warning regarding your repeated tardiness. It has been recorded that you have reported late to work {{instances_text}} ({{instances_count}}) times, exceeding the company's grace period of five (5) minutes.
+
+Please be reminded that further instances of tardiness may result in stricter disciplinary action, up to and including suspension, in accordance with company policies.
+
+We trust that you will take this matter seriously and make the necessary adjustments to improve your attendance and punctuality moving forward.
+
+Additionally, please note the specific dates of tardiness recorded for this cut-off:
+{{entries_list}}
+
+Consistent tardiness affects team productivity, disrupts workflow, and your evaluation needed for your regularization, which requires all employees to report to work on time and adhere to their scheduled working hours.
+
+Thank you.`,
+    footer: 'Admin Assistant',
+    signatoryName: 'AIZLE MARIE M. ATIENZA'
 }
 
 const DEFAULT_LEAVE_TEMPLATE = {
-    title: 'LEAVE WARNING LETTER',
+    title: 'FIRST WARNING LETTER',
     subject: 'Record of Extended Leave of Absence',
     headerLogo: 'ABIC Realty',
     body: `Dear {{salutation}} {{last_name}},
 
 This letter serves as a Formal Warning regarding your attendance record for the current cutoff period.
 
-It has been noted that you incurred {{instances_text}} ({{instances_count}}) days of leave within the {{cutoff_text}} of {{month}} {{year}}, specifically on the following dates:
+It has been noted that you incurred {{instances_text}} ({{instances_count}}) absences within the {{cutoff_text}} of {{month}} {{year}}, specifically on the following dates:
 {{entries_list}}
 
-These absences negatively affect work operations and your evaluation needed for your regularization. As stated in the company's Attendance and Punctuality Policy, employees are expected to maintain regular attendance and provide valid justification or prior notice for any absence.
+These absences negatively affect work operations and your evaluation needed for your regularization. As stated in the company’s Attendance and Punctuality Policy, employees are expected to maintain regular attendance and provide valid justification or prior notice for any absence.
 
 Please be reminded that repeated absences, especially within a short period, may lead to further disciplinary action in accordance with company rules and regulations.
 
 Moving forward, you are expected to:
-1. Improve your attendance immediately;
-2. Avoid unnecessary or unapproved absences, and;
+1. Improve your attendance immediately,
+2. Avoid unnecessary or unapproved absences, and
 3. Provide proper documentation or notice for any unavoidable absence.
 
-Failure to comply may result in stricter sanctions, up to and including suspension or termination.`,
-    footer: 'This is a system-generated notice.'
+Failure to comply may result in stricter sanctions, up to and including suspension or termination.
+
+Please acknowledge receipt of this warning by signing below.`,
+    footer: 'Admin Assistant',
+    signatoryName: 'AIZLE MARIE M. ATIENZA'
 }
+
+const DEFAULT_SUPERVISOR_TEMPLATE = {
+    title: 'WARNING LETTER',
+    subject: 'Employee Attendance Advisory',
+    headerLogo: 'ABIC Realty',
+    body: `Dear Ma'am Angely,
+
+This letter serves as a Formal Warning regarding the attendance/tardiness of {{salutation}} {{employee_name}}. {{pronoun_he_she}} has accumulated {{instances_text}} ({{instances_count}}) occurrences/days of issues within the current cut-off period.
+
+In accordance with company policy, reaching this count within a single cut-off period is subject to appropriate coaching, warning, and/or sanction. We request that you address this matter with the concerned employee and coordinate with the HR/Admin Department for proper documentation and necessary action.
+
+Additionally, please note the specific dates recorded for this cut-off:
+{{entries_list}}
+
+Consistent attendance issues affect team productivity, disrupts workflow, and violates the company's policy, which requires all employees to report to work on time and adhere to their scheduled working hours.
+
+Please be reminded of the following:
+1. {{salutation}} {{last_name}} is expected to correct {{pronoun_his_her}} behavior immediately.
+2. Future occurrences may result in stricter disciplinary action, including suspension or termination, in accordance with company policy.
+
+Kindly ensure that the employee is informed and that corrective action is enforced appropriately.
+
+Thank you.`,
+    footer: 'Admin Assistant',
+    signatoryName: 'AIZLE MARIE M. ATIENZA'
+}
+
+// --- Skeleton Component ---
+const EditorSkeleton = () => (
+    <div className="min-h-screen bg-neutral-100 pb-20 pt-12">
+        <div className="max-w-[1400px] mx-auto px-10 space-y-10">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <div className="space-y-2">
+                        <Skeleton className="h-8 w-64" />
+                        <Skeleton className="h-4 w-96" />
+                    </div>
+                </div>
+                <div className="flex gap-3">
+                    <Skeleton className="h-12 w-32 rounded-2xl" />
+                    <Skeleton className="h-12 w-48 rounded-2xl" />
+                </div>
+            </div>
+
+            <div className="flex justify-center">
+                <Skeleton className="h-12 w-[600px] rounded-2xl" />
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                <div className="space-y-6">
+                    <Card className="flex-1 border-0 shadow-xl overflow-hidden rounded-2xl bg-white flex flex-col">
+                        <Skeleton className="h-16 w-full" />
+                        <CardContent className="p-8 space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-32" />
+                                    <Skeleton className="h-12 w-full rounded-xl" />
+                                </div>
+                                <div className="space-y-2">
+                                    <Skeleton className="h-4 w-32" />
+                                    <Skeleton className="h-12 w-full rounded-xl" />
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-48" />
+                                <Skeleton className="h-12 w-full rounded-xl" />
+                            </div>
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-[350px] w-full rounded-xl" />
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+                <div className="space-y-6">
+                    <div className="flex items-center justify-between px-4">
+                        <Skeleton className="h-8 w-48" />
+                        <Skeleton className="h-6 w-32 rounded-full" />
+                    </div>
+                    <Card className="border-0 shadow-2xl rounded-none min-h-[1056px] w-[816px] bg-white mx-auto p-16 space-y-8">
+                        <div className="flex flex-col items-center gap-4 text-center">
+                            <Skeleton className="h-16 w-16 rotate-45" />
+                            <Skeleton className="h-8 w-64" />
+                            <Skeleton className="h-4 w-80" />
+                        </div>
+                        <div className="space-y-2 py-10">
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-3/4" />
+                        </div>
+                    </Card>
+                </div>
+            </div>
+        </div>
+    </div>
+)
 
 export default function EditFormsPage() {
     const router = useRouter()
-    const [activeTab, setActiveTab] = useState('tardiness')
-    const [tardinessTemplate, setTardinessTemplate] = useState(DEFAULT_TARDINESS_TEMPLATE)
-    const [leaveTemplate, setLeaveTemplate] = useState(DEFAULT_LEAVE_TEMPLATE)
+    const [activeTab, setActiveTab] = useState('tardiness-regular')
+    const [templates, setTemplates] = useState({
+        'tardiness-regular': DEFAULT_TARDINESS_REGULAR_TEMPLATE,
+        'tardiness-probee': DEFAULT_TARDINESS_PROBEE_TEMPLATE,
+        'leave': DEFAULT_LEAVE_TEMPLATE,
+        'supervisor': DEFAULT_SUPERVISOR_TEMPLATE
+    })
     const [isSaving, setIsSaving] = useState(false)
+    const [isLoading, setIsLoading] = useState(true)
 
-    // Load templates from localStorage on mount
+    const [hasLocalOnlyChanges, setHasLocalOnlyChanges] = useState(false)
+
+    // Load templates from API on mount
     useEffect(() => {
-        const savedTardiness = localStorage.getItem('warning_template_tardiness')
-        const savedLeave = localStorage.getItem('warning_template_leave')
+        const fetchTemplates = async () => {
+            setIsLoading(true)
+            try {
+                const res = await fetch(`${getApiUrl()}/api/warning-letter-templates`)
+                const data = await res.json()
 
-        if (savedTardiness) setTardinessTemplate(JSON.parse(savedTardiness))
-        if (savedLeave) setLeaveTemplate(JSON.parse(savedLeave))
+                const localSaved = localStorage.getItem('warning_letter_templates')
+
+                if (data && Object.keys(data).length > 0) {
+                    const mapped: any = { ...templates }
+                    Object.entries(data).forEach(([slug, template]: [string, any]) => {
+                        mapped[slug] = {
+                            title: template.title,
+                            subject: template.subject,
+                            headerLogo: template.header_logo,
+                            body: template.body,
+                            footer: template.footer,
+                            signatoryName: template.signatory_name
+                        }
+                    })
+                    setTemplates(mapped)
+
+                    // Check if local storage differs from recently fetched server data
+                    if (localSaved) {
+                        const local = JSON.parse(localSaved)
+                        const isDifferent = JSON.stringify(local) !== JSON.stringify(mapped)
+                        setHasLocalOnlyChanges(isDifferent)
+                    }
+                } else if (localSaved) {
+                    // DB is empty but local exists - user likely needs to sync!
+                    setTemplates(JSON.parse(localSaved))
+                    setHasLocalOnlyChanges(true)
+                }
+            } catch (e) {
+                console.error('Failed to fetch templates:', e)
+                const saved = localStorage.getItem('warning_letter_templates')
+                if (saved) setTemplates(JSON.parse(saved))
+            } finally {
+                setIsLoading(false)
+            }
+        }
+
+        fetchTemplates()
     }, [])
 
-    const handleSave = () => {
-        setIsSaving(true)
-        setTimeout(() => {
-            localStorage.setItem('warning_template_tardiness', JSON.stringify(tardinessTemplate))
-            localStorage.setItem('warning_template_leave', JSON.stringify(leaveTemplate))
-            setIsSaving(false)
-            toast.success('Form templates updated successfully!')
-        }, 1000)
+    const handleSave = async (silent = false) => {
+        if (!silent) setIsSaving(true)
+        try {
+            const res = await fetch(`${getApiUrl()}/api/warning-letter-templates/bulk`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(templates)
+            })
+
+            if (res.ok) {
+                localStorage.setItem('warning_letter_templates', JSON.stringify(templates))
+                setHasLocalOnlyChanges(false)
+                if (!silent) toast.success('Form templates synced to database successfully!')
+            } else {
+                localStorage.setItem('warning_letter_templates', JSON.stringify(templates))
+                if (!silent) toast.warning('Saved locally, but server sync failed.')
+            }
+        } catch (e) {
+            console.error('Save failed:', e)
+            localStorage.setItem('warning_letter_templates', JSON.stringify(templates))
+            if (!silent) toast.error('Templates saved locally (Network error).')
+        } finally {
+            if (!silent) setIsSaving(false)
+        }
     }
 
-    const resetTemplate = (type: 'tardiness' | 'leave') => {
-        if (type === 'tardiness') setTardinessTemplate(DEFAULT_TARDINESS_TEMPLATE)
-        else setLeaveTemplate(DEFAULT_LEAVE_TEMPLATE)
+    const resetTemplate = (type: string) => {
+        const defaults: any = {
+            'tardiness-regular': DEFAULT_TARDINESS_REGULAR_TEMPLATE,
+            'tardiness-probee': DEFAULT_TARDINESS_PROBEE_TEMPLATE,
+            'leave': DEFAULT_LEAVE_TEMPLATE,
+            'supervisor': DEFAULT_SUPERVISOR_TEMPLATE
+        }
+        setTemplates(prev => ({ ...prev, [type]: defaults[type] }))
         toast.info('Template reset to default values.')
     }
 
-    const renderPreview = (template: typeof DEFAULT_TARDINESS_TEMPLATE, type: 'tardiness' | 'leave') => {
+    const updateTemplate = (key: string, value: any) => {
+        setTemplates(prev => ({ ...prev, [activeTab]: { ...(prev as any)[activeTab], [key]: value } }))
+    }
+
+    const renderPreview = () => {
+        const type = activeTab
+        const template = (templates as any)[type]
         let content = template.body
 
         // Mock replacements for preview
-        const mockEntriesList = `• March 02, 2026 – 08:15 AM
+        const mockEntriesList = type === 'leave' || type === 'supervisor'
+            ? `• March 02, 2026 – Personal Leave (Family Emergency)
+• March 05, 2026 – Sick Leave
+• March 10, 2026 – Personal Leave (Medical Checkup)`
+            : `• March 02, 2026 – 08:15 AM
 • March 05, 2026 – 08:12 AM
 • March 10, 2026 – 08:20 AM`
 
-        if (type === 'tardiness') {
+        if (type.startsWith('tardiness')) {
             content = content
                 .replace(/{{salutation}}/g, 'Mr.')
-                .replace(/{{last_name}}/g, 'DOE')
+                .replace(/{{last_name}}/g, 'DAPIAOEN')
                 .replace(/{{shift_time}}/g, '8:00 AM')
                 .replace(/{{grace_period}}/g, '8:05 AM')
                 .replace(/{{instances_text}}/g, 'three')
                 .replace(/{{instances_count}}/g, '3')
                 .replace(/{{entries_list}}/g, mockEntriesList)
-        } else {
+        } else if (type === 'leave') {
             content = content
                 .replace(/{{salutation}}/g, 'Ms.')
                 .replace(/{{last_name}}/g, 'SMITH')
@@ -134,29 +337,27 @@ export default function EditFormsPage() {
                 .replace(/{{cutoff_text}}/g, 'first cutoff')
                 .replace(/{{month}}/g, 'March')
                 .replace(/{{year}}/g, '2026')
-                .replace(/{{entries_list}}/g, mockEntriesList.replace(/– 08:\d+ AM/g, '(Sick Leave)'))
+                .replace(/{{entries_list}}/g, mockEntriesList)
+        } else if (type === 'supervisor') {
+            content = content
+                .replace(/{{salutation}}/g, 'Ms.')
+                .replace(/{{employee_name}}/g, 'Kaila Rose Dapiaoen')
+                .replace(/{{last_name}}/g, 'Dapiaoen')
+                .replace(/{{pronoun_he_she}}/g, 'She')
+                .replace(/{{pronoun_his_her}}/g, 'her')
+                .replace(/{{instances_text}}/g, 'three')
+                .replace(/{{instances_count}}/g, '3')
+                .replace(/{{entries_list}}/g, mockEntriesList)
         }
+
+        const isProbee = type === 'tardiness-probee'
+        const isSupervisor = type === 'supervisor'
 
         return (
             <div className="bg-white border-0 shadow-2xl p-16 w-[816px] mx-auto min-h-[1056px] font-serif flex flex-col items-center">
-                {/* Official Header */}
-                <div className="flex flex-col items-center mb-8 text-center w-full">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="w-16 h-16 flex items-center justify-center rotate-45 border-4 border-[#7B0F2B] overflow-hidden bg-white shadow-sm">
-                            <div className="-rotate-45 flex flex-col items-center">
-                                <div className="w-5 h-5 bg-[#7B0F2B] mb-0.5"></div>
-                                <div className="text-[7.5px] font-black text-[#7B0F2B]">ABIC</div>
-                            </div>
-                        </div>
-                        <div className="text-left">
-                            <h2 className="text-3xl font-serif font-black text-black tracking-tight leading-none">{template.headerLogo}</h2>
-                            <p className="text-[11px] font-bold text-black tracking-[0.2em] uppercase mt-1">& Consultancy Corporation</p>
-                        </div>
-                    </div>
-                    <div className="text-[11px] text-[#444] font-medium leading-tight">
-                        Unit 202 Campos Rueda Bldg., Urban Avenue, Brgy. Pio Del Pilar, Makati City, 1230 <br />
-                        (02) 8646-6136
-                    </div>
+                {/* Header Image */}
+                <div className="flex justify-center mb-8 w-full" style={{ marginTop: '1.5cm' }}>
+                    <img src="/images/abic-header.png" alt="Company Header" className="max-w-[650px] w-full object-contain" />
                 </div>
 
                 <div className="w-full text-center mb-6">
@@ -170,36 +371,62 @@ export default function EditFormsPage() {
                 </div>
 
                 <div className="w-full text-left mb-6 text-sm font-bold space-y-1">
-                    <p>Employee Name: {type === 'tardiness' ? 'JOHN DOE' : 'JANE SMITH'}</p>
-                    <p>Position: Sample Employee</p>
-                    <p>Department: Administrative Department</p>
+                    {!isSupervisor && (
+                        <p>Employee Name: <span className="font-bold">{type === 'leave' ? 'JANE SMITH' : 'KAILA ROSE DAPIAOEN'}</span></p>
+                    )}
+                    <p>Position: {type === 'leave' ? 'Senior Accountant' : 'Sales Supervisor'}</p>
+                    <p>Department: Sales Department</p>
+                    {isSupervisor && (
+                        <p className="mt-4">Dear Ma&apos;am Angely,</p>
+                    )}
                 </div>
 
-                <div className="w-full text-justify text-sm leading-relaxed whitespace-pre-wrap flex-1 text-slate-800 italic">
-                    {content}
-                </div>
+                {isSupervisor ? (
+                    <div className="w-full text-justify text-sm leading-relaxed whitespace-pre-wrap flex-1 text-slate-800">
+                        {content}
+                    </div>
+                ) : (
+                    <>
+                        {/* Template body already includes salutation */}
+                        <div className="w-full text-justify text-sm leading-relaxed whitespace-pre-wrap flex-1 text-slate-800">
+                            {content}
+                        </div>
+                    </>
+                )}
 
                 {/* Official Footer Signature */}
                 <div className="w-full mt-12 text-left text-sm space-y-8">
                     <div>
                         <p>Respectfully,</p>
                         <div className="mt-8">
-                            <p className="font-black text-lg underline uppercase">Aizle Marie M. Atienza</p>
-                            <p className="font-medium text-slate-600">Admin Assistant</p>
+                            <p className="font-black text-lg underline uppercase">{template.signatoryName || 'AIZLE MARIE M. ATIENZA'}</p>
+                            <p className="font-medium text-slate-600">{template.footer || 'Admin Assistant'}</p>
                         </div>
                     </div>
 
-                    <div className="pt-8 border-t border-dashed border-slate-300">
-                        <p className="font-bold italic mb-4">Employee Acknowledgment:</p>
-                        <p className="mb-8 font-medium">I acknowledge receipt of this formal notice.</p>
-                        <div className="grid grid-cols-2 gap-10">
-                            <div className="border-t border-black pt-1 text-[10px] font-bold uppercase mt-8 text-center pb-2">Signature Over Printed Name</div>
-                            <div className="border-t border-black pt-1 text-[10px] font-bold uppercase mt-8 w-24 text-center pb-2">Date</div>
+                    {!isSupervisor && (
+                        <div className="pt-8 border-t border-dashed border-slate-300">
+                            <p className="font-bold mb-4">Employee Acknowledgment:</p>
+                            <p className="mb-4 font-medium">I, <span className="font-bold">{type === 'leave' ? 'Jane Smith' : 'Kaila Rose Dapiaoen'}</span>, hereby acknowledge receipt of this Formal Warning Letter.</p>
+                            <div className="space-y-6">
+                                <div className="flex items-end gap-2 max-w-md">
+                                    <span className="font-bold whitespace-nowrap">Employee Signature:</span>
+                                    <div className="flex-1 border-b border-black h-5"></div>
+                                </div>
+                                <div className="flex items-end gap-2 max-w-[280px]">
+                                    <span className="font-bold whitespace-nowrap">Date:</span>
+                                    <div className="flex-1 border-b border-black h-5"></div>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
         )
+    }
+
+    if (isLoading) {
+        return <EditorSkeleton />
     }
 
     return (
@@ -234,7 +461,7 @@ export default function EditFormsPage() {
                             Reset Local
                         </Button>
                         <Button
-                            onClick={handleSave}
+                            onClick={() => handleSave()}
                             disabled={isSaving}
                             className="bg-[#A4163A] hover:bg-[#D61F4D] text-white rounded-xl font-black px-8 py-6 shadow-xl active:scale-95 transition-all text-lg flex-1 md:flex-none"
                         >
@@ -255,63 +482,104 @@ export default function EditFormsPage() {
             </div>
 
             {/* --- MAIN CONTENT --- */}
-            <div className="max-w-[1600px] mx-auto p-6 lg:p-10">
-                <Tabs defaultValue="tardiness" onValueChange={setActiveTab} className="space-y-8">
+            <div className="max-w-[1600px] mx-auto p-6 lg:p-10 space-y-8">
+                {hasLocalOnlyChanges && (
+                    <div className="bg-amber-50 border-2 border-amber-200 text-amber-800 p-5 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg animate-in fade-in slide-in-from-top-4 duration-700">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-amber-100 rounded-2xl">
+                                <AlertTriangle className="w-6 h-6 text-amber-600" />
+                            </div>
+                            <div>
+                                <h4 className="font-black text-lg tracking-tight">Sync Required</h4>
+                                <p className="text-sm font-medium opacity-80">You have customized templates in this browser that are not yet saved to the database.</p>
+                            </div>
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="lg"
+                            onClick={() => handleSave()}
+                            disabled={isSaving}
+                            className="bg-white hover:bg-amber-600 hover:text-white border-amber-300 text-amber-900 font-black rounded-2xl px-8 h-14 shadow-md transition-all active:scale-95"
+                        >
+                            {isSaving ? 'Syncing...' : 'Migrate to Cloud'}
+                        </Button>
+                    </div>
+                )}
+
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
                     <div className="flex justify-center">
-                        <TabsList className="bg-white/50 backdrop-blur-md p-1.5 rounded-2xl border-2 border-[#FFE5EC] shadow-inner h-auto">
+                        <TabsList className="bg-white/50 backdrop-blur-md p-1.5 rounded-2xl border-2 border-[#FFE5EC] shadow-inner h-auto flex flex-wrap justify-center gap-2">
                             <TabsTrigger
-                                value="tardiness"
-                                className="px-10 py-3 rounded-xl font-black text-sm data-[state=active]:bg-[#4A081A] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+                                value="tardiness-regular"
+                                className="px-6 py-3 rounded-xl font-black text-xs data-[state=active]:bg-[#4A081A] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
                             >
                                 <Clock className="w-4 h-4 mr-2" />
-                                TARDINESS FORM
+                                TARDINESS (REGULAR)
+                            </TabsTrigger>
+                            <TabsTrigger
+                                value="tardiness-probee"
+                                className="px-6 py-3 rounded-xl font-black text-xs data-[state=active]:bg-[#4A081A] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+                            >
+                                <Clock className="w-4 h-4 mr-2" />
+                                TARDINESS (PROBEE)
                             </TabsTrigger>
                             <TabsTrigger
                                 value="leave"
-                                className="px-10 py-3 rounded-xl font-black text-sm data-[state=active]:bg-[#4A081A] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+                                className="px-6 py-3 rounded-xl font-black text-xs data-[state=active]:bg-[#4A081A] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
                             >
                                 <Calendar className="w-4 h-4 mr-2" />
                                 LEAVE FORM
                             </TabsTrigger>
+                            <TabsTrigger
+                                value="supervisor"
+                                className="px-6 py-3 rounded-xl font-black text-xs data-[state=active]:bg-[#4A081A] data-[state=active]:text-white data-[state=active]:shadow-lg transition-all"
+                            >
+                                <User className="w-4 h-4 mr-2" />
+                                SUPERVISOR (FORM 1)
+                            </TabsTrigger>
                         </TabsList>
                     </div>
 
-                    {/* --- TARDINESS EDITOR --- */}
-                    <TabsContent value="tardiness" className="grid grid-cols-1 lg:grid-cols-2 gap-10 focus-visible:outline-none">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                         {/* Editor Side */}
                         <div className="space-y-6 animate-in slide-in-from-left duration-500">
                             <Card className="border-0 shadow-2xl rounded-3xl overflow-hidden bg-white">
                                 <CardHeader className="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-6">
-                                    <CardTitle className="flex items-center gap-3">
-                                        <FileText className="w-6 h-6 text-rose-400" />
-                                        Form Configuration
-                                    </CardTitle>
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="flex items-center gap-3">
+                                            <FileText className="w-6 h-6 text-rose-400" />
+                                            {activeTab === 'supervisor' ? 'Supervisor Advisory' : 'Employee Warning'} Config
+                                        </CardTitle>
+                                        <Badge className="bg-rose-500 text-white border-0 font-bold uppercase text-[9px]">
+                                            {activeTab.replace('-', ' ').toUpperCase()}
+                                        </Badge>
+                                    </div>
                                 </CardHeader>
                                 <CardContent className="p-8 space-y-6">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest pl-1">Header Logo Text</Label>
                                             <Input
-                                                value={tardinessTemplate.headerLogo}
-                                                onChange={(e) => setTardinessTemplate({ ...tardinessTemplate, headerLogo: e.target.value })}
+                                                value={(templates as any)[activeTab].headerLogo}
+                                                onChange={(e) => updateTemplate('headerLogo', e.target.value)}
                                                 className="bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-bold text-[#4A081A] focus:ring-[#A4163A]"
                                             />
                                         </div>
                                         <div className="space-y-2">
                                             <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest pl-1">Main Title</Label>
                                             <Input
-                                                value={tardinessTemplate.title}
-                                                onChange={(e) => setTardinessTemplate({ ...tardinessTemplate, title: e.target.value })}
+                                                value={(templates as any)[activeTab].title}
+                                                onChange={(e) => updateTemplate('title', e.target.value)}
                                                 className="bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-bold text-[#4A081A] focus:ring-[#A4163A]"
                                             />
                                         </div>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest pl-1">Subject Row</Label>
+                                        <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest pl-1">Subject / Warning Level</Label>
                                         <Input
-                                            value={tardinessTemplate.subject}
-                                            onChange={(e) => setTardinessTemplate({ ...tardinessTemplate, subject: e.target.value })}
+                                            value={(templates as any)[activeTab].subject}
+                                            onChange={(e) => updateTemplate('subject', e.target.value)}
                                             className="bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-bold text-[#4A081A] focus:ring-[#A4163A]"
                                         />
                                     </div>
@@ -319,22 +587,33 @@ export default function EditFormsPage() {
                                     <div className="space-y-2">
                                         <div className="flex justify-between items-center pl-1">
                                             <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest">Letter Body</Label>
-                                            <Badge variant="outline" className="text-[10px] text-rose-600 border-rose-200">Supports Placeholders</Badge>
+                                            <Badge variant="outline" className="text-[10px] text-rose-600 border-rose-200 uppercase font-black">Dynamic Context</Badge>
                                         </div>
                                         <Textarea
-                                            value={tardinessTemplate.body}
-                                            onChange={(e) => setTardinessTemplate({ ...tardinessTemplate, body: e.target.value })}
-                                            className="min-h-[300px] bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-serif text-lg leading-relaxed text-[#4A081A] focus:ring-[#A4163A]"
+                                            value={(templates as any)[activeTab].body}
+                                            onChange={(e) => updateTemplate('body', e.target.value)}
+                                            className="min-h-[350px] bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-serif text-lg leading-relaxed text-[#4A081A] focus:ring-[#A4163A]"
                                         />
                                     </div>
 
-                                    <div className="space-y-2">
-                                        <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest pl-1">Small Footer Text</Label>
-                                        <Input
-                                            value={tardinessTemplate.footer}
-                                            onChange={(e) => setTardinessTemplate({ ...tardinessTemplate, footer: e.target.value })}
-                                            className="bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-bold text-[#4A081A] focus:ring-[#A4163A]"
-                                        />
+                                    <div className="grid grid-cols-2 gap-4 border-t-2 border-slate-100 pt-6">
+                                        <div className="space-y-2">
+                                            <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest pl-1">Signatory Name</Label>
+                                            <Input
+                                                value={(templates as any)[activeTab].signatoryName}
+                                                onChange={(e) => updateTemplate('signatoryName', e.target.value)}
+                                                placeholder="AIZLE MARIE M. ATIENZA"
+                                                className="bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-black text-[#4A081A] focus:ring-[#A4163A]"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest pl-1">Signatory Title</Label>
+                                            <Input
+                                                value={(templates as any)[activeTab].footer}
+                                                onChange={(e) => updateTemplate('footer', e.target.value)}
+                                                className="bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-bold text-[#4A081A] focus:ring-[#A4163A]"
+                                            />
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
@@ -343,138 +622,45 @@ export default function EditFormsPage() {
                                 <CardHeader className="p-6">
                                     <CardTitle className="text-sm font-black text-rose-900 uppercase tracking-widest flex items-center gap-2">
                                         <Type className="w-5 h-5 text-rose-500" />
-                                        Available Placeholders
+                                        Contextual Placeholders
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="px-6 pb-6">
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                        {['{{salutation}}', '{{last_name}}', '{{shift_time}}', '{{grace_period}}', '{{instances_text}}', '{{instances_count}}', '{{entries_list}}'].map(tag => (
-                                            <div key={tag} className="bg-white px-3 py-2 rounded-lg border border-rose-200 text-xs font-mono font-bold text-rose-700 flex items-center justify-between">
+                                    <div className="flex flex-wrap gap-2">
+                                        {(activeTab === 'supervisor'
+                                            ? ['{{employee_name}}', '{{last_name}}', '{{instances_text}}', '{{instances_count}}', '{{entries_list}}', '{{pronoun_he_she}}', '{{pronoun_his_her}}']
+                                            : activeTab === 'leave'
+                                                ? ['{{salutation}}', '{{last_name}}', '{{instances_text}}', '{{instances_count}}', '{{month}}', '{{year}}', '{{cutoff_text}}', '{{entries_list}}']
+                                                : ['{{salutation}}', '{{last_name}}', '{{shift_time}}', '{{grace_period}}', '{{instances_text}}', '{{instances_count}}', '{{entries_list}}']
+                                        ).map(tag => (
+                                            <div key={tag} className="bg-white px-3 py-1.5 rounded-lg border border-rose-200 text-[10px] font-mono font-bold text-rose-700">
                                                 {tag}
                                             </div>
                                         ))}
                                     </div>
-                                    <p className="mt-4 text-[11px] font-medium text-rose-600/80 italic">
-                                        Placeholders will be automatically replaced with high-fidelity employee data when viewing or sending letters.
+                                    <p className="mt-4 text-[11px] font-medium text-rose-600/80">
+                                        These values will be automatically replaced with real employee data during letter generation.
                                     </p>
                                 </CardContent>
                             </Card>
                         </div>
 
                         {/* Preview Side */}
-                        <div className="space-y-6 animate-in slide-in-from-right duration-500 sticky top-36 h-fit">
-                            <div className="flex items-center justify-between px-4">
+                        <div className="space-y-6 animate-in slide-in-from-right duration-500">
+                            <div className="flex items-center justify-between px-4 sticky top-[120px] z-10 bg-[#FDF4F6]/80 backdrop-blur-sm py-2">
                                 <h3 className="text-xl font-black text-[#4A081A] flex items-center gap-2">
                                     <Eye className="w-6 h-6 text-[#A4163A]" />
-                                    Live Preview
+                                    Dynamic Preview
                                 </h3>
                                 <Badge className="bg-[#A4163A] text-white px-3 py-1 rounded-full uppercase text-[10px] font-black tracking-widest animate-pulse">
-                                    Interactive Mode
+                                    Live Rendering
                                 </Badge>
                             </div>
-                            {renderPreview(tardinessTemplate, 'tardiness')}
-                        </div>
-                    </TabsContent>
-
-                    {/* --- LEAVE EDITOR --- */}
-                    <TabsContent value="leave" className="grid grid-cols-1 lg:grid-cols-2 gap-10 focus-visible:outline-none">
-                        {/* Editor Side */}
-                        <div className="space-y-6 animate-in slide-in-from-left duration-500">
-                            <Card className="border-0 shadow-2xl rounded-3xl overflow-hidden bg-white">
-                                <CardHeader className="bg-gradient-to-r from-slate-800 to-slate-900 text-white p-6">
-                                    <CardTitle className="flex items-center gap-3">
-                                        <FileText className="w-6 h-6 text-rose-400" />
-                                        Leave Advisory Config
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-8 space-y-6">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="space-y-2">
-                                            <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest pl-1">Header Logo Text</Label>
-                                            <Input
-                                                value={leaveTemplate.headerLogo}
-                                                onChange={(e) => setLeaveTemplate({ ...leaveTemplate, headerLogo: e.target.value })}
-                                                className="bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-bold text-[#4A081A] focus:ring-[#A4163A]"
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest pl-1">Main Title</Label>
-                                            <Input
-                                                value={leaveTemplate.title}
-                                                onChange={(e) => setLeaveTemplate({ ...leaveTemplate, title: e.target.value })}
-                                                className="bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-bold text-[#4A081A] focus:ring-[#A4163A]"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest pl-1">Subject Row</Label>
-                                        <Input
-                                            value={leaveTemplate.subject}
-                                            onChange={(e) => setLeaveTemplate({ ...leaveTemplate, subject: e.target.value })}
-                                            className="bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-bold text-[#4A081A] focus:ring-[#A4163A]"
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between items-center pl-1">
-                                            <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest">Letter Body</Label>
-                                            <Badge variant="outline" className="text-[10px] text-rose-600 border-rose-200">Extended Logic</Badge>
-                                        </div>
-                                        <Textarea
-                                            value={leaveTemplate.body}
-                                            onChange={(e) => setLeaveTemplate({ ...leaveTemplate, body: e.target.value })}
-                                            className="min-h-[300px] bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-serif text-lg leading-relaxed text-[#4A081A] focus:ring-[#A4163A]"
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Label className="text-[#4A081A] font-black uppercase text-[10px] tracking-widest pl-1">Small Footer Text</Label>
-                                        <Input
-                                            value={leaveTemplate.footer}
-                                            onChange={(e) => setLeaveTemplate({ ...leaveTemplate, footer: e.target.value })}
-                                            className="bg-[#FDF4F6] border-2 border-[#FFE5EC] rounded-xl font-bold text-[#4A081A] focus:ring-[#A4163A]"
-                                        />
-                                    </div>
-                                </CardContent>
-                            </Card>
-
-                            <Card className="border-0 shadow-xl rounded-3xl overflow-hidden bg-rose-50 border-l-4 border-rose-500">
-                                <CardHeader className="p-6">
-                                    <CardTitle className="text-sm font-black text-rose-900 uppercase tracking-widest flex items-center gap-2">
-                                        <Type className="w-5 h-5 text-rose-500" />
-                                        Leave Specific tags
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="px-6 pb-6">
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                                        {['{{salutation}}', '{{last_name}}', '{{instances_text}}', '{{instances_count}}', '{{cutoff_text}}', '{{month}}', '{{year}}', '{{entries_list}}'].map(tag => (
-                                            <div key={tag} className="bg-white px-3 py-2 rounded-lg border border-rose-200 text-xs font-mono font-bold text-rose-700 flex items-center justify-between">
-                                                {tag}
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <p className="mt-4 text-[11px] font-medium text-rose-600/80 italic text-center">
-                                        Dynamic leave details will be injected based on approved leave requests.
-                                    </p>
-                                </CardContent>
-                            </Card>
-                        </div>
-
-                        {/* Preview Side */}
-                        <div className="space-y-6 animate-in slide-in-from-right duration-500 sticky top-36 h-fit">
-                            <div className="flex items-center justify-between px-4">
-                                <h3 className="text-xl font-black text-[#4A081A] flex items-center gap-2">
-                                    <Eye className="w-6 h-6 text-[#A4163A]" />
-                                    Live Preview
-                                </h3>
-                                <Badge className="bg-[#A4163A] text-white px-3 py-1 rounded-full uppercase text-[10px] font-black tracking-widest">
-                                    A4 Format
-                                </Badge>
+                            <div className="sticky top-[180px]">
+                                {renderPreview()}
                             </div>
-                            {renderPreview(leaveTemplate, 'leave')}
                         </div>
-                    </TabsContent>
+                    </div>
                 </Tabs>
             </div>
 

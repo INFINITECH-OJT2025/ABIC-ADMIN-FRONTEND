@@ -371,7 +371,7 @@ export default function AdminHeadSidebar() {
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <FileText size={18} />
-              <span>Letter</span>
+              <span>Warning Letter</span>
             </Link>
 
           </div>

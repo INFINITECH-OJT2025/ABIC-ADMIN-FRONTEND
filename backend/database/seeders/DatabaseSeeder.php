@@ -24,6 +24,8 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             DepartmentShiftScheduleSeeder::class,
+            WarningLetterTemplateSeeder::class,
+            HierarchySeeder::class,
         ]);
     }
 }

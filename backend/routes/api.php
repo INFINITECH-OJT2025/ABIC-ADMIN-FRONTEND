@@ -107,3 +107,10 @@ Route::get('/admin-head/attendance/tardiness/years', [TardinessEntryController::
 // Leave Routes
 use App\Http\Controllers\Api\LeaveController;
 Route::apiResource('leaves', LeaveController::class);
+
+// Warning Letter Template Routes
+use App\Http\Controllers\WarningLetterTemplateController;
+Route::get('/warning-letter-templates', [WarningLetterTemplateController::class, 'index']);
+Route::post('/warning-letter-templates/bulk', [WarningLetterTemplateController::class, 'bulkUpdate']);
+Route::get('/warning-letter-templates/{slug}', [WarningLetterTemplateController::class, 'show']);
+Route::put('/warning-letter-templates/{slug}', [WarningLetterTemplateController::class, 'update']);
