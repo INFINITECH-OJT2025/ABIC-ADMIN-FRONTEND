@@ -25,7 +25,7 @@ import {
 } from 'lucide-react'
 import { getApiUrl } from '@/lib/api'
 import { toast } from 'sonner'
-import { format } from 'date-fns'
+import { format, addMonths } from 'date-fns'
 
 interface Employee {
   id: string
@@ -39,6 +39,10 @@ interface Employee {
 
 interface Evaluation {
   employee_id: string
+  score_1: number | null
+  remarks_1: string | null
+  score_2: number | null
+  remarks_2: string | null
   status: string | null
 }
 
@@ -143,6 +147,53 @@ export default function EvaluateEmployeePage() {
 
   const selectedEmployee = useMemo(() => employees.find(e => e.id === selectedEmployeeId), [selectedEmployeeId, employees])
 
+  const isDirty = useMemo(() => {
+    const hasScores = Object.values(scores).some(s => s !== '')
+    return hasScores || remarks !== '' || agreement !== null || recommendation !== null
+  }, [scores, remarks, agreement, recommendation])
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isDirty])
+
+  const handleBackWindow = () => {
+    if (isDirty) {
+      if (window.confirm("You have unsaved evaluation progress. Are you sure you want to leave?")) {
+        router.back()
+      }
+    } else {
+      router.back()
+    }
+  }
+
+  const handleEmployeeChange = (employeeId: string) => {
+    if (isDirty && !window.confirm("You have unsaved progress. Are you sure you want to change candidate? Unsaved changes will be lost.")) {
+      return;
+    }
+    setSelectedEmployeeId(employeeId);
+    setScores({
+      work_attitude: '',
+      job_knowledge: '',
+      quality_of_work: '',
+      handle_workload: '',
+      work_with_supervisor: '',
+      work_with_coemployees: '',
+      attendance: '',
+      compliance: '',
+      grooming: '',
+      communication: ''
+    });
+    setRemarks('');
+    setAgreement(null);
+    setRecommendation(null);
+  }
   const employeeDetails = useMemo(() => {
     if (!selectedEmployee) return null
     const deptObj = departments.find(d => String(d.id) === String(selectedEmployee.department) || d.name === selectedEmployee.department)
@@ -158,6 +209,25 @@ export default function EvaluateEmployeePage() {
     return Object.values(scores).reduce((acc, curr) => acc + (parseInt(curr) || 0), 0)
   }, [scores])
 
+  const evaluationContext = useMemo(() => {
+    if (!selectedEmployee) return { isSecond: false, ratingPeriod: format(new Date(), 'MMMM yyyy'), targetScore: 'score_1', targetRemarks: 'remarks_1' }
+    const prevEval = evaluations[selectedEmployee.id]
+    
+    const hiredDate = new Date(selectedEmployee.date_hired)
+    const firstEvalDate = addMonths(hiredDate, 3)
+    const secondEvalDate = addMonths(hiredDate, 5)
+    
+    // Check if 1st eval failed (<= 30)
+    const failedFirst = prevEval && prevEval.score_1 !== null && prevEval.score_1 <= 30
+    
+    return {
+      isSecond: !!failedFirst,
+      ratingPeriod: format(failedFirst ? secondEvalDate : firstEvalDate, 'MMMM dd, yyyy (EEEE)'),
+      targetScore: failedFirst ? 'score_2' : 'score_1',
+      targetRemarks: failedFirst ? 'remarks_2' : 'remarks_1'
+    }
+  }, [selectedEmployee, evaluations])
+
   const handleScoreChange = (id: string, value: string) => {
     const cleaned = value.replace(/[^1-5]/g, '').slice(0, 1)
     setScores(prev => ({ ...prev, [id]: cleaned }))
@@ -170,15 +240,27 @@ export default function EvaluateEmployeePage() {
 
     setIsSubmitting(true)
     try {
+      const computedRemarks = totalScore >= 31 ? 'Passed' : 'Failed'
+      const derivedStatus = recommendation === 'yes' ? 'Regular' : 'Probee'
+
+      const payload = {
+        employee_id: selectedEmployeeId,
+        [evaluationContext.targetScore]: totalScore,
+        [evaluationContext.targetRemarks]: computedRemarks,
+        status: derivedStatus,
+        regularization_date: recommendation === 'yes' ? format(new Date(), 'yyyy-MM-dd') : undefined
+      }
+
+      // If it's the first eval and they passed, automatically fail the second one to skip it
+      if (evaluationContext.targetScore === 'score_1' && computedRemarks === 'Passed') {
+        payload.score_2 = 0
+        payload.remarks_2 = 'Failed'
+      }
+
       const response = await fetch(`${getApiUrl()}/api/evaluations`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          employee_id: selectedEmployeeId,
-          score_1: totalScore,
-          remarks_1: remarks,
-          status: recommendation === 'yes' ? 'Regular' : 'Probee' 
-        })
+        body: JSON.stringify(payload)
       })
 
       const data = await response.json()
@@ -203,7 +285,7 @@ export default function EvaluateEmployeePage() {
     <div className="min-h-screen bg-slate-200 py-10 px-4 font-serif">
       {/* Action Bar */}
       <div className="max-w-[850px] mx-auto mb-4 flex justify-between">
-        <Button variant="outline" onClick={() => router.back()} className="rounded-none border-black flex gap-2">
+        <Button variant="outline" onClick={handleBackWindow} className="rounded-none border-black flex gap-2">
           <ArrowLeft className="w-4 h-4" /> Back
         </Button>
         <Button 
@@ -229,10 +311,9 @@ export default function EvaluateEmployeePage() {
           <div className="flex gap-2">
             <span className="font-bold whitespace-nowrap">NAME</span>
             <span className="w-full relative border-b border-black">
-              <span className="absolute left-0 -top-0.5 text-[#D32F2F] font-bold">
-                {selectedEmployee ? employeeDetails?.name : (
-                  <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
-                    <SelectTrigger className="h-6 border-none bg-transparent p-0 shadow-none text-rose-700 font-bold focus:ring-0">
+              <span className="absolute left-0 -top-1 w-full text-[#D32F2F] font-bold">
+                  <Select value={selectedEmployeeId} onValueChange={handleEmployeeChange}>
+                    <SelectTrigger className="h-6 border-none bg-transparent p-0 shadow-none text-[#D32F2F] font-bold focus:ring-0 w-full hover:bg-transparent hover:text-rose-800 transition-colors">
                       <SelectValue placeholder="[Select Employee Here]" />
                     </SelectTrigger>
                     <SelectContent>
@@ -241,9 +322,9 @@ export default function EvaluateEmployeePage() {
                       ))}
                     </SelectContent>
                   </Select>
-                )}
               </span>
-              <span className="ml-[180px] font-bold">:</span>
+              <span className="ml-[180px] font-bold opacity-0 invisible">:</span>
+              <span className="absolute right-0 top-0 font-bold">:</span>
             </span>
           </div>
           <div className="flex gap-2">
@@ -259,7 +340,14 @@ export default function EvaluateEmployeePage() {
             <span className="font-bold whitespace-nowrap">RATING PERIOD</span>
             <span className="w-full relative border-b border-black">
               <span className="absolute left-0 -top-0.5 text-[#D32F2F] font-bold">
-                {format(new Date(), 'MMMM yyyy')}
+                {selectedEmployee && (
+                  <>
+                    {evaluationContext.ratingPeriod}
+                    <span className="ml-4 text-xs italic text-slate-400 font-normal">
+                      ({evaluationContext.isSecond ? '2nd' : '1st'} Evaluation)
+                    </span>
+                  </>
+                )}
               </span>
               <span className="ml-[180px] font-bold">:</span>
             </span>
@@ -333,7 +421,9 @@ export default function EvaluateEmployeePage() {
           <div className="space-y-1">
             <div className="flex gap-2 font-bold">
               <span className="text-[#0000FF] underline">DATE:</span>
-              <div className="flex-1 border-b border-black"></div>
+              <div className="flex-1 border-b border-black relative">
+                <span className="absolute left-2 -top-0.5 text-[#D32F2F] font-bold">{format(new Date(), 'MMMM dd, yyyy')}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -374,11 +464,15 @@ export default function EvaluateEmployeePage() {
           </div>
         </div>
 
-        {/* Comment Lines */}
-        <div className="space-y-2 mb-20">
-          <div className="border-b border-black h-4 w-full"></div>
-          <div className="border-b border-black h-4 w-full"></div>
-          <div className="border-b border-black h-4 w-full"></div>
+        {/* Comment Lines / Remarks Section */}
+        <div className="mb-20">
+          <div className="font-bold uppercase mb-2">COMMENTS / REMARKS:</div>
+          <Textarea 
+            placeholder="Write your comments here..."
+            className="w-full border-b border-black rounded-none shadow-none focus:ring-0 min-h-[100px] resize-none p-0 text-[13px] leading-relaxed italic"
+            value={remarks}
+            onChange={(e) => setRemarks(e.target.value)}
+          />
         </div>
 
         {/* Manager Signatures */}
@@ -389,7 +483,9 @@ export default function EvaluateEmployeePage() {
           </div>
           <div className="flex gap-2">
             <span className="min-w-[40px]">Date:</span>
-            <div className="flex-1 border-b border-black"></div>
+            <div className="flex-1 border-b border-black relative">
+                <span className="absolute left-2 -top-0.5 text-[#D32F2F] font-bold">{format(new Date(), 'MMMM dd, yyyy')}</span>
+            </div>
           </div>
           
           <div className="flex gap-2">
@@ -398,7 +494,9 @@ export default function EvaluateEmployeePage() {
           </div>
           <div className="flex gap-2">
             <span className="min-w-[40px]">Date:</span>
-            <div className="flex-1 border-b border-black"></div>
+            <div className="flex-1 border-b border-black relative">
+                <span className="absolute left-2 -top-0.5 text-[#D32F2F] font-bold">{format(new Date(), 'MMMM dd, yyyy')}</span>
+            </div>
           </div>
           
           <div className="flex gap-2">
@@ -407,7 +505,9 @@ export default function EvaluateEmployeePage() {
           </div>
           <div className="flex gap-2">
             <span className="min-w-[40px]">Date:</span>
-            <div className="flex-1 border-b border-black"></div>
+            <div className="flex-1 border-b border-black relative">
+                <span className="absolute left-2 -top-0.5 text-[#D32F2F] font-bold">{format(new Date(), 'MMMM dd, yyyy')}</span>
+            </div>
           </div>
         </div>
 

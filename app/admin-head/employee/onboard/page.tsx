@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Briefcase,
   User,
@@ -1572,14 +1573,13 @@ function OnboardPageContent() {
       )}
 
       {/* ----- INTEGRATED PREMIUM HEADER ----- */}
-      <header className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md p-4 md:p-8 mb-4 md:mb-8 relative overflow-hidden">
-        <div className="max-w-[1600px] mx-auto flex flex-wrap items-center gap-6 lg:gap-8 relative z-10">
+      <header className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md p-4 md:p-8 mb-6 relative overflow-hidden">
+        <div className="w-full mx-auto flex flex-wrap items-center gap-6 lg:gap-8 relative z-10">
           <div className="flex flex-col">
             <h1 className="text-2xl md:text-4xl font-bold tracking-tight mb-2">
               {view === 'onboard' ? 'Onboard New Employee' : view === 'checklist' ? 'Onboarding Process' : 'Employee Data Entry'}
             </h1>
             <div className="flex items-center gap-2 text-white/80 transition-all duration-500">
-              {view === 'onboard' ? <Briefcase className="w-4 h-4 md:w-5 h-5" /> : <ClipboardList className="w-4 h-4 md:w-5 h-5" />}
               <p className="text-sm md:text-lg font-bold uppercase tracking-widest leading-none">ABIC REALTY & CONSULTANCY</p>
             </div>
             {isRehireFlow && (
@@ -1632,9 +1632,6 @@ function OnboardPageContent() {
               </Button>
             </div>
           )}
-        </div>
-        <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none transition-transform duration-700 ease-in-out transform rotate-12">
-          {view === 'onboard' ? <User className="w-48 h-48" /> : view === 'checklist' ? <ClipboardList className="w-48 h-48" /> : <Briefcase className="w-48 h-48" />}
         </div>
       </header>
 
@@ -1759,38 +1756,28 @@ function OnboardPageContent() {
           )}
 
           {view === 'checklist' && checklistData && (
-            <div className="max-w-[1000px] mx-auto py-12 px-6 text-stone-900 animate-in fade-in zoom-in-95 duration-700">
+            <div className="w-full pb-12 pt-0 px-6 text-stone-900 animate-in fade-in zoom-in-95 duration-700">
               {/* Premium Coupon Bond Look */}
               <div className="relative bg-[#FCFBF7] shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-sm border-[1px] border-stone-200 overflow-hidden before:content-[''] before:absolute before:inset-0 before:border-[16px] before:border-double before:border-stone-100/50 before:pointer-events-none">
                 
-                {/* Decorative Header */}
-                <div className="pt-16 pb-12 px-12 text-center border-b-[1px] border-dashed border-stone-300 mx-12">
-                   <div className="mb-6 flex justify-center">
-                     <div className="w-16 h-16 bg-[#A4163A] rounded-full flex items-center justify-center shadow-lg transform -rotate-12 outline outline-offset-4 outline-1 outline-dashed outline-[#A4163A]">
-                        <LucideSave className="text-white w-8 h-8" />
-                     </div>
+
+                {/* Progress Strip - Masterfile Header Style */}
+                <div className="mx-12 mt-12 bg-gradient-to-r from-[#4A081A]/10 to-transparent border-b-2 border-[#630C22] p-6 flex justify-between items-center">
+                   <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-[#A0153E]/70 uppercase tracking-widest leading-none mb-2 text-left">Filing Representative</span>
+                      <span className="text-2xl font-black text-[#4A081A] leading-none text-left">{checklistData.name}</span>
                    </div>
-                   <h2 className="text-3xl font-serif font-black tracking-tighter text-stone-800 mb-2 uppercase italic">Onboarding Assessment Docket</h2>
-                   <div className="flex items-center justify-center gap-4 text-xs font-black tracking-[0.3em] text-[#A4163A] uppercase">
-                     <span>Serial No. OP-{onboardingEmployeeId?.slice(-6).toUpperCase() || 'NEW'}</span>
-                     <div className="w-1.5 h-1.5 rounded-full bg-stone-300" />
-                     <span>EST. 1995</span>
+                   <div className="text-right flex flex-col items-end">
+                      <span className="text-[10px] font-black text-[#630C22]/70 uppercase tracking-widest leading-none mb-2">Completion Index</span>
+                      <div className="flex items-center gap-3">
+                         <span className="inline-block w-3 h-3 rounded-full bg-[#C9184A]" />
+                         <span className="text-3xl font-black text-[#4A081A] leading-none">{completionPercentage}%</span>
+                      </div>
                    </div>
                 </div>
 
-                {/* Progress Strip */}
-                <div className="px-12 py-8 bg-[#F5F2EA]/30">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex flex-col">
-                       <span className="text-[10px] font-black text-stone-400 uppercase tracking-widest leading-none mb-1 text-left">Filing Representative</span>
-                       <span className="text-lg font-serif font-bold text-stone-800 leading-none text-left">{checklistData.name}</span>
-                    </div>
-                    <div className="text-right flex flex-col items-end">
-                       <span className="text-[10px] font-black text-[#A4163A] uppercase tracking-widest leading-none mb-1">Completion Index</span>
-                       <span className="text-3xl font-serif font-black text-stone-900 leading-none">{completionPercentage}%</span>
-                    </div>
-                  </div>
-                  <div className="w-full h-1 bg-stone-200 rounded-full overflow-hidden">
+                <div className="px-12 pt-6 pb-2">
+                  <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden border border-stone-200">
                     <div 
                       className="h-full bg-[#A4163A] transition-all duration-1000 shadow-[0_0_10px_rgba(164,22,58,0.4)]" 
                       style={{ width: `${completionPercentage}%` }}
@@ -1804,16 +1791,36 @@ function OnboardPageContent() {
                       <Table>
                         <TableHeader className="bg-stone-50 border-b-[1px] border-stone-300">
                           <TableRow className="hover:bg-transparent">
-                            <TableHead className="w-[180px] font-black text-stone-500 uppercase tracking-widest text-[9px] py-4 text-center">Filing Date</TableHead>
-                            <TableHead className="w-[100px] font-black text-stone-500 uppercase tracking-widest text-[9px] py-4 text-center">Seal</TableHead>
-                            <TableHead className="font-black text-stone-500 uppercase tracking-widest text-[9px] py-4 text-left">Task Description</TableHead>
+                            <TableHead className="w-[250px] font-black text-stone-500 uppercase tracking-widest text-[11px] py-5 text-center border-r-[1px] border-stone-200">Complete Date</TableHead>
+                            <TableHead className="w-[120px] font-black text-stone-500 uppercase tracking-widest text-[11px] py-5 text-center border-r-[1px] border-stone-200">
+                              Status
+                            </TableHead>
+                            <TableHead className="font-black text-stone-500 uppercase tracking-widest text-[11px] py-5 text-left px-8">
+                              <div className="flex items-center justify-between w-full">
+                                <span>Tasks</span>
+                                <div className="flex items-center pr-4">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleAllTasks();
+                                    }}
+                                    className="h-8 px-4 border-[#A4163A]/20 bg-white hover:bg-[#A4163A]/5 text-[#A4163A] font-black text-[10px] uppercase tracking-widest rounded transition-all shadow-sm flex items-center gap-2"
+                                  >
+                                    <Check className="h-3.5 w-3.5" />
+                                    {onboardingTasks.length > 0 && onboardingTasks.every(task => completedTasks[task]) ? 'Uncheck All' : 'Check All'}
+                                  </Button>
+                                </div>
+                              </div>
+                            </TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {loadingTasks ? (
-                            <TableRow><TableCell colSpan={3} className="py-20 text-center text-stone-400 italic font-serif">Retreiving assessment records...</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={3} className="py-20 text-center text-stone-400 italic">Retreiving assessment records...</TableCell></TableRow>
                           ) : onboardingTasks.length === 0 ? (
-                            <TableRow><TableCell colSpan={3} className="py-20 text-center text-stone-400 italic font-serif text-lg">No required tasks identified</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={3} className="py-20 text-center text-stone-400 italic text-lg">No required tasks identified</TableCell></TableRow>
                           ) : (
                             onboardingTasks.map((task, index) => (
                               <TableRow 
@@ -1821,25 +1828,25 @@ function OnboardPageContent() {
                                 onClick={() => toggleTask(task)}
                                 className="border-b-[1px] border-dashed border-stone-200 last:border-0 hover:bg-stone-50 transition-colors cursor-pointer group"
                               >
-                                <TableCell className="text-center py-4 text-[10px] font-bold text-stone-400 font-mono">
+                                <TableCell className="text-center py-6 text-xs font-bold text-stone-400">
                                   {completedTasks[task] || 'PENDING'}
                                 </TableCell>
-                                <TableCell className="py-4">
+                                <TableCell className="py-6">
                                   <div className="flex justify-center">
                                     <div className={cn(
-                                      "w-6 h-6 rounded-full border-[1.5px] flex items-center justify-center transition-all",
+                                      "w-7 h-7 rounded-full border-[1.5px] flex items-center justify-center transition-all",
                                       completedTasks[task] 
                                         ? "border-[#A4163A] bg-[#A4163A]/10 text-[#A4163A] scale-110 shadow-sm"
                                         : "border-stone-300 group-hover:border-[#A4163A]"
                                     )}>
-                                      {completedTasks[task] && <Check className="h-4 w-4 stroke-[3px]" />}
+                                      {completedTasks[task] && <Check className="h-5 w-5 stroke-[3px]" />}
                                     </div>
                                   </div>
                                 </TableCell>
-                                <TableCell className="py-4">
+                                <TableCell className="py-6 px-10">
                                   <span className={cn(
-                                    "text-sm font-serif font-bold transition-all duration-500",
-                                    completedTasks[task] ? "text-stone-300 line-through" : "text-stone-700"
+                                    "text-base font-bold transition-all duration-500",
+                                    completedTasks[task] ? "text-stone-300 line-through" : "text-stone-700 font-black"
                                   )}>
                                     {task}
                                   </span>
@@ -1886,10 +1893,6 @@ function OnboardPageContent() {
                    </div>
                 </div>
                 
-                {/* Decorative Pattern Footer */}
-                <div className="h-6 bg-[#A4163A] flex items-center justify-center overflow-hidden">
-                   <div className="w-full h-px border-t-[1px] border-dashed border-white/30" />
-                </div>
               </div>
             </div>
           )}

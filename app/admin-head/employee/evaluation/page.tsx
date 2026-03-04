@@ -44,7 +44,7 @@ export default function EvaluationPage() {
   const [isActionLoading, setIsActionLoading] = useState(false)
   const [fetchError, setFetchError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Probee' | 'Regular' | 'Failed'>('Probee')
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Probee' | 'Regular' | 'Failed'>('All')
 
   useEffect(() => {
     fetchData()
@@ -384,10 +384,8 @@ export default function EvaluationPage() {
                   <th className="px-6 py-4 text-center font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap">Status</th>
                   <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">1st Evaluation</th>
                   <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">Score</th>
-                  <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">Remarks</th>
                   <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">2nd Evaluation</th>
                   <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">Score</th>
-                  <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">Remarks</th>
                    <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider whitespace-nowrap text-center">Regularization</th>
                    <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider whitespace-nowrap text-center">Eval Status</th>
                    <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider whitespace-nowrap text-center">Action</th>
@@ -396,7 +394,7 @@ export default function EvaluationPage() {
               <tbody className="divide-y divide-stone-100">
                 {filteredEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-6 py-12 text-center text-slate-400 italic">
+                    <td colSpan={11} className="px-6 py-12 text-center text-slate-400 italic">
                       No active records found matching your search.
                     </td>
                   </tr>
@@ -435,55 +433,17 @@ export default function EvaluationPage() {
                             {dates?.status}
                           </Badge>
                         </td>
-                        <td className="px-6 py-4 text-slate-500 font-semibold text-[13px] border-r border-rose-50/30 italic whitespace-nowrap">
+                        <td className="px-6 py-4 text-slate-500 font-semibold text-[13px] border-r border-rose-50/30 italic whitespace-nowrap text-center">
                           {dates?.firstEval || '-'}
                         </td>
-                        <td className="px-4 py-4 border-r border-rose-50/30">
-                          <Input 
-                            type="text" 
-                            inputMode="numeric"
-                            className="w-14 mx-auto text-center h-10 border border-rose-200 bg-white text-[#1a1a1a] text-lg font-medium focus:border-[#C9184A] focus:ring-0 rounded-md shadow-sm"
-                            placeholder="0"
-                            value={evaluations[emp.id]?.score_1 ?? ''}
-                            onChange={(e) => handleScoreChange(emp.id, 'score_1', e.target.value)}
-                            disabled={isLocked}
-                          />
-                        </td>
-                        <td className="px-6 py-4 border-r border-rose-50/30 text-center">
-                          {evaluations[emp.id]?.remarks_1 ? (
-                            <Badge className={`${
-                              evaluations[emp.id]?.remarks_1 === 'Passed' 
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                                : 'bg-rose-50 text-rose-700 border-rose-200'
-                            } border shadow-none font-bold px-3 py-1 uppercase text-[10px] rounded-full`}>
-                              {evaluations[emp.id]?.remarks_1}
-                            </Badge>
-                          ) : <span className="text-slate-300 italic text-xs">Pending</span>}
+                        <td className="px-6 py-4 font-bold text-slate-700 text-[14px] border-r border-rose-50/30 text-center">
+                          {evaluations[emp.id]?.score_1 ?? <span className="text-slate-300 italic text-xs font-normal">N/A</span>}
                         </td>
                         <td className="px-6 py-4 text-slate-500 font-semibold text-[13px] border-r border-rose-50/30 italic whitespace-nowrap text-center">
                           {dates?.secondEval || '-'}
                         </td>
-                        <td className="px-4 py-4 border-r border-rose-50/30">
-                          <Input 
-                            type="text" 
-                            inputMode="numeric"
-                            className="w-14 mx-auto text-center h-10 border border-rose-200 bg-white text-[#1a1a1a] text-lg font-medium focus:border-[#C9184A] focus:ring-0 rounded-md shadow-sm"
-                            placeholder="0"
-                            value={evaluations[emp.id]?.score_2 ?? ''}
-                            onChange={(e) => handleScoreChange(emp.id, 'score_2', e.target.value)}
-                            disabled={isLocked || isFirstPassed}
-                          />
-                        </td>
-                        <td className="px-6 py-4 border-r border-rose-50/30 text-center">
-                          {evaluations[emp.id]?.remarks_2 ? (
-                            <Badge className={`${
-                              evaluations[emp.id]?.remarks_2 === 'Passed' 
-                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
-                                : 'bg-rose-50 text-rose-700 border-rose-200'
-                            } border shadow-none font-bold px-3 py-1 uppercase text-[10px] rounded-full`}>
-                              {evaluations[emp.id]?.remarks_2}
-                            </Badge>
-                          ) : <span className="text-slate-300 italic text-xs">Pending</span>}
+                        <td className="px-6 py-4 font-bold text-slate-700 text-[14px] border-r border-rose-50/30 text-center">
+                          {evaluations[emp.id]?.score_2 ?? <span className="text-slate-300 italic text-xs font-normal">N/A</span>}
                         </td>
                          <td className="px-6 py-4 font-bold text-[#A4163A] text-sm whitespace-nowrap text-center border-r border-rose-50/30">
                            {dates?.regularization || '-'}
@@ -508,60 +468,14 @@ export default function EvaluationPage() {
                            ) : <span className="text-slate-300 italic text-[10px]">None</span>}
                          </td>
                         <td className="px-6 py-4 text-center">
-                          {(() => {
-                            const isForRecommendation = evaluations[emp.id]?.remarks_1 === 'Passed' || evaluations[emp.id]?.remarks_2 === 'Passed';
-                            const isRecommendedStatus = currentEvalStatus === 'Regular' || currentEvalStatus === 'Regularized';
-                            const isEditing = Boolean(editingScores[emp.id]);
-                            const persistedStatus = String(persistedEvaluations[emp.id]?.status ?? '').trim();
-                            const hasPersistedDecision = persistedStatus.length > 0;
-                            const isLocked = (isRecommendedStatus || hasPersistedDecision || Boolean(lockedScores[emp.id])) && !isEditing;
-                            
-                            if (isLocked) {
-                              return (
-                                <div className="flex items-center justify-center gap-2">
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    className={`rounded-lg font-bold cursor-not-allowed ${
-                                      isRecommendedStatus
-                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                        : 'bg-slate-100 text-slate-500 border-slate-200'
-                                    }`}
-                                    disabled
-                                  >
-                                    {isRecommendedStatus ? 'Recommended' : 'Saved'}
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="rounded-lg font-bold text-[#630C22] border-[#630C22] hover:bg-[#630C22] hover:text-white"
-                                    onClick={() => {
-                                      setEditingScores(prev => ({ ...prev, [emp.id]: true }))
-                                      setLockedScores(prev => ({ ...prev, [emp.id]: false }))
-                                    }}
-                                  >
-                                    Edit
-                                  </Button>
-                                </div>
-                              );
-                            }
-
-                            return (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className={`rounded-lg font-bold transition-all ${
-                                  isForRecommendation && !isRecommendedStatus
-                                    ? 'bg-blue-600 text-white hover:bg-blue-700 border-none px-4 shadow-sm'
-                                    : 'text-[#630C22] border-[#630C22] hover:bg-[#630C22] hover:text-white'
-                                } disabled:opacity-50 disabled:cursor-not-allowed`}
-                                onClick={() => saveEvaluation(emp.id, isForRecommendation && !isRecommendedStatus)}
-                                disabled={isRecommendedStatus && !isEditing}
-                              >
-                                {isEditing ? 'Save' : isForRecommendation && !isRecommendedStatus ? 'Recommend' : (isRecommendedStatus ? 'Recommended' : 'Save')}
-                              </Button>
-                            );
-                          })()}
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="rounded-lg font-bold transition-all text-[#630C22] border-[#630C22] hover:bg-[#630C22] hover:text-white"
+                            onClick={() => router.push(`/admin-head/employee/evaluation/evaluate_employee?id=${emp.id}`)}
+                          >
+                            View Details
+                          </Button>
                         </td>
                       </tr>
                     )

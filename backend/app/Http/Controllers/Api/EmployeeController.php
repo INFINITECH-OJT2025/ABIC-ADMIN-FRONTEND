@@ -268,6 +268,14 @@ class EmployeeController extends Controller
             $employee->update($validated);
             $this->syncLatestRehireProfile($employee);
 
+            // Automatically create a 'Probee' evaluation record if the employee becomes employed or rehired
+            if (in_array($employee->status, ['employed', 'rehired_employee'])) {
+                \App\Models\Evaluation::firstOrCreate(
+                    ['employee_id' => $employee->id],
+                    ['status' => 'Probee']
+                );
+            }
+
             // Log activity
             $this->activityLogService->logEmployeeUpdated($employee, $changes, null, $request);
 
@@ -344,6 +352,14 @@ class EmployeeController extends Controller
 
             $employee->update($validated);
             $this->syncLatestRehireProfile($employee);
+
+            // Automatically create a 'Probee' evaluation record upon successful onboarding
+            if (in_array($employee->status, ['employed', 'rehired_employee'])) {
+                \App\Models\Evaluation::firstOrCreate(
+                    ['employee_id' => $employee->id],
+                    ['status' => 'Probee']
+                );
+            }
 
             // Log activity
             $this->activityLogService->logEmployeeOnboarded($employee, null, $request);
