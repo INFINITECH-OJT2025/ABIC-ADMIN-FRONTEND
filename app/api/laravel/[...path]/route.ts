@@ -12,8 +12,11 @@ async function handler(request: NextRequest, { params }: { params: Promise<{ pat
 
     // Forward relevant headers (drop host)
     const headers: Record<string, string> = {
-        'Content-Type': request.headers.get('Content-Type') || 'application/json',
-        'Accept': request.headers.get('Accept') || 'application/json',
+        Accept: request.headers.get('Accept') || '*/*',
+    }
+    const reqContentType = request.headers.get('Content-Type')
+    if (reqContentType) {
+        headers['Content-Type'] = reqContentType
     }
     const auth = request.headers.get('Authorization')
     if (auth) headers['Authorization'] = auth
@@ -31,14 +34,19 @@ async function handler(request: NextRequest, { params }: { params: Promise<{ pat
             body,
         })
 
-        const responseBody = await response.text()
+        const responseBuffer = await response.arrayBuffer()
+        const outHeaders = new Headers()
+        const contentType = response.headers.get('Content-Type') || 'application/json'
+        outHeaders.set('Content-Type', contentType)
+        const contentDisposition = response.headers.get('Content-Disposition')
+        if (contentDisposition) outHeaders.set('Content-Disposition', contentDisposition)
+        const cacheControl = response.headers.get('Cache-Control')
+        if (cacheControl) outHeaders.set('Cache-Control', cacheControl)
+        outHeaders.set('Access-Control-Allow-Origin', '*')
 
-        return new NextResponse(responseBody, {
+        return new NextResponse(responseBuffer, {
             status: response.status,
-            headers: {
-                'Content-Type': response.headers.get('Content-Type') || 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            },
+            headers: outHeaders,
         })
     } catch (error) {
         console.error('[Laravel Proxy] Error:', error)

@@ -384,17 +384,19 @@ export default function EvaluationPage() {
                   <th className="px-6 py-4 text-center font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap">Status</th>
                   <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">1st Evaluation</th>
                   <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">Score</th>
+                  <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">Remarks</th>
                   <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">2nd Evaluation</th>
                   <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">Score</th>
-                   <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider whitespace-nowrap text-center">Regularization</th>
-                   <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider whitespace-nowrap text-center">Eval Status</th>
+                  <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">Remarks</th>
+                   <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">Regularization</th>
+                   <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">Eval Status</th>
                    <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider whitespace-nowrap text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {filteredEmployees.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-6 py-12 text-center text-slate-400 italic">
+                    <td colSpan={13} className="px-6 py-12 text-center text-slate-400 italic">
                       No active records found matching your search.
                     </td>
                   </tr>
@@ -408,8 +410,9 @@ export default function EvaluationPage() {
                     const isEditing = Boolean(editingScores[emp.id])
                     const isLocked = (isRecommended || hasPersistedDecision || Boolean(lockedScores[emp.id])) && !isEditing
                     const remarks1 = evaluations[emp.id]?.remarks_1 ?? persistedEvaluations[emp.id]?.remarks_1
-                    const isFirstPassed = remarks1 === 'Passed'
                     const remarks2 = evaluations[emp.id]?.remarks_2 ?? persistedEvaluations[emp.id]?.remarks_2
+                    const score1 = evaluations[emp.id]?.score_1 ?? persistedEvaluations[emp.id]?.score_1
+                    const score2 = evaluations[emp.id]?.score_2 ?? persistedEvaluations[emp.id]?.score_2
                     const isForRecommendation = remarks1 === 'Passed' || remarks2 === 'Passed'
 
                     return (
@@ -437,13 +440,35 @@ export default function EvaluationPage() {
                           {dates?.firstEval || '-'}
                         </td>
                         <td className="px-6 py-4 font-bold text-slate-700 text-[14px] border-r border-rose-50/30 text-center">
-                          {evaluations[emp.id]?.score_1 ?? <span className="text-slate-300 italic text-xs font-normal">N/A</span>}
+                          {score1 ?? <span className="text-slate-300 italic text-xs font-normal">N/A</span>}
+                        </td>
+                        <td className="px-6 py-4 border-r border-rose-50/30 text-center">
+                          {remarks1 ? (
+                            <Badge variant="outline" className={`font-bold px-2 py-0.5 uppercase text-[9px] rounded-md ${
+                              remarks1 === 'Passed'
+                                ? 'border-emerald-200 text-emerald-700 bg-emerald-50'
+                                : 'border-rose-200 text-rose-700 bg-rose-50'
+                            }`}>
+                              {remarks1}
+                            </Badge>
+                          ) : <span className="text-slate-300 italic text-[10px]">N/A</span>}
                         </td>
                         <td className="px-6 py-4 text-slate-500 font-semibold text-[13px] border-r border-rose-50/30 italic whitespace-nowrap text-center">
                           {dates?.secondEval || '-'}
                         </td>
                         <td className="px-6 py-4 font-bold text-slate-700 text-[14px] border-r border-rose-50/30 text-center">
-                          {evaluations[emp.id]?.score_2 ?? <span className="text-slate-300 italic text-xs font-normal">N/A</span>}
+                          {score2 ?? <span className="text-slate-300 italic text-xs font-normal">N/A</span>}
+                        </td>
+                        <td className="px-6 py-4 border-r border-rose-50/30 text-center">
+                          {remarks2 ? (
+                            <Badge variant="outline" className={`font-bold px-2 py-0.5 uppercase text-[9px] rounded-md ${
+                              remarks2 === 'Passed'
+                                ? 'border-emerald-200 text-emerald-700 bg-emerald-50'
+                                : 'border-rose-200 text-rose-700 bg-rose-50'
+                            }`}>
+                              {remarks2}
+                            </Badge>
+                          ) : <span className="text-slate-300 italic text-[10px]">N/A</span>}
                         </td>
                          <td className="px-6 py-4 font-bold text-[#A4163A] text-sm whitespace-nowrap text-center border-r border-rose-50/30">
                            {dates?.regularization || '-'}
