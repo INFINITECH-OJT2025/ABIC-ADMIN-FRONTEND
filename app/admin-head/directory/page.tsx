@@ -285,6 +285,8 @@ const parseBackendDateMs = (value: string | null | undefined): number => {
 export default function GovernmentDirectoryPage() {
   const deleteDialogTitleRef = useRef<HTMLHeadingElement | null>(null)
   const agencyUploadTargetRef = useRef<string>('')
+  const generalContactUploadInputRef = useRef<HTMLInputElement | null>(null)
+  const generalContactUploadTargetRef = useRef<number | null>(null)
   const [activeAgency, setActiveAgency] = useState<string>('')
   const [activeProcess, setActiveProcess] = useState<ProcessType>('Adding')
   const [imageError, setImageError] = useState<Record<string, boolean>>({})
@@ -504,9 +506,9 @@ export default function GovernmentDirectoryPage() {
       : (activeBackendAgency?.processes?.filter((row) => String(row.process_type).toLowerCase() === 'removing').length ?? 0)
 
 
-    const updatedAt = activeBackendAgency?.updated_at ? new Date(activeBackendAgency.updated_at) : null
-    const updatedAtText = updatedAt && !Number.isNaN(updatedAt.getTime())
-      ? updatedAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    const updatedAtMs = parseBackendDateMs(activeBackendAgency?.updated_at || null)
+    const updatedAtText = !Number.isNaN(updatedAtMs)
+      ? new Date(updatedAtMs).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       : 'N/A'
 
 
@@ -968,25 +970,59 @@ export default function GovernmentDirectoryPage() {
     void loadCloudinaryImages({ type: 'general-contact', index })
   }
 
-  const uploadGeneralContactAvatar = async (index: number, uploadResult: any) => {
-    try {
-      const info = uploadResult?.info ?? uploadResult
-      const imageUrl = info?.secure_url
-      const publicId = info?.public_id
-      const format = String(info?.format || '').toLowerCase()
-      const bytes = Number(info?.bytes || 0)
+  const startGeneralContactUpload = (index: number) => {
+    generalContactUploadTargetRef.current = index
+    generalContactUploadInputRef.current?.click()
+  }
 
+  const uploadGeneralContactAvatar = async (index: number, file: File) => {
+    try {
+      const rawName = String(file?.name || '')
+      const dotIndex = rawName.lastIndexOf('.')
+      const format = dotIndex >= 0 ? rawName.slice(dotIndex + 1).toLowerCase() : ''
+      const bytes = Number(file?.size || 0)
+      validateImageRestrictions(format, bytes)
+
+      setUpdatingImage(true)
+      const payload = new FormData()
+      payload.set('file', file)
+      const response = await fetch('/api/cloudinary/upload-general-contact', {
+        method: 'POST',
+        body: payload,
+      })
+
+      const data = await response.json().catch(() => null)
+      if (!response.ok) {
+        const message = data?.message || 'Unable to upload general contact avatar.'
+        throw new Error(message)
+      }
+
+      const imageUrl = String(data?.secure_url || '')
+      const publicId = String(data?.public_id || '')
       if (!imageUrl || !publicId) {
         throw new Error('Upload did not return image details.')
       }
-      validateImageRestrictions(format, bytes)
+
       setGeneralContactAvatarAt(index, imageUrl, publicId)
       toast.success('Avatar selected. Save contacts to apply changes.')
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to set avatar'
       toast.error('Avatar Upload Failed', { description: message })
+    } finally {
+      setUpdatingImage(false)
     }
   }
+
+  const handleGeneralContactUploadInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const targetIndex = generalContactUploadTargetRef.current
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    generalContactUploadTargetRef.current = null
+    if (targetIndex === null || targetIndex < 0 || !file) return
+    void uploadGeneralContactAvatar(targetIndex, file)
+  }
+
+  const isGeneralContactUploadAvailable = Boolean(process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME)
 
   const saveGeneralContacts = async () => {
     try {
@@ -1003,7 +1039,7 @@ export default function GovernmentDirectoryPage() {
       const payload = generalContactsDraft.map((row, index) => ({
         id: row.id ?? null,
         type: row.type.trim() || 'phone',
-        label: row.establishment_name.trim() || null,
+        label: row.label.trim() || row.establishment_name.trim() || null,
         establishment_name: row.establishment_name.trim(),
         services: row.services.trim() || null,
         contact_person: row.contact_person.trim() || null,
@@ -1110,7 +1146,7 @@ export default function GovernmentDirectoryPage() {
 
   if (directoryQuery.isLoading && !agency) {
     return (
-      <div className="min-h-screen bg-[#F0F2F5] p-6 md:p-8">
+      <div className="min-h-screen bg-[#F5F6F8] p-6 md:p-8">
         <div className="rounded-2xl overflow-hidden shadow-xl border border-slate-200 bg-white">
           <div className="p-6 bg-gradient-to-r from-[#A4163A] to-[#7B0F2B]">
             <Skeleton className="h-8 w-64 bg-white/25" />
@@ -1161,14 +1197,21 @@ export default function GovernmentDirectoryPage() {
 
 
   return (
-    <div className="min-h-screen bg-[#F0F2F5] font-sans flex flex-col">
+    <div className="min-h-screen bg-[#F5F6F8] font-sans flex flex-col">
+      <input
+        ref={generalContactUploadInputRef}
+        type="file"
+        accept={ALLOWED_UPLOAD_FORMATS.map((format) => `.${format}`).join(',')}
+        className="hidden"
+        onChange={handleGeneralContactUploadInputChange}
+      />
       {/* ----- HEADER AREA ----- */}
       <header className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-xl relative overflow-hidden">
         {/* Top Pattern Effect (Optional) */}
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white to-transparent" />
 
 
-        <div className="w-full px-4 md:px-8 pt-10 pb-5 relative z-10">
+        <div className="w-full px-4 md:px-8 py-7 md:py-8 relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
             <div>
               <h1 className="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-3">
@@ -1177,7 +1220,7 @@ export default function GovernmentDirectoryPage() {
               </h1>
               <p className="text-xs md:text-sm font-semibold tracking-wide opacity-70 mt-1 flex items-center gap-2">
                 <Clock className="w-3.5 h-3.5" />
-                ABIC REALTY & CONSULTANCY - PROCESS REFERENCE
+                ABIC Realty & Consultancy - Process Reference
               </p>
             </div>
 
@@ -1206,7 +1249,7 @@ export default function GovernmentDirectoryPage() {
                         ) : (
                           <Save className="w-4 h-4 mr-2" />
                         )}
-                        SAVE SHANGES
+                        SAVE CHANGES
                       </Button>
                     </>
                   ) : (
@@ -1253,7 +1296,7 @@ export default function GovernmentDirectoryPage() {
                 >
                   <Icon className={cn("transition-all duration-300", isActive ? "w-6 h-6 stroke-[3]" : "w-5 h-5 stroke-2")} />
                   <span className={cn(
-                    "uppercase tracking-widest transition-all duration-300",
+                    "uppercase tracking-[0.12em] transition-all duration-300",
                     isActive ? "font-black text-xl shadow-sm" : "font-bold text-lg"
                   )}>
                     {item.shortName}
@@ -1279,7 +1322,7 @@ export default function GovernmentDirectoryPage() {
               <Users className={cn("transition-all duration-300", isGeneralContactsView ? "w-6 h-6 stroke-[3]" : "w-5 h-5 stroke-2")} />
               <span
                 className={cn(
-                  "uppercase tracking-widest transition-all duration-300",
+                  "uppercase tracking-[0.12em] transition-all duration-300",
                   isGeneralContactsView ? "font-black text-xl shadow-sm" : "font-bold text-lg"
                 )}
               >
@@ -1441,34 +1484,17 @@ export default function GovernmentDirectoryPage() {
                                 <Images className="h-4 w-4 mr-2" />
                                 Select from uploaded images
                               </DropdownMenuItem>
-                              {uploadPreset ? (
-                                <CldUploadWidget
-                                  uploadPreset={uploadPreset}
-                                  options={{
-                                    multiple: false,
-                                    maxFiles: 1,
-                                    resourceType: 'image',
-                                    sources: ['local'],
-                                    folder: getDirectoryFolderPath(GENERAL_CONTACTS_KEY),
-                                    ...({ asset_folder: getDirectoryFolderPath(GENERAL_CONTACTS_KEY) } as any),
-                                    maxFileSize: MAX_IMAGE_BYTES,
-                                    clientAllowedFormats: [...ALLOWED_UPLOAD_FORMATS],
+                              {isGeneralContactUploadAvailable ? (
+                                <DropdownMenuItem
+                                  disabled={updatingImage}
+                                  onSelect={(e) => {
+                                    e.preventDefault()
+                                    startGeneralContactUpload(index)
                                   }}
-                                  onSuccess={(result) => void uploadGeneralContactAvatar(index, result)}
                                 >
-                                  {({ open }) => (
-                                    <DropdownMenuItem
-                                      onSelect={(e) => {
-                                        // Let Radix close the dropdown first, then open Cloudinary.
-                                        // This prevents the uploader modal from being dismissed when clicking "Browse".
-                                        window.setTimeout(() => open(), 0)
-                                      }}
-                                    >
-                                      <ImageUp className="h-4 w-4 mr-2" />
-                                      Upload image
-                                    </DropdownMenuItem>
-                                  )}
-                                </CldUploadWidget>
+                                  <ImageUp className="h-4 w-4 mr-2" />
+                                  Upload image
+                                </DropdownMenuItem>
                               ) : (
                                 <DropdownMenuItem disabled>
                                   <ImageUp className="h-4 w-4 mr-2" />
@@ -1995,9 +2021,13 @@ export default function GovernmentDirectoryPage() {
           {!isGeneralContactsView ? (
             <div className="flex items-center gap-2">
               <span className="opacity-70">OFFICIAL ONLINE PORTAL:</span>
-              <a href={snapshot.activeLink} target="_blank" rel="noreferrer" className="hover:underline hover:text-white text-white/90">
-                {snapshot.activeLink !== 'N/A' ? snapshot.activeLink : '(LINK)'}
-              </a>
+              {snapshot.activeLink !== 'N/A' ? (
+                <a href={snapshot.activeLink} target="_blank" rel="noreferrer" className="hover:underline hover:text-white text-white/90">
+                  {snapshot.activeLink}
+                </a>
+              ) : (
+                <span className="text-white/70">(LINK UNAVAILABLE)</span>
+              )}
             </div>
           ) : <div />}
 
@@ -2072,9 +2102,10 @@ export default function GovernmentDirectoryPage() {
               <>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 {paginatedCloudinaryImages.map((asset) => (
-                  <button
+                  <div
                     key={asset.public_id}
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     className="group relative rounded-xl border border-slate-200 bg-white overflow-hidden text-left hover:border-[#A4163A]/50"
                     onClick={async () => {
                       try {
@@ -2101,26 +2132,46 @@ export default function GovernmentDirectoryPage() {
                         setUpdatingImage(false)
                       }
                     }}
+                    onKeyDown={async (e) => {
+                      if (e.key !== 'Enter' && e.key !== ' ') return
+                      e.preventDefault()
+                      try {
+                        validateImageRestrictions(asset.format, Number(asset.bytes || 0))
+                        setUpdatingImage(true)
+                        if (cloudinaryPickerTarget?.type === 'general-contact') {
+                          setGeneralContactAvatarAt(cloudinaryPickerTarget.index, asset.secure_url, asset.public_id)
+                          toast.success('Avatar selected. Save contacts to apply changes.')
+                        } else {
+                          await persistAgencyImage({
+                            agencyCode: cloudinaryPickerTarget?.agencyCode,
+                            imageUrl: asset.secure_url,
+                            publicId: asset.public_id,
+                            format: asset.format,
+                            bytes: asset.bytes,
+                          })
+                          toast.success('Agency picture updated successfully!')
+                        }
+                        setCloudinaryPickerOpen(false)
+                      } catch (err) {
+                        const message = err instanceof Error ? err.message : 'Failed to update picture'
+                        toast.error('Image Selection Failed', { description: message })
+                      } finally {
+                        setUpdatingImage(false)
+                      }
+                    }}
                   >
-                    <span
-                      role="button"
-                      tabIndex={0}
+                    <button
+                      type="button"
+                      aria-label={`Delete ${asset.public_id} image`}
                       className="absolute top-2 right-2 z-10 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-rose-600 text-white text-xs font-black shadow-sm hover:bg-rose-700"
                       onClick={(e) => {
                         e.preventDefault()
                         e.stopPropagation()
                         setDeleteCandidate(asset)
                       }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          setDeleteCandidate(asset)
-                        }
-                      }}
                     >
                       <X className="h-3.5 w-3.5" />
-                    </span>
+                    </button>
                     <div className="aspect-video bg-slate-100 overflow-hidden">
                       <img src={asset.secure_url} alt={asset.public_id} className="h-full w-full object-cover group-hover:scale-105 transition-transform" />
                     </div>
@@ -2130,7 +2181,7 @@ export default function GovernmentDirectoryPage() {
                         {String(asset.format || '').toUpperCase()} - {Math.round((Number(asset.bytes || 0) / (1024 * 1024)) * 10) / 10} MB
                       </p>
                     </div>
-                  </button>
+                  </div>
                 ))}
               </div>
               <div className="mt-4 flex items-center justify-between gap-3">

@@ -13,7 +13,6 @@ import { Card } from "@/components/ui/card"
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { TextFieldStatus } from '@/components/ui/text-field-status'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -797,7 +796,15 @@ function OnboardingChecklistPageContent() {
             </div>
 
 
-            <div />
+            <div>
+              <Button
+                onClick={() => setAddRecordOpen(true)}
+                className="h-10 px-5 font-black text-xs uppercase tracking-wider bg-white text-[#800020] hover:bg-rose-50 rounded-lg border border-white/50"
+              >
+                <Users className="w-3.5 h-3.5 mr-2" />
+                Initiate Record
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -884,7 +891,7 @@ function OnboardingChecklistPageContent() {
               </Button>
               <Separator orientation="vertical" className="h-4 bg-slate-200" />
               <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] italic">
-                ADMINISTRATION FRAMEWORK â€¢ ABIC HR
+                ADMINISTRATION FRAMEWORK - ABIC HR
               </p>
             </div>
 

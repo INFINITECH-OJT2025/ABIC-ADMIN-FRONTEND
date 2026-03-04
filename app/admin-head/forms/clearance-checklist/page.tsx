@@ -13,7 +13,6 @@ import { Card } from "@/components/ui/card"
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { TextFieldStatus } from '@/components/ui/text-field-status'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
@@ -681,8 +680,8 @@ export default function ClearanceChecklistPage() {
 
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-stone-50 via-white to-red-50 text-stone-900 font-sans pb-12">
-      <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-8">
+    <div className="min-h-screen w-full bg-[#F5F6F8] text-stone-900 font-sans pb-10">
+      <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-xl mb-6">
         {/* Main Header Row */}
         <div className="w-full px-4 md:px-8 py-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -716,7 +715,7 @@ export default function ClearanceChecklistPage() {
                   value={String(employeeInfo?.department || '').trim() || undefined}
                   onValueChange={requestDepartmentChange}
                 >
-                  <SelectTrigger className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[240px] shadow-sm font-bold rounded-lg border-2 ring-0 focus:ring-0">
+                  <SelectTrigger aria-label="Select department" className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[240px] shadow-sm font-bold rounded-lg border-2 ring-0 focus:ring-0">
                     <SelectValue placeholder="Select Department" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-stone-200 shadow-xl">
@@ -748,10 +747,10 @@ export default function ClearanceChecklistPage() {
       </div>
 
 
-      <main className="w-full px-4 md:px-8 relative mb-20 transition-all duration-500 animate-in fade-in slide-in-from-bottom-5">
+      <main className="w-full max-w-[1600px] mx-auto px-4 md:px-8 relative mb-16 transition-all duration-500 animate-in fade-in slide-in-from-bottom-5">
 
 
-        <Card className="rounded-2xl border-2 border-[#FFE5EC] shadow-lg overflow-hidden bg-white mb-6 transition-all hover:shadow-xl">
+        <Card className="rounded-2xl border border-[#FFE5EC] shadow-lg overflow-hidden bg-white mb-6 transition-all hover:shadow-xl">
           <div className="p-5 bg-rose-50/20">
             <div className="flex items-center justify-between gap-3 mb-2">
               <p className="text-[11px] font-black text-[#800020]/60 uppercase tracking-widest">Selected Department</p>
@@ -772,7 +771,7 @@ export default function ClearanceChecklistPage() {
 
 
         {/* Task List Section */}
-        <Card className="rounded-2xl border-2 border-[#FFE5EC] shadow-2xl bg-white overflow-hidden mb-12">
+        <Card className="rounded-2xl border border-[#FFE5EC] shadow-2xl bg-white overflow-hidden mb-12">
           <div className="p-4 md:px-8 bg-slate-50/50 border-b border-[#FFE5EC] flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-3">
               <Button onClick={addTask} size="sm" className="bg-[#A4163A] hover:bg-[#800020] text-white font-black text-xs h-9 px-6 rounded-xl shadow-md active:scale-95 transition-all">
@@ -780,7 +779,7 @@ export default function ClearanceChecklistPage() {
               </Button>
               <Separator orientation="vertical" className="h-4 bg-slate-200" />
               <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] italic">
-                ADMINISTRATION FRAMEWORK â€¢ ABIC HR
+                ADMINISTRATION FRAMEWORK - ABIC HR
               </p>
             </div>
 
@@ -791,7 +790,7 @@ export default function ClearanceChecklistPage() {
                 className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-95 transition-all rounded-xl"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
-                {saving ? 'UPDATING...' : 'FINALIZE SAVE'}
+                {saving ? 'UPDATING...' : 'SAVE CHECKLIST'}
               </Button>
             </div>
           </div>
@@ -928,7 +927,7 @@ export default function ClearanceChecklistPage() {
               </Button>
               <Separator orientation="vertical" className="h-4 bg-slate-200" />
               <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] italic">
-                ADMINISTRATION FRAMEWORK • ABIC HR
+                ADMINISTRATION FRAMEWORK - ABIC HR
               </p>
             </div>
 
@@ -940,7 +939,7 @@ export default function ClearanceChecklistPage() {
                 className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-95 transition-all rounded-xl"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
-                {saving ? 'UPDATING...' : 'FINALIZE SAVE'}
+                {saving ? 'UPDATING...' : 'SAVE CHECKLIST'}
               </Button>
             </div>
           </div>

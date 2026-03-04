@@ -1511,7 +1511,7 @@ function OnboardPageContent() {
   }, [hasUnsavedProgress])
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-stone-50 via-white to-red-50 text-stone-900 font-sans pb-12 relative">
+    <div className="min-h-screen w-full bg-[#F5F6F8] text-stone-900 font-sans pb-10 relative">
       {/* ----- GLOBAL LOADING OVERLAY (For Actions Only) ----- */}
       {(isSaving || isActionLoading) && (
         <div className="fixed inset-0 z-[100] bg-white/40 backdrop-blur-md flex items-center justify-center animate-in fade-in duration-500">
@@ -1532,7 +1532,7 @@ function OnboardPageContent() {
       )}
 
       {/* ----- INTEGRATED PREMIUM HEADER ----- */}
-      <header className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md p-4 md:p-8 mb-4 md:mb-8 relative overflow-hidden">
+      <header className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-xl px-4 md:px-8 py-6 md:py-8 mb-6 relative overflow-hidden">
         <div className="max-w-[1600px] mx-auto flex flex-wrap items-center gap-6 lg:gap-8 relative z-10">
           <div className="flex flex-col">
             <h1 className="text-2xl md:text-4xl font-bold tracking-tight mb-2">
@@ -1540,7 +1540,7 @@ function OnboardPageContent() {
             </h1>
             <div className="flex items-center gap-2 text-white/80 transition-all duration-500">
               {view === 'onboard' ? <Briefcase className="w-4 h-4 md:w-5 h-5" /> : <ClipboardList className="w-4 h-4 md:w-5 h-5" />}
-              <p className="text-sm md:text-lg font-bold uppercase tracking-widest leading-none">ABIC REALTY & CONSULTANCY</p>
+              <p className="text-sm md:text-base font-semibold tracking-wide leading-none">ABIC Realty & Consultancy</p>
             </div>
             {isRehireFlow && (
               <div className="mt-2 inline-flex items-center gap-2 rounded-md border border-amber-300/70 bg-amber-100/20 px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-amber-100">
@@ -1576,7 +1576,7 @@ function OnboardPageContent() {
                 <div className="h-8 w-px bg-white/10" />
                 <div className="flex flex-col">
                   <span className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">
-                    {view === 'checklist' ? 'Last Updated' : `Batch ${currentBatch} of 6`}
+                    {view === 'checklist' ? 'Last Updated' : `Batch ${currentBatch} of 7`}
                   </span>
                   <span className="text-xl font-black text-white tracking-tight">
                     {view === 'checklist' ? (completionDateText || '—') : batches[currentBatch - 1].title}
@@ -1737,7 +1737,7 @@ function OnboardPageContent() {
           {view === 'checklist' && checklistData && (
             <div className="max-w-[1600px] mx-auto py-4 px-6 md:px-8 text-stone-900">
               {/* Task List Section */}
-              <Card className="rounded-2xl border-2 border-[#FFE5EC] shadow-2xl bg-white overflow-hidden mb-12">
+              <Card className="rounded-2xl border border-[#FFE5EC] shadow-2xl bg-white overflow-hidden mb-12">
                 {/* Progress Banner */}
                 <div className="bg-[#FFE5EC]/20 p-4 md:px-8 border-b border-[#FFE5EC]">
                   <div className="flex justify-between items-center mb-3">
