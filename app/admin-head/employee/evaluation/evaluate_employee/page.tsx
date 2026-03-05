@@ -145,6 +145,13 @@ function EvaluateEmployeeForm() {
     fetchInitialData()
   }, [])
 
+  useEffect(() => {
+    const employeeIdFromQuery = searchParams?.get('id') || ''
+    if (employeeIdFromQuery && employeeIdFromQuery !== selectedEmployeeId) {
+      setSelectedEmployeeId(employeeIdFromQuery)
+    }
+  }, [searchParams, selectedEmployeeId])
+
   const fetchInitialData = async () => {
     setLoading(true)
     try {
@@ -186,6 +193,15 @@ function EvaluateEmployeeForm() {
              (!evalRecord || (evalRecord.status !== 'Regular' && evalRecord.status !== 'Regularized'))
     }).sort((a, b) => `${a.first_name} ${a.last_name}`.localeCompare(`${b.first_name} ${b.last_name}`))
   }, [employees, evaluations])
+
+  const selectableEmployees = useMemo(() => {
+    if (!selectedEmployeeId) return probeeEmployees
+    const currentSelected = employees.find(emp => emp.id === selectedEmployeeId)
+    if (!currentSelected) return probeeEmployees
+    const existsInProbee = probeeEmployees.some(emp => emp.id === currentSelected.id)
+    if (existsInProbee) return probeeEmployees
+    return [currentSelected, ...probeeEmployees]
+  }, [selectedEmployeeId, employees, probeeEmployees])
 
   const selectedEmployee = useMemo(() => employees.find(e => e.id === selectedEmployeeId), [selectedEmployeeId, employees])
   const selectedEvaluation = useMemo(() => (
@@ -869,7 +885,7 @@ function EvaluateEmployeeForm() {
                       <SelectValue placeholder="[Select Employee Here]" />
                     </SelectTrigger>
                     <SelectContent>
-                      {probeeEmployees.map(emp => (
+                      {selectableEmployees.map(emp => (
                         <SelectItem key={emp.id} value={emp.id}>{emp.first_name} {emp.last_name}</SelectItem>
                       ))}
                     </SelectContent>
