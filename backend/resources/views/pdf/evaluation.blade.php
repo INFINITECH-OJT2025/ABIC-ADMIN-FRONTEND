@@ -4,51 +4,52 @@
     <meta charset="UTF-8">
     <title>Performance Appraisal</title>
     <style>
-        @page { margin: 30px 30px 20px 30px; }
-        body { font-family: "Times New Roman", serif; font-size: 11px; color: #000; line-height: 1.25; margin: 0; padding: 0; }
+        @page { margin: 20px 22px; }
+        body { font-family: "Times New Roman", serif; font-size: 10pt; color: #000; line-height: 1.0; margin: 0; padding: 0; }
+        .doc, .doc * { font-family: "Times New Roman", serif !important; font-size: 10pt !important; line-height: 1.0 !important; }
         .doc { width: 100%; max-width: 700px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 18px; margin-top: 10px; padding: 15px 0; }
+        .header { text-align: center; margin-bottom: 8px; margin-top: 0; padding: 4px 0; }
         .company { color: #c42020; font-weight: 700; font-size: 19px; letter-spacing: 0.3px; margin-bottom: 5px; }
         .title { font-weight: 700; font-size: 16px; letter-spacing: 0.5px; margin-top: 5px; }
-        .meta { margin-bottom: 10px; }
-        .meta-row { margin-bottom: 4px; white-space: nowrap; }
+        .meta { margin-bottom: 8px; }
+        .meta-row { margin-bottom: 3px; white-space: nowrap; }
         .meta-label { font-weight: 700; display: inline-block; min-width: 145px; font-size: 10px; }
         .meta-value-line { display: inline-block; width: auto; max-width: 78%; border-bottom: 1px solid #000; vertical-align: bottom; padding-right: 4px; }
         .meta-value { color: #c42020; font-weight: 700; font-size: 10px; }
         .eval-tag { color: #708090; font-style: italic; font-size: 8.5px; margin-left: 5px; }
 
-        table.criteria { width: 100%; border-collapse: collapse; margin-top: 5px; }
-        table.criteria th { font-size: 10px; text-align: center; text-decoration: underline; padding-bottom: 4px; }
-        table.criteria td { vertical-align: top; padding: 5px 0; }
-        .criterion-title { font-weight: 700; font-size: 10px; margin-bottom: 1px; }
-        .criterion-desc { margin-left: 12px; font-size: 8.5px; line-height: 1.3; }
+        table.criteria { width: 100%; border-collapse: collapse; margin-top: 6px; }
+        table.criteria th { font-size: 10px; text-align: center; text-decoration: underline; padding-bottom: 3px; }
+        table.criteria td { vertical-align: top; padding: 4px 0; }
+        .criterion-title { font-weight: 700; font-size: 10px; margin-bottom: 0; }
+        .criterion-desc { margin-left: 8px; font-size: 8.5px; line-height: 1.3; }
         .rating-cell { width: 30%; text-align: center; vertical-align: middle; }
-        .rating-line { border-bottom: 1px solid #000; min-height: 18px; line-height: 18px; font-size: 12px; font-weight: 700; }
+        .rating-line { border-bottom: 1px solid #000; min-height: 14px; line-height: 14px; font-size: 12px; font-weight: 700; }
 
         .total-block { margin-top: 6px; text-align: right; font-weight: 700; font-size: 11px; }
         .total-value-line { display: inline-block; min-width: 130px; border-bottom: 1px solid #000; text-align: center; margin-left: 6px; font-size: 12px; line-height: 16px; }
-        .agreement { margin-top: 10px; margin-bottom: 8px; font-size: 9px; line-height: 1.3; }
+        .agreement { margin-top: 8px; margin-bottom: 8px; font-size: 9px; line-height: 1.25; }
 
-        .sign-row { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 12px; }
+        .sign-row { width: 100%; border-collapse: collapse; margin-top: 8px; margin-bottom: 10px; }
         .sign-row td { width: 50%; vertical-align: middle; padding-bottom: 2px; }
         .line-label { font-weight: 700; font-size: 10px; }
-        .line { border-bottom: 1px solid #000; display: inline-block; width: 65%; margin-left: 5px; min-height: 16px; vertical-align: middle; }
+        .line { border-bottom: 1px solid #000; display: inline-block; width: 65%; margin-left: 5px; min-height: 12px; vertical-align: middle; }
         .date-label { color: #000; font-weight: 700; margin-right: 4px; font-size: 10px; }
         .date-value { color: #c42020; font-weight: 700; font-size: 10px; }
 
         .subhead { font-weight: 700; margin-top: 8px; margin-bottom: 4px; font-size: 10px; }
-        .list { font-size: 9px; margin-left: 20px; line-height: 1.4; margin-top: 2px; margin-bottom: 3px; }
+        .list { font-size: 9px; margin-left: 20px; line-height: 1.3; margin-top: 2px; margin-bottom: 4px; }
         .recommend { margin-top: 8px; margin-bottom: 8px; font-weight: 700; font-size: 10px; }
         .box { display: inline-block; width: 10px; height: 10px; border: 1px solid #000; text-align: center; line-height: 9px; margin: 0 4px 0 7px; font-size: 8px; }
 
         .bottom-block { margin-top: 8px; }
-        .comments-title { margin-top: 10px; margin-bottom: 4px; font-weight: 700; font-size: 10px; }
-        .comments-box { border: 1px solid #000; min-height: 150px; margin-top: 4px; padding: 8px; font-size: 9px; line-height: 1.4; }
+        .comments-title { margin-top: 8px; margin-bottom: 4px; font-weight: 700; font-size: 10px; }
+        .comments-box { border: 1px solid #000; min-height: 145px; margin-top: 4px; padding: 6px; font-size: 9px; line-height: 1.25; }
 
         .manager { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 0; }
-        .manager td { width: 50%; padding-bottom: 6px; vertical-align: middle; font-size: 8.5px; }
+        .manager td { width: 50%; padding-bottom: 4px; vertical-align: middle; font-size: 8.5px; }
         .manager-label { display: inline-block; min-width: 52px; font-size: 8.5px; }
-        .manager-line { border-bottom: 1px solid #000; display: inline-block; width: 65%; margin-left: 4px; min-height: 15px; line-height: 15px; vertical-align: middle; position: relative; padding: 0 2px; }
+        .manager-line { border-bottom: 1px solid #000; display: inline-block; width: 65%; margin-left: 4px; min-height: 12px; line-height: 12px; vertical-align: middle; position: relative; padding: 0 2px; }
         .manager-name { color: #c42020; font-weight: 700; font-size: 8.5px; white-space: nowrap; max-width: 145px; overflow: hidden; text-overflow: ellipsis; }
         .page-break { page-break-before: always; }
     </style>
@@ -293,3 +294,4 @@
 
 </body>
 </html>
+
