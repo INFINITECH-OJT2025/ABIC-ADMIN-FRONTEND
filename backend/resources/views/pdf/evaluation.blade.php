@@ -40,7 +40,18 @@
         .subhead { font-weight: 700; margin-top: 8px; margin-bottom: 4px; font-size: 10px; }
         .list { font-size: 9px; margin-left: 20px; line-height: 1.3; margin-top: 2px; margin-bottom: 4px; }
         .recommend { margin-top: 8px; margin-bottom: 8px; font-weight: 700; font-size: 10px; }
-        .box { display: inline-block; width: 10px; height: 10px; border: 1px solid #000; text-align: center; line-height: 9px; margin: 0 4px 0 7px; font-size: 8px; }
+        .box { display: inline-block; width: 10px; height: 10px; border: 1px solid #000; margin: 0 4px 0 7px; position: relative; vertical-align: middle; }
+        .box.checked::after {
+            content: '';
+            position: absolute;
+            left: 2px;
+            top: 0px;
+            width: 3px;
+            height: 6px;
+            border-right: 1.5px solid #000;
+            border-bottom: 1.5px solid #000;
+            transform: rotate(45deg);
+        }
 
         .bottom-block { margin-top: 8px; }
         .comments-title { margin-top: 8px; margin-bottom: 4px; font-weight: 700; font-size: 10px; }
@@ -115,8 +126,8 @@
 
         <div class="agreement">
             The above appraisal was discussed with me by my superior and I
-            {{ ($evaluation->agreement_1 ?? '') === 'agree' ? '●' : '○' }} agree
-            {{ ($evaluation->agreement_1 ?? '') === 'disagree' ? '●' : '○' }} disagree on the following items:
+            <span class="{{ ($evaluation->agreement_1 ?? '') === 'agree' ? 'box checked' : 'box' }}"></span> agree
+            <span class="{{ ($evaluation->agreement_1 ?? '') === 'disagree' ? 'box checked' : 'box' }}"></span> disagree on the following items:
         </div>
 
         <table class="sign-row">
@@ -151,8 +162,8 @@
 
         <div class="recommend">
             RECOMMENDATION: REGULAR EMPLOYMENT
-            <span class="box">{{ $firstResult === 'Passed' ? '✓' : '' }}</span> YES
-            <span class="box">{{ $firstResult === 'Failed' ? '✓' : '' }}</span> NO
+            <span class="{{ $firstResult === 'Passed' ? 'box checked' : 'box' }}"></span> YES
+            <span class="{{ $firstResult === 'Failed' ? 'box checked' : 'box' }}"></span> NO
         </div>
 
         <div class="bottom-block">
@@ -230,8 +241,8 @@
 
         <div class="agreement">
             The above appraisal was discussed with me by my superior and I
-            {{ ($evaluation->agreement_2 ?? '') === 'agree' ? '●' : '○' }} agree
-            {{ ($evaluation->agreement_2 ?? '') === 'disagree' ? '●' : '○' }} disagree on the following items:
+            <span class="{{ ($evaluation->agreement_2 ?? '') === 'agree' ? 'box checked' : 'box' }}"></span> agree
+            <span class="{{ ($evaluation->agreement_2 ?? '') === 'disagree' ? 'box checked' : 'box' }}"></span> disagree on the following items:
         </div>
 
         <table class="sign-row">
@@ -266,8 +277,8 @@
 
         <div class="recommend">
             RECOMMENDATION: REGULAR EMPLOYMENT
-            <span class="box">{{ $secondResult === 'Passed' ? '✓' : '' }}</span> YES
-            <span class="box">{{ $secondResult === 'Failed' ? '✓' : '' }}</span> NO
+            <span class="{{ $secondResult === 'Passed' ? 'box checked' : 'box' }}"></span> YES
+            <span class="{{ $secondResult === 'Failed' ? 'box checked' : 'box' }}"></span> NO
         </div>
 
         <div class="bottom-block">
