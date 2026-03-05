@@ -1051,6 +1051,13 @@ function OnboardPageContent() {
       return
     }
 
+    // Name validation (No special characters)
+    const nameRegex = /^[a-zA-Z\s-]*$/
+    if (!nameRegex.test(first_name) || !nameRegex.test(last_name)) {
+      toast.error('Names cannot contain special characters')
+      return
+    }
+
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
@@ -1746,7 +1753,10 @@ function OnboardPageContent() {
                       </div>
                       <Input 
                         value={onboardFormData.first_name} 
-                        onChange={(e) => setOnboardFormData(prev => ({ ...prev, first_name: e.target.value }))} 
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^a-zA-Z\s-]/g, '')
+                          setOnboardFormData(prev => ({ ...prev, first_name: val }))
+                        }} 
                         placeholder="John" 
                         maxLength={50}
                         className={cn("transition-all duration-300", 
@@ -1761,7 +1771,10 @@ function OnboardPageContent() {
                       </div>
                       <Input 
                         value={onboardFormData.last_name} 
-                        onChange={(e) => setOnboardFormData(prev => ({ ...prev, last_name: e.target.value }))} 
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/[^a-zA-Z\s-]/g, '')
+                          setOnboardFormData(prev => ({ ...prev, last_name: val }))
+                        }} 
                         placeholder="Doe" 
                         maxLength={50}
                         className={cn("transition-all duration-300", 
@@ -1790,7 +1803,7 @@ function OnboardPageContent() {
                           value={onboardFormData.email} 
                           onChange={(e) => setOnboardFormData(prev => ({ ...prev, email: e.target.value }))} 
                           placeholder="john@example.com" 
-                          maxLength={100} 
+                          maxLength={50} 
                           className={cn(
                             "transition-all duration-300", 
                             !isRehireFlow && onboardFormData.email && (
