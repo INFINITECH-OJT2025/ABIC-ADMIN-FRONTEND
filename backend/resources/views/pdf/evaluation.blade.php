@@ -33,7 +33,7 @@
         .sign-row td { width: 50%; vertical-align: middle; padding-bottom: 2px; }
         .line-label { font-weight: 700; font-size: 10px; }
         .line { border-bottom: 1px solid #000; display: inline-block; width: 65%; margin-left: 5px; min-height: 16px; vertical-align: middle; }
-        .date-label { color: #0000cc; text-decoration: underline; font-weight: 700; margin-right: 4px; font-size: 10px; }
+        .date-label { color: #000; font-weight: 700; margin-right: 4px; font-size: 10px; }
         .date-value { color: #c42020; font-weight: 700; font-size: 10px; }
 
         .subhead { font-weight: 700; margin-top: 8px; margin-bottom: 4px; font-size: 10px; }
@@ -57,7 +57,6 @@
 @php
     $fullName = trim(($employee->first_name ?? '') . ' ' . ($employee->last_name ?? ''));
     $deptTitle = trim(($employee->department ?? '-') . ' / ' . ($employee->position ?? '-'));
-    $today = now()->format('F d, Y');
     $firstResult = $evaluation->remarks_1 ?? 'N/A';
     $secondResult = $evaluation->remarks_2 ?? 'N/A';
 @endphp
@@ -126,8 +125,7 @@
                     <span class="line">&nbsp;</span>
                 </td>
                 <td>
-                    <span class="date-label">DATE:</span>
-                    <span class="date-value">{{ $today }}</span>
+                    <span style="color:#000; font-weight:700; text-decoration:none;">DATE:</span>
                     <span class="line" style="width:55%;"></span>
                 </td>
             </tr>
@@ -163,15 +161,15 @@
             <table class="manager">
                 <tr>
                     <td><span class="manager-label">Rated by:</span><span class="manager-line"><span class="manager-name">{{ $evaluation->rated_by ? substr($evaluation->rated_by, 0, 25) : '' }}</span></span></td>
-                    <td><span class="manager-label">Date:</span><span class="date-value">{{ $today }}</span><span class="manager-line" style="width:50%;"></span></td>
+                    <td><span class="manager-label">Date:</span><span class="manager-line" style="width:50%;"></span></td>
                 </tr>
                 <tr>
                     <td><span class="manager-label">Reviewed by:</span><span class="manager-line"><span class="manager-name">{{ $evaluation->reviewed_by ? substr($evaluation->reviewed_by, 0, 25) : '' }}</span></span></td>
-                    <td><span class="manager-label">Date:</span><span class="date-value">{{ $today }}</span><span class="manager-line" style="width:50%;"></span></td>
+                    <td><span class="manager-label">Date:</span><span class="manager-line" style="width:50%;"></span></td>
                 </tr>
                 <tr>
                     <td><span class="manager-label">Approved by:</span><span class="manager-line"><span class="manager-name">{{ $evaluation->approved_by ? substr($evaluation->approved_by, 0, 25) : '' }}</span></span></td>
-                    <td><span class="manager-label">Date:</span><span class="date-value">{{ $today }}</span><span class="manager-line" style="width:50%;"></span></td>
+                    <td><span class="manager-label">Date:</span><span class="manager-line" style="width:50%;"></span></td>
                 </tr>
             </table>
         </div>
@@ -242,8 +240,7 @@
                     <span class="line">&nbsp;</span>
                 </td>
                 <td>
-                    <span class="date-label">DATE:</span>
-                    <span class="date-value">{{ $today }}</span>
+                    <span style="color:#000; font-weight:700; text-decoration:none;">DATE:</span>
                     <span class="line" style="width:55%;"></span>
                 </td>
             </tr>
@@ -279,15 +276,15 @@
             <table class="manager">
                 <tr>
                     <td><span class="manager-label">Rated by:</span><span class="manager-line"><span class="manager-name">{{ $evaluation->rated_by_2 ? substr($evaluation->rated_by_2, 0, 25) : '' }}</span></span></td>
-                    <td><span class="manager-label">Date:</span><span class="date-value">{{ $today }}</span><span class="manager-line" style="width:50%;"></span></td>
+                    <td><span class="manager-label">Date:</span><span class="manager-line" style="width:50%;"></span></td>
                 </tr>
                 <tr>
                     <td><span class="manager-label">Reviewed by:</span><span class="manager-line"><span class="manager-name">{{ $evaluation->reviewed_by_2 ? substr($evaluation->reviewed_by_2, 0, 25) : '' }}</span></span></td>
-                    <td><span class="manager-label">Date:</span><span class="date-value">{{ $today }}</span><span class="manager-line" style="width:50%;"></span></td>
+                    <td><span class="manager-label">Date:</span><span class="manager-line" style="width:50%;"></span></td>
                 </tr>
                 <tr>
                     <td><span class="manager-label">Approved by:</span><span class="manager-line"><span class="manager-name">{{ $evaluation->approved_by_2 ? substr($evaluation->approved_by_2, 0, 25) : '' }}</span></span></td>
-                    <td><span class="manager-label">Date:</span><span class="date-value">{{ $today }}</span><span class="manager-line" style="width:50%;"></span></td>
+                    <td><span class="manager-label">Date:</span><span class="manager-line" style="width:50%;"></span></td>
                 </tr>
             </table>
         </div>

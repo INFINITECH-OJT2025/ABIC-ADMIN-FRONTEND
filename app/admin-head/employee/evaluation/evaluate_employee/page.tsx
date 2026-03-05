@@ -559,7 +559,6 @@ function EvaluateEmployeeForm() {
   const secondEvaluationRemark = selectedEvaluation?.remarks_2 ?? 'N/A'
   const secondEvaluationComment = selectedEvaluation?.comment_2 ?? ''
   const firstEvaluationPassed = String(firstEvaluationRemark).toLowerCase() === 'passed'
-  const firstEvaluationDateToday = format(new Date(), 'MMMM dd, yyyy')
   const firstFormattedComment = firstEvaluationRemark !== 'N/A'
     ? `${firstEvaluationRemark}: ${firstEvaluationComment || '-'}`
     : '-'
@@ -775,10 +774,8 @@ function EvaluateEmployeeForm() {
               </div>
               <div className="space-y-1">
                 <div className="flex gap-2 font-bold">
-                  <span className="text-[#0000FF] underline">DATE:</span>
-                  <div className="flex-1 border-b border-black relative">
-                    <span className="absolute left-2 -top-0.5 text-[#D32F2F] font-bold">{firstEvaluationDateToday}</span>
-                  </div>
+                  <span className="font-bold">DATE:</span>
+                  <div className="flex-1 border-b border-black" />
                 </div>
               </div>
             </div>
@@ -837,9 +834,7 @@ function EvaluateEmployeeForm() {
               </div>
               <div className="flex gap-2">
                 <span className="min-w-[40px]">Date:</span>
-                <div className="flex-1 border-b border-black relative">
-                  <span className="absolute left-2 -top-0.5 text-[#D32F2F] font-bold">{firstEvaluationDateToday}</span>
-                </div>
+                <div className="flex-1 border-b border-black"></div>
               </div>
               <div className="flex gap-2">
                 <span className="min-w-[80px]">Reviewed by:</span>
@@ -847,9 +842,7 @@ function EvaluateEmployeeForm() {
               </div>
               <div className="flex gap-2">
                 <span className="min-w-[40px]">Date:</span>
-                <div className="flex-1 border-b border-black relative">
-                  <span className="absolute left-2 -top-0.5 text-[#D32F2F] font-bold">{firstEvaluationDateToday}</span>
-                </div>
+                <div className="flex-1 border-b border-black"></div>
               </div>
               <div className="flex gap-2">
                 <span className="min-w-[80px]">Approved by:</span>
@@ -857,9 +850,7 @@ function EvaluateEmployeeForm() {
               </div>
               <div className="flex gap-2">
                 <span className="min-w-[40px]">Date:</span>
-                <div className="flex-1 border-b border-black relative">
-                  <span className="absolute left-2 -top-0.5 text-[#D32F2F] font-bold">{firstEvaluationDateToday}</span>
-                </div>
+                <div className="flex-1 border-b border-black"></div>
               </div>
             </div>
           </div>
@@ -1007,10 +998,8 @@ function EvaluateEmployeeForm() {
           </div>
           <div className="space-y-1">
             <div className="flex gap-2 font-bold">
-              <span className="text-[#0000FF] underline">DATE:</span>
-              <div className="flex-1 border-b border-black relative">
-                <span className="absolute left-2 -top-0.5 text-[#D32F2F] font-bold">{format(new Date(), 'MMMM dd, yyyy')}</span>
-              </div>
+              <span className="font-bold">DATE:</span>
+              <div className="flex-1 border-b border-black"></div>
             </div>
           </div>
         </div>
@@ -1092,9 +1081,7 @@ function EvaluateEmployeeForm() {
             </div>
             <div className="flex gap-2">
               <span className="min-w-[40px]">Date:</span>
-              <div className="flex-1 border-b border-black relative">
-                  <span className="absolute left-2 -top-0.5 text-[#D32F2F] font-bold">{format(new Date(), 'MMMM dd, yyyy')}</span>
-              </div>
+              <div className="flex-1 border-b border-black"></div>
             </div>
             
             <div className="flex gap-2 items-center">
@@ -1110,9 +1097,7 @@ function EvaluateEmployeeForm() {
             </div>
             <div className="flex gap-2">
               <span className="min-w-[40px]">Date:</span>
-              <div className="flex-1 border-b border-black relative">
-                  <span className="absolute left-2 -top-0.5 text-[#D32F2F] font-bold">{format(new Date(), 'MMMM dd, yyyy')}</span>
-              </div>
+              <div className="flex-1 border-b border-black"></div>
             </div>
             
             <div className="flex gap-2 items-center">
@@ -1128,9 +1113,7 @@ function EvaluateEmployeeForm() {
             </div>
             <div className="flex gap-2">
               <span className="min-w-[40px]">Date:</span>
-              <div className="flex-1 border-b border-black relative">
-                  <span className="absolute left-2 -top-0.5 text-[#D32F2F] font-bold">{format(new Date(), 'MMMM dd, yyyy')}</span>
-              </div>
+              <div className="flex-1 border-b border-black"></div>
             </div>
           </div>
         </div>
