@@ -279,6 +279,26 @@ export default function ClearanceChecklistPage() {
     return JSON.stringify(currentTasks) !== JSON.stringify(savedTasks)
   }, [employeeInfo?.department, records, tasks])
 
+  const editedTaskLabels = useMemo(() => {
+    const labels = new Map<number, 'Edited' | 'Added'>()
+    if (!hasUnsavedChanges) return labels
+
+    const departmentName = String(employeeInfo?.department || '').trim()
+    if (!departmentName) return labels
+    const savedRecord = records.find((record) => String(record.department || '').trim() === departmentName)
+    const savedRows = savedRecord?.tasks ?? []
+
+    tasks.forEach((row, index) => {
+      const currentTask = String(row.task || '').trim()
+      const savedTask = String(savedRows[index]?.task || '').trim()
+      if (currentTask !== savedTask) {
+        labels.set(row.id, index >= savedRows.length ? 'Added' : 'Edited')
+      }
+    })
+
+    return labels
+  }, [employeeInfo?.department, hasUnsavedChanges, records, tasks])
+
   const savedTaskCount = useMemo(() => {
     const departmentName = String(employeeInfo?.department || '').trim()
     if (!departmentName) return 0
@@ -839,6 +859,7 @@ export default function ClearanceChecklistPage() {
                   }}
                   className={cn(
                     "border-b border-rose-50/30 last:border-0 hover:bg-[#FFE5EC]/5 transition-all duration-200 ease-out group",
+                    editedTaskLabels.has(item.id) ? "bg-amber-50/50 ring-1 ring-amber-200/80" : "",
                     dragTaskId === item.id ? "opacity-45" : "",
                     dragOverTaskId === item.id && dragTaskId !== item.id ? "bg-rose-50/60 ring-1 ring-rose-200" : "",
                     recentlyMovedTaskId === item.id ? "bg-rose-50/40" : ""
@@ -862,6 +883,11 @@ export default function ClearanceChecklistPage() {
                           <GripVertical className="h-3.5 w-3.5" />
                         </button>
                         <div className="flex-1">
+                        {editedTaskLabels.has(item.id) && (
+                          <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-amber-700">
+                            {editedTaskLabels.get(item.id)}
+                          </p>
+                        )}
                         <Input
                           value={item.task}
                           onChange={(e) => updateTaskText(item.id, e.target.value)}
