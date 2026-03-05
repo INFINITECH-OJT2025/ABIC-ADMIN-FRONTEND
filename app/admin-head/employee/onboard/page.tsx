@@ -1342,13 +1342,55 @@ function OnboardPageContent() {
   const handleProgressionChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
 
-    // Validation for mobile number: only numbers, max 10 digits
+    // Define name fields that should have special characters removed and 50 char limit
+    const nameFields = [
+      'first_name', 'last_name', 'middle_name', 'suffix',
+      'mfirst_name', 'mlast_name', 'mmiddle_name', 'msuffix',
+      'ffirst_name', 'flast_name', 'fmiddle_name', 'fsuffix'
+    ]
+
+    // 1. Name Filtering & Limit
+    if (nameFields.includes(name)) {
+      const filteredValue = value.replace(/[^a-zA-Z\s-]/g, '').slice(0, 50)
+      setProgressionFormData((prev) => ({ ...prev, [name]: filteredValue }))
+      return
+    }
+
+    // 2. Mobile Number (Existing)
     if (name === 'mobile_number') {
       const numericValue = value.replace(/\D/g, '').slice(0, 10)
-      setProgressionFormData((prev) => ({
-        ...prev,
-        [name]: numericValue,
-      }))
+      setProgressionFormData((prev) => ({ ...prev, [name]: numericValue }))
+      return
+    }
+
+    // 3. Email Limit (50)
+    if (name === 'email_address') {
+      setProgressionFormData((prev) => ({ ...prev, [name]: value.slice(0, 50) }))
+      return
+    }
+
+    // 4. Gov IDs Limit (20) & Numbers Only
+    if (['sss_number', 'philhealth_number', 'pagibig_number', 'tin_number'].includes(name)) {
+      const numericValue = value.replace(/\D/g, '').slice(0, 20)
+      setProgressionFormData((prev) => ({ ...prev, [name]: numericValue }))
+      return
+    }
+
+    // 5. Address / General Text Limit (100) & Sanitize
+    const addressFields = [
+      'house_number', 'street', 'village', 'subdivision', 'birthplace',
+      'perm_house_number', 'perm_street', 'perm_village', 'perm_subdivision'
+    ]
+    if (addressFields.includes(name)) {
+      const sanitizedValue = value.replace(/[^a-zA-Z0-9\s.,-]/g, '').slice(0, 100)
+      setProgressionFormData((prev) => ({ ...prev, [name]: sanitizedValue }))
+      return
+    }
+
+    // 6. Zip Code Limit (10) & Numbers Only
+    if (name === 'zip_code' || name === 'perm_zip_code') {
+      const numericValue = value.replace(/\D/g, '').slice(0, 10)
+      setProgressionFormData((prev) => ({ ...prev, [name]: numericValue }))
       return
     }
 
@@ -1416,7 +1458,8 @@ function OnboardPageContent() {
         return !!data.last_name && !!data.first_name && !!data.birthday &&
           !!data.birthplace && !!data.gender && !!data.civil_status
       case 3:
-        return !!data.mobile_number && !!data.email_address
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+        return !!data.mobile_number && !!data.email_address && emailRegex.test(data.email_address)
       case 4:
         return true
       case 5:
@@ -2133,19 +2176,36 @@ function OnboardPageContent() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <Label htmlFor="last_name" className="text-sm font-semibold">Last Name <span className="text-red-500">*</span></Label>
-                          <Input id="last_name" name="last_name" value={progressionFormData.last_name || ''} onChange={handleProgressionChange} placeholder="e.g., Dela Cruz" className="font-medium" />
+                          <Input id="last_name" name="last_name" value={progressionFormData.last_name || ''} onChange={handleProgressionChange} placeholder="e.g., Dela Cruz" maxLength={50} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="first_name" className="text-sm font-semibold">First Name <span className="text-red-500">*</span></Label>
-                          <Input id="first_name" name="first_name" value={progressionFormData.first_name || ''} onChange={handleProgressionChange} placeholder="e.g., Juan" className="font-medium" />
+                          <Input id="first_name" name="first_name" value={progressionFormData.first_name || ''} onChange={handleProgressionChange} placeholder="e.g., Juan" maxLength={50} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="middle_name" className="text-sm font-semibold">Middle Name</Label>
-                          <Input id="middle_name" name="middle_name" value={progressionFormData.middle_name || ''} onChange={handleProgressionChange} placeholder="Optional" className="font-medium" />
+                          <Input id="middle_name" name="middle_name" value={progressionFormData.middle_name || ''} onChange={handleProgressionChange} placeholder="Optional" maxLength={50} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="suffix" className="text-sm font-semibold">Suffix</Label>
-                          <Input id="suffix" name="suffix" value={progressionFormData.suffix || ''} onChange={handleProgressionChange} placeholder="e.g., Jr." className="font-medium" />
+                          <select 
+                            id="suffix" 
+                            name="suffix" 
+                            value={progressionFormData.suffix || ''} 
+                            onChange={handleProgressionChange} 
+                            className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-maroon-500 transition-all font-medium"
+                          >
+                            <option value="">None</option>
+                            <option value="Jr.">Jr.</option>
+                            <option value="Sr.">Sr.</option>
+                            <option value="I">I</option>
+                            <option value="II">II</option>
+                            <option value="III">III</option>
+                            <option value="IV">IV</option>
+                            <option value="V">V</option>
+                            <option value="VI">VI</option>
+                            <option value="VII">VII</option>
+                          </select>
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="birthday" className="text-sm font-semibold">Birthday <span className="text-red-500">*</span></Label>
@@ -2153,7 +2213,7 @@ function OnboardPageContent() {
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="birthplace" className="text-sm font-semibold">Birthplace <span className="text-red-500">*</span></Label>
-                          <Input id="birthplace" name="birthplace" value={progressionFormData.birthplace || ''} onChange={handleProgressionChange} placeholder="e.g., Manila" className="font-medium" />
+                          <Input id="birthplace" name="birthplace" value={progressionFormData.birthplace || ''} onChange={handleProgressionChange} placeholder="e.g., Manila" maxLength={100} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="gender" className="text-sm font-semibold">Gender <span className="text-red-500">*</span></Label>
@@ -2197,8 +2257,29 @@ function OnboardPageContent() {
                           </div>
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="email_address" className="text-sm font-semibold">Email Address <span className="text-red-500">*</span></Label>
-                          <Input id="email_address" type="email" name="email_address" value={progressionFormData.email_address || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <div className="flex justify-between items-center">
+                            <Label htmlFor="email_address" className="text-sm font-semibold">Email Address <span className="text-red-500">*</span></Label>
+                            {progressionFormData.email_address && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(progressionFormData.email_address) && (
+                              <div className="flex items-center gap-1 text-[10px] text-rose-500 font-bold animate-in fade-in slide-in-from-right-1">
+                                <AlertCircle className="w-3 h-3" />
+                                Invalid Format
+                              </div>
+                            )}
+                          </div>
+                          <Input 
+                            id="email_address" 
+                            type="email" 
+                            name="email_address" 
+                            value={progressionFormData.email_address || ''} 
+                            onChange={handleProgressionChange} 
+                            maxLength={50} 
+                            className={cn(
+                              "font-medium transition-all duration-300",
+                              progressionFormData.email_address && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(progressionFormData.email_address)
+                                ? "border-rose-400 focus-visible:ring-rose-400 bg-rose-50/30"
+                                : progressionFormData.email_address && "border-emerald-400 focus-visible:ring-emerald-400 bg-emerald-50/30"
+                            )} 
+                          />
                         </div>
                       </div>
                     )}
@@ -2208,19 +2289,19 @@ function OnboardPageContent() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <Label htmlFor="sss_number" className="text-sm font-semibold">SSS Number</Label>
-                          <Input id="sss_number" name="sss_number" value={progressionFormData.sss_number || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="sss_number" name="sss_number" value={progressionFormData.sss_number || ''} onChange={handleProgressionChange} maxLength={20} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="philhealth_number" className="text-sm font-semibold">PhilHealth Number</Label>
-                          <Input id="philhealth_number" name="philhealth_number" value={progressionFormData.philhealth_number || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="philhealth_number" name="philhealth_number" value={progressionFormData.philhealth_number || ''} onChange={handleProgressionChange} maxLength={20} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="pagibig_number" className="text-sm font-semibold">Pag-IBIG Number</Label>
-                          <Input id="pagibig_number" name="pagibig_number" value={progressionFormData.pagibig_number || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="pagibig_number" name="pagibig_number" value={progressionFormData.pagibig_number || ''} onChange={handleProgressionChange} maxLength={20} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="tin_number" className="text-sm font-semibold">TIN Number</Label>
-                          <Input id="tin_number" name="tin_number" value={progressionFormData.tin_number || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="tin_number" name="tin_number" value={progressionFormData.tin_number || ''} onChange={handleProgressionChange} maxLength={20} className="font-medium" />
                         </div>
                       </div>
                     )}
@@ -2231,19 +2312,51 @@ function OnboardPageContent() {
                         <Card className="border-rose-100 bg-rose-50/30 p-4">
                           <h4 className="font-bold text-rose-800 mb-4 flex items-center gap-2"><div className="w-1 h-4 bg-rose-500 rounded-full"></div>Mother's Maiden Name</h4>
                           <div className="space-y-4">
-                            <Input placeholder="Last Name *" name="mlast_name" value={progressionFormData.mlast_name || ''} onChange={handleProgressionChange} className="font-medium" />
-                            <Input placeholder="First Name *" name="mfirst_name" value={progressionFormData.mfirst_name || ''} onChange={handleProgressionChange} className="font-medium" />
-                            <Input placeholder="Middle Name" name="mmiddle_name" value={progressionFormData.mmiddle_name || ''} onChange={handleProgressionChange} className="font-medium" />
-                            <Input placeholder="Suffix" name="msuffix" value={progressionFormData.msuffix || ''} onChange={handleProgressionChange} className="font-medium" />
+                            <Input placeholder="Last Name *" name="mlast_name" value={progressionFormData.mlast_name || ''} onChange={handleProgressionChange} maxLength={50} className="font-medium" />
+                            <Input placeholder="First Name *" name="mfirst_name" value={progressionFormData.mfirst_name || ''} onChange={handleProgressionChange} maxLength={50} className="font-medium" />
+                            <Input placeholder="Middle Name" name="mmiddle_name" value={progressionFormData.mmiddle_name || ''} onChange={handleProgressionChange} maxLength={50} className="font-medium" />
+                            <select 
+                              name="msuffix" 
+                              value={progressionFormData.msuffix || ''} 
+                              onChange={handleProgressionChange} 
+                              className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-maroon-500 transition-all font-medium"
+                            >
+                              <option value="">(None)</option>
+                              <option value="Jr.">Jr.</option>
+                              <option value="Sr.">Sr.</option>
+                              <option value="I">I</option>
+                              <option value="II">II</option>
+                              <option value="III">III</option>
+                              <option value="IV">IV</option>
+                              <option value="V">V</option>
+                              <option value="VI">VI</option>
+                              <option value="VII">VII</option>
+                            </select>
                           </div>
                         </Card>
                         <Card className="border-slate-100 bg-slate-50/30 p-4">
                           <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><div className="w-1 h-4 bg-slate-500 rounded-full"></div>Father's Name (Optional)</h4>
                           <div className="space-y-4">
-                            <Input placeholder="Last Name" name="flast_name" value={progressionFormData.flast_name || ''} onChange={handleProgressionChange} className="font-medium" />
-                            <Input placeholder="First Name" name="ffirst_name" value={progressionFormData.ffirst_name || ''} onChange={handleProgressionChange} className="font-medium" />
-                            <Input placeholder="Middle Name" name="fmiddle_name" value={progressionFormData.fmiddle_name || ''} onChange={handleProgressionChange} className="font-medium" />
-                            <Input placeholder="Suffix" name="fsuffix" value={progressionFormData.fsuffix || ''} onChange={handleProgressionChange} className="font-medium" />
+                            <Input placeholder="Last Name" name="flast_name" value={progressionFormData.flast_name || ''} onChange={handleProgressionChange} maxLength={50} className="font-medium" />
+                            <Input placeholder="First Name" name="ffirst_name" value={progressionFormData.ffirst_name || ''} onChange={handleProgressionChange} maxLength={50} className="font-medium" />
+                            <Input placeholder="Middle Name" name="fmiddle_name" value={progressionFormData.fmiddle_name || ''} onChange={handleProgressionChange} maxLength={50} className="font-medium" />
+                            <select 
+                              name="fsuffix" 
+                              value={progressionFormData.fsuffix || ''} 
+                              onChange={handleProgressionChange} 
+                              className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-maroon-500 transition-all font-medium"
+                            >
+                              <option value="">(None)</option>
+                              <option value="Jr.">Jr.</option>
+                              <option value="Sr.">Sr.</option>
+                              <option value="I">I</option>
+                              <option value="II">II</option>
+                              <option value="III">III</option>
+                              <option value="IV">IV</option>
+                              <option value="V">V</option>
+                              <option value="VI">VI</option>
+                              <option value="VII">VII</option>
+                            </select>
                           </div>
                         </Card>
                       </div>
@@ -2254,19 +2367,19 @@ function OnboardPageContent() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <Label htmlFor="house_number" className="text-sm font-semibold">House number</Label>
-                          <Input id="house_number" name="house_number" value={progressionFormData.house_number || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="house_number" name="house_number" value={progressionFormData.house_number || ''} onChange={handleProgressionChange} maxLength={100} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="street" className="text-sm font-semibold">Street <span className="text-red-500">*</span></Label>
-                          <Input id="street" name="street" value={progressionFormData.street || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="street" name="street" value={progressionFormData.street || ''} onChange={handleProgressionChange} maxLength={100} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="village" className="text-sm font-semibold">Village</Label>
-                          <Input id="village" name="village" value={progressionFormData.village || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="village" name="village" value={progressionFormData.village || ''} onChange={handleProgressionChange} maxLength={100} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="subdivision" className="text-sm font-semibold">Subdivision</Label>
-                          <Input id="subdivision" name="subdivision" value={progressionFormData.subdivision || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="subdivision" name="subdivision" value={progressionFormData.subdivision || ''} onChange={handleProgressionChange} maxLength={100} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="region" className="text-sm font-semibold">Region <span className="text-red-500">*</span></Label>
@@ -2298,7 +2411,7 @@ function OnboardPageContent() {
                         </div>
                         <div className="space-y-2 md:col-span-2">
                           <Label htmlFor="zip_code" className="text-sm font-semibold">ZIP Code <span className="text-red-500">*</span></Label>
-                          <Input id="zip_code" name="zip_code" value={progressionFormData.zip_code || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="zip_code" name="zip_code" value={progressionFormData.zip_code || ''} onChange={handleProgressionChange} maxLength={10} className="font-medium" />
                         </div>
                       </div>
                     )}
@@ -2308,19 +2421,19 @@ function OnboardPageContent() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <Label htmlFor="perm_house_number" className="text-sm font-semibold">House number</Label>
-                          <Input id="perm_house_number" name="perm_house_number" value={progressionFormData.perm_house_number || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="perm_house_number" name="perm_house_number" value={progressionFormData.perm_house_number || ''} onChange={handleProgressionChange} maxLength={100} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="perm_street" className="text-sm font-semibold">Street <span className="text-red-500">*</span></Label>
-                          <Input id="perm_street" name="perm_street" value={progressionFormData.perm_street || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="perm_street" name="perm_street" value={progressionFormData.perm_street || ''} onChange={handleProgressionChange} maxLength={100} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="perm_village" className="text-sm font-semibold">Village</Label>
-                          <Input id="perm_village" name="perm_village" value={progressionFormData.perm_village || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="perm_village" name="perm_village" value={progressionFormData.perm_village || ''} onChange={handleProgressionChange} maxLength={100} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="perm_subdivision" className="text-sm font-semibold">Subdivision</Label>
-                          <Input id="perm_subdivision" name="perm_subdivision" value={progressionFormData.perm_subdivision || ''} onChange={handleProgressionChange} className="font-medium" />
+                          <Input id="perm_subdivision" name="perm_subdivision" value={progressionFormData.perm_subdivision || ''} onChange={handleProgressionChange} maxLength={100} className="font-medium" />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="perm_region" className="text-sm font-semibold">Region <span className="text-red-500">*</span></Label>
