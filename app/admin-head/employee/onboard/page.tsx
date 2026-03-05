@@ -1051,6 +1051,13 @@ function OnboardPageContent() {
       return
     }
 
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address')
+      return
+    }
+
     setIsSaving(true)
     try {
       if (isRehireFlow && onboardingEmployeeId) {
@@ -1627,67 +1634,88 @@ function OnboardPageContent() {
       )}
 
       {/* ----- INTEGRATED PREMIUM HEADER ----- */}
-      <header className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md p-4 md:p-8 mb-6 relative overflow-hidden">
-        <div className="w-full mx-auto flex flex-wrap items-center gap-6 lg:gap-8 relative z-10">
-          <div className="flex flex-col">
-            <h1 className="text-2xl md:text-4xl font-bold tracking-tight mb-2">
-              {view === 'onboard' ? 'Onboard New Employee' : view === 'checklist' ? 'Onboarding Process' : 'Employee Data Entry'}
-            </h1>
-            <div className="flex items-center gap-2 text-white/80 transition-all duration-500">
-              <p className="text-sm md:text-lg font-bold uppercase tracking-widest leading-none">ABIC REALTY & CONSULTANCY</p>
-            </div>
-            {isRehireFlow && (
-              <div className="mt-2 inline-flex items-center gap-2 rounded-md border border-amber-300/70 bg-amber-100/20 px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-amber-100">
-                <AlertCircle className="h-3.5 w-3.5" />
-                Rehire Employee Process
+      <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6 relative overflow-hidden">
+        {/* Main Header Row */}
+        <div className="w-full px-4 md:px-8 py-6 relative z-10">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">
+                {view === 'onboard' ? 'Onboard New Employee' : view === 'checklist' ? 'Onboarding Process' : 'Employee Data Entry'}
+              </h1>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4" />
+                  ABIC REALTY & CONSULTANCY
+                </p>
+                {isRehireFlow && (
+                  <div className="inline-flex items-center gap-2 rounded-md border border-amber-300/70 bg-amber-100/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-100">
+                    <AlertCircle className="h-3 w-3" />
+                    REHIRE PROCESS
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleCancelOnboarding}
+                className="border-2 border-white/40 text-white hover:bg-white/20 hover:border-white/60 bg-transparent backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2 cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>BACK TO MASTERFILE</span>
+              </button>
+            </div>
           </div>
-          <div className="h-10 w-px bg-white/10 hidden lg:block" />
-          {checklistData && view !== 'onboard' && (
-            <div className="flex flex-wrap items-center gap-6 flex-1 animate-in slide-in-from-left-4 duration-500">
-              <div className="flex flex-col">
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">Employee</span>
-                <span className="text-sm font-bold text-white leading-none">{checklistData.name}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">Position</span>
-                <span className="text-sm font-bold text-white leading-none">{checklistData.position}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">Department</span>
-                <span className="text-sm font-bold text-white leading-none">{checklistData.department}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">Start Date</span>
-                <span className="text-sm font-bold text-white leading-none">{checklistData.date}</span>
-              </div>
-              <div className="ml-auto hidden xl:flex items-center gap-6 bg-white/5 px-6 py-3 rounded-2xl border border-white/10 backdrop-blur-sm">
-                <div className="flex flex-col items-end">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">Overall Progress</span>
-                  <span className="text-xl font-black text-white">{view === 'checklist' ? completionPercentage : calculateProgressionProgress()}%</span>
-                </div>
-                <div className="h-8 w-px bg-white/10" />
-                <div className="flex flex-col">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">
-                    {view === 'checklist' ? 'Last Updated' : `Batch ${currentBatch} of 7`}
-                  </span>
-                  <span className="text-xl font-black text-white tracking-tight">
-                    {view === 'checklist' ? (completionDateText || '—') : batches[currentBatch - 1].title}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-          {view === 'onboard' && (
-            <div className="ml-auto">
-              <Button variant="ghost" onClick={handleCancelOnboarding} className="bg-white/10 hover:bg-white/20 text-white border-white/20 h-11 px-6 font-bold">
-                <ChevronLeft className="mr-2 h-4 w-4" />Back to Masterfile
-              </Button>
-            </div>
-          )}
         </div>
-      </header>
+
+        {/* Secondary Toolbar - Progress & Info Bar */}
+        {checklistData && view !== 'onboard' && (
+          <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm relative z-10">
+            <div className="w-full px-4 md:px-8 py-3">
+              <div className="flex flex-wrap items-center gap-4 md:gap-8">
+                {/* Employee Info */}
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center text-lg font-bold">
+                    {checklistData.name.charAt(0)}
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none mb-1">Employee</p>
+                    <p className="text-white font-bold text-sm leading-none">{checklistData.name}</p>
+                  </div>
+                </div>
+
+                {/* Position */}
+                {checklistData.position && (
+                  <div>
+                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none mb-1">Position</p>
+                    <p className="text-white font-bold text-sm leading-none">{checklistData.position}</p>
+                  </div>
+                )}
+
+                {/* Overall Progress */}
+                <div className="ml-auto flex items-center gap-6 bg-white/5 px-6 py-2 rounded-xl border border-white/10 backdrop-blur-sm">
+                  <div className="flex flex-col items-end">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">Overall Progress</p>
+                    <p className="text-xl font-black text-white leading-none">
+                      {view === 'checklist' ? completionPercentage : calculateProgressionProgress()}%
+                    </p>
+                  </div>
+                  <div className="h-8 w-px bg-white/10" />
+                  <div className="flex flex-col">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">
+                      {view === 'checklist' ? 'Last Updated' : `Batch ${currentBatch} of 7`}
+                    </p>
+                    <p className="text-lg font-bold text-white tracking-tight leading-none">
+                      {view === 'checklist' ? (completionDateText || '—') : batches[currentBatch - 1].title}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <div className="max-w-7xl mx-auto py-8 px-8 space-y-12">
@@ -1720,6 +1748,7 @@ function OnboardPageContent() {
                         value={onboardFormData.first_name} 
                         onChange={(e) => setOnboardFormData(prev => ({ ...prev, first_name: e.target.value }))} 
                         placeholder="John" 
+                        maxLength={50}
                         className={cn("transition-all duration-300", 
                           !isRehireFlow && nameExists && onboardFormData.first_name.length >= 2 && onboardFormData.last_name.length >= 2 && "border-rose-400 focus-visible:ring-rose-400 bg-rose-50/30",
                           !isRehireFlow && !nameExists && onboardFormData.first_name.length >= 2 && onboardFormData.last_name.length >= 2 && "border-emerald-400 focus-visible:ring-emerald-400 bg-emerald-50/30"
@@ -1734,6 +1763,7 @@ function OnboardPageContent() {
                         value={onboardFormData.last_name} 
                         onChange={(e) => setOnboardFormData(prev => ({ ...prev, last_name: e.target.value }))} 
                         placeholder="Doe" 
+                        maxLength={50}
                         className={cn("transition-all duration-300", 
                           !isRehireFlow && nameExists && onboardFormData.first_name.length >= 2 && onboardFormData.last_name.length >= 2 && "border-rose-400 focus-visible:ring-rose-400 bg-rose-50/30",
                           !isRehireFlow && !nameExists && onboardFormData.first_name.length >= 2 && onboardFormData.last_name.length >= 2 && "border-emerald-400 focus-visible:ring-emerald-400 bg-emerald-50/30"
@@ -1744,13 +1774,32 @@ function OnboardPageContent() {
                       <div className="flex justify-between items-center mb-2">
                         <label className="block text-sm font-semibold text-slate-700">Email Address <span className="text-red-500">*</span></label>
                         {!isRehireFlow && emailChecking && (<div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium"><Loader2 className="w-3 h-3 animate-spin" />Checking availability...</div>)}
-                        {!isRehireFlow && !emailChecking && onboardFormData.email && onboardFormData.email.includes('@') && (
-                          emailExists ? (<div className="flex items-center gap-1.5 text-xs text-rose-500 font-bold animate-in fade-in slide-in-from-right-2"><AlertCircle className="w-3 h-3" />Email already exists</div>)
-                          : (<div className="flex items-center gap-1.5 text-xs text-emerald-500 font-bold animate-in fade-in slide-in-from-right-2"><CheckCircle2 className="w-3 h-3" />Email available</div>)
+                        {!isRehireFlow && !emailChecking && onboardFormData.email && (
+                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(onboardFormData.email) ? (
+                            <div className="flex items-center gap-1.5 text-xs text-rose-500 font-bold animate-in fade-in slide-in-from-right-2"><AlertCircle className="w-3 h-3" />Invalid email format</div>
+                          ) : emailExists ? (
+                            <div className="flex items-center gap-1.5 text-xs text-rose-500 font-bold animate-in fade-in slide-in-from-right-2"><AlertCircle className="w-3 h-3" />Email already exists</div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 text-xs text-emerald-500 font-bold animate-in fade-in slide-in-from-right-2"><CheckCircle2 className="w-3 h-3" />Email available</div>
+                          )
                         )}
                       </div>
                       <div className="relative">
-                        <Input type="email" value={onboardFormData.email} onChange={(e) => setOnboardFormData(prev => ({ ...prev, email: e.target.value }))} placeholder="john@example.com" className={cn("transition-all duration-300", !isRehireFlow && emailExists && "border-rose-400 focus-visible:ring-rose-400 bg-rose-50/30", !isRehireFlow && !emailExists && onboardFormData.email && onboardFormData.email.includes('@') && "border-emerald-400 focus-visible:ring-emerald-400 bg-emerald-50/30")} />
+                        <Input 
+                          type="email" 
+                          value={onboardFormData.email} 
+                          onChange={(e) => setOnboardFormData(prev => ({ ...prev, email: e.target.value }))} 
+                          placeholder="john@example.com" 
+                          maxLength={100} 
+                          className={cn(
+                            "transition-all duration-300", 
+                            !isRehireFlow && onboardFormData.email && (
+                              !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(onboardFormData.email) || emailExists
+                                ? "border-rose-400 focus-visible:ring-rose-400 bg-rose-50/30"
+                                : "border-emerald-400 focus-visible:ring-emerald-400 bg-emerald-50/30"
+                            )
+                          )} 
+                        />
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -1816,21 +1865,21 @@ function OnboardPageContent() {
                 
 
                 {/* Progress Strip - Masterfile Header Style */}
-                <div className="mx-12 mt-12 bg-gradient-to-r from-[#4A081A]/10 to-transparent border-b-2 border-[#630C22] p-6 flex justify-between items-center">
+                <div className="mx-8 mt-6 bg-gradient-to-r from-[#4A081A]/10 to-transparent border-b-2 border-[#630C22] p-4 flex justify-between items-center">
                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-[#A0153E]/70 uppercase tracking-widest leading-none mb-2 text-left">Filing Representative</span>
-                      <span className="text-2xl font-black text-[#4A081A] leading-none text-left">{checklistData.name}</span>
+                      <span className="text-[10px] font-black text-[#A0153E]/70 uppercase tracking-widest leading-none mb-1 text-left">Filing Representative</span>
+                      <span className="text-xl font-black text-[#4A081A] leading-none text-left">{checklistData.name}</span>
                    </div>
                    <div className="text-right flex flex-col items-end">
-                      <span className="text-[10px] font-black text-[#630C22]/70 uppercase tracking-widest leading-none mb-2">Completion Index</span>
-                      <div className="flex items-center gap-3">
-                         <span className="inline-block w-3 h-3 rounded-full bg-[#C9184A]" />
-                         <span className="text-3xl font-black text-[#4A081A] leading-none">{completionPercentage}%</span>
+                      <span className="text-[10px] font-black text-[#630C22]/70 uppercase tracking-widest leading-none mb-1">Completion Index</span>
+                      <div className="flex items-center gap-2">
+                         <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#C9184A]" />
+                         <span className="text-2xl font-black text-[#4A081A] leading-none">{completionPercentage}%</span>
                       </div>
                    </div>
                 </div>
 
-                <div className="px-12 pt-6 pb-2">
+                <div className="px-8 pt-4 pb-2">
                   <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden border border-stone-200">
                     <div 
                       className="h-full bg-[#A4163A] transition-all duration-1000 shadow-[0_0_10px_rgba(164,22,58,0.4)]" 
@@ -1840,19 +1889,19 @@ function OnboardPageContent() {
                 </div>
 
                 {/* Task Checklist area */}
-                <div className="px-12 py-10">
+                <div className="px-8 py-4">
                    <div className="border-[1px] border-stone-300 rounded-sm">
                       <Table>
                         <TableHeader className="bg-stone-50 border-b-[1px] border-stone-300">
                           <TableRow className="hover:bg-transparent">
-                            <TableHead className="w-[250px] font-black text-stone-500 uppercase tracking-widest text-[11px] py-5 text-center border-r-[1px] border-stone-200">Complete Date</TableHead>
-                            <TableHead className="w-[120px] font-black text-stone-500 uppercase tracking-widest text-[11px] py-5 text-center border-r-[1px] border-stone-200">
+                            <TableHead className="w-[200px] font-black text-stone-500 uppercase tracking-widest text-[10px] py-3 text-center border-r-[1px] border-stone-200">Complete Date</TableHead>
+                            <TableHead className="w-[100px] font-black text-stone-500 uppercase tracking-widest text-[10px] py-3 text-center border-r-[1px] border-stone-200">
                               Status
                             </TableHead>
-                            <TableHead className="font-black text-stone-500 uppercase tracking-widest text-[11px] py-5 text-left px-8">
+                            <TableHead className="font-black text-stone-500 uppercase tracking-widest text-[10px] py-3 text-left px-6">
                               <div className="flex items-center justify-between w-full">
                                 <span>Tasks</span>
-                                <div className="flex items-center pr-4">
+                                <div className="flex items-center pr-2">
                                   <Button 
                                     variant="outline" 
                                     size="sm" 
@@ -1860,9 +1909,9 @@ function OnboardPageContent() {
                                       e.stopPropagation();
                                       toggleAllTasks();
                                     }}
-                                    className="h-8 px-4 border-[#A4163A]/20 bg-white hover:bg-[#A4163A]/5 text-[#A4163A] font-black text-[10px] uppercase tracking-widest rounded transition-all shadow-sm flex items-center gap-2"
+                                    className="h-7 px-3 border-[#A4163A]/20 bg-white hover:bg-[#A4163A]/5 text-[#A4163A] font-black text-[9px] uppercase tracking-widest rounded transition-all shadow-sm flex items-center gap-2"
                                   >
-                                    <Check className="h-3.5 w-3.5" />
+                                    <Check className="h-3 w-3" />
                                     {onboardingTasks.length > 0 && onboardingTasks.every(task => completedTasks[task]) ? 'Uncheck All' : 'Check All'}
                                   </Button>
                                 </div>
@@ -1872,9 +1921,9 @@ function OnboardPageContent() {
                         </TableHeader>
                         <TableBody>
                           {loadingTasks ? (
-                            <TableRow><TableCell colSpan={3} className="py-20 text-center text-stone-400 italic">Retreiving assessment records...</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={3} className="py-10 text-center text-stone-400 italic">Retreiving assessment records...</TableCell></TableRow>
                           ) : onboardingTasks.length === 0 ? (
-                            <TableRow><TableCell colSpan={3} className="py-20 text-center text-stone-400 italic text-lg">No required tasks identified</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={3} className="py-10 text-center text-stone-400 italic text-lg">No required tasks identified</TableCell></TableRow>
                           ) : (
                             onboardingTasks.map((task, index) => (
                               <TableRow 
@@ -1882,25 +1931,25 @@ function OnboardPageContent() {
                                 onClick={() => toggleTask(task)}
                                 className="border-b-[1px] border-dashed border-stone-200 last:border-0 hover:bg-stone-50 transition-colors cursor-pointer group"
                               >
-                                <TableCell className="text-center py-6 text-xs font-bold text-stone-400">
+                                <TableCell className="text-center py-2 text-[11px] font-medium text-stone-400">
                                   {completedTasks[task] || 'PENDING'}
                                 </TableCell>
-                                <TableCell className="py-6">
+                                <TableCell className="py-2">
                                   <div className="flex justify-center">
                                     <div className={cn(
-                                      "w-7 h-7 rounded-full border-[1.5px] flex items-center justify-center transition-all",
+                                      "w-6 h-6 rounded-full border-[1.5px] flex items-center justify-center transition-all",
                                       completedTasks[task] 
                                         ? "border-[#A4163A] bg-[#A4163A]/10 text-[#A4163A] scale-110 shadow-sm"
                                         : "border-stone-300 group-hover:border-[#A4163A]"
                                     )}>
-                                      {completedTasks[task] && <Check className="h-5 w-5 stroke-[3px]" />}
+                                      {completedTasks[task] && <Check className="h-4 w-4 stroke-[3px]" />}
                                     </div>
                                   </div>
                                 </TableCell>
-                                <TableCell className="py-6 px-10">
+                                <TableCell className="py-2 px-6">
                                   <span className={cn(
-                                    "text-base font-bold transition-all duration-500",
-                                    completedTasks[task] ? "text-stone-300 line-through" : "text-stone-700 font-black"
+                                    "text-sm font-medium transition-all duration-500",
+                                    completedTasks[task] ? "text-stone-300 line-through" : "text-stone-700"
                                   )}>
                                     {task}
                                   </span>
@@ -1914,20 +1963,20 @@ function OnboardPageContent() {
                 </div>
 
                 {/* Footer Controls */}
-                <div className="mt-4 px-12 pb-12 pt-6 border-t-[1px] border-dashed border-stone-300 mx-12 flex flex-col md:flex-row justify-between items-center gap-8">
-                   <div className="flex flex-col items-center md:items-start opacity-70">
-                      <p className="text-[10px] font-black tracking-widest text-stone-400 uppercase mb-1">Authenticated by</p>
-                      <p className="text-xl font-serif font-bold italic text-stone-800">ABIC Administration</p>
+                <div className="mt-2 px-8 pb-6 pt-4 border-t-[1px] border-dashed border-stone-300 mx-8 flex flex-col md:flex-row justify-between items-center gap-6">
+                   <div className="flex flex-col items-center md:items-start">
+                      <p className="text-[9px] font-black tracking-widest text-[#A4163A]/60 uppercase mb-0.5 font-sans">Authenticated by</p>
+                      <p className="text-lg font-bold text-stone-800 font-sans tracking-tight">ABIC Administration</p>
                    </div>
 
-                   <div className="flex gap-4">
+                   <div className="flex gap-3">
                      <Button 
                        onClick={() => confirmSaveProgress('checklist')} 
                        disabled={isSaving}
                        variant="outline"
-                       className="h-14 px-8 border-stone-300 rounded-sm font-black text-[11px] uppercase tracking-widest hover:bg-stone-50 transition-all shadow-sm"
+                       className="h-10 px-6 border-stone-300 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-stone-50 transition-all shadow-sm font-sans"
                      >
-                       {isSaving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                       {isSaving ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
                        {isSaving ? 'Filing...' : 'Save Progress'}
                      </Button>
                      <Button
@@ -1939,10 +1988,10 @@ function OnboardPageContent() {
                          }
                        }}
                        disabled={Object.keys(completedTasks).length < onboardingTasks.length || isSaving}
-                       className="h-14 px-10 bg-[#A4163A] hover:bg-[#800020] text-white rounded-sm font-black text-[11px] uppercase tracking-widest shadow-xl transform active:scale-95 transition-all"
+                       className="h-10 px-6 bg-[#A4163A] hover:bg-[#800020] text-white rounded-lg font-bold text-[10px] uppercase tracking-wider shadow-md transform active:scale-95 transition-all font-sans"
                      >
                        Proceed to Official Filing
-                       <ChevronRight className="ml-2 w-4 h-4" />
+                       <ChevronRight className="ml-2 w-3.5 h-3.5" />
                      </Button>
                    </div>
                 </div>
