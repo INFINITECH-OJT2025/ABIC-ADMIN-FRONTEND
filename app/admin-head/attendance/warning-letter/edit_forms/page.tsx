@@ -135,14 +135,7 @@ Please be reminded of the following:
 
 Kindly ensure that the employee is informed and that corrective action is enforced appropriately.
 
-Thank you.
-
-Employee Acknowledgment:
-I, {{employee_name}}, hereby acknowledge receipt of this Formal Warning Letter.
-
-Employee Signature: _________________________
-
-Date: _________________________`,
+Thank you.`,
     footer: 'Admin Assistant',
     signatoryName: 'AIZLE MARIE M. ATIENZA',
     headerLogoImage: null,
@@ -170,14 +163,7 @@ Please be reminded of the following:
 
 Kindly ensure that the employee is informed and that corrective action is enforced appropriately.
 
-Thank you.
-
-Employee Acknowledgment:
-I, {{employee_name}}, hereby acknowledge receipt of this Formal Warning Letter.
-
-Employee Signature: _________________________
-
-Date: _________________________`,
+Thank you.`,
     footer: 'Admin Assistant',
     signatoryName: 'AIZLE MARIE M. ATIENZA',
     headerLogoImage: null,
@@ -187,14 +173,25 @@ Date: _________________________`,
 
 // --- Skeleton Component ---
 const EditorSkeleton = () => (
-    <div className="pb-20">
-        <div className="max-w-[1400px] mx-auto px-10 space-y-10">
+    <div className="min-h-screen bg-[#FDF4F6] pb-20">
+        <div className="sticky top-0 z-50 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
+            <div className="flex items-center gap-4">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <Skeleton className="h-6 w-48" />
+            </div>
+            <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-32 rounded-xl" />
+                <Skeleton className="h-10 w-40 rounded-xl" />
+            </div>
+        </div>
+
+        <div className="max-w-[1400px] mx-auto px-10 pt-10 space-y-10">
             <div className="flex justify-center">
-                <Skeleton className="h-12 w-[600px] rounded-2xl" />
+                <Skeleton className="h-10 w-[800px] rounded-xl" />
             </div>
 
             <div className="flex justify-center">
-                <Skeleton className="h-12 w-[600px] rounded-2xl" />
+                <Skeleton className="h-8 w-[600px] rounded-lg" />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
@@ -564,28 +561,30 @@ export default function EditFormsPage() {
                         </div>
                     </div>
 
-                    {!isSupervisor && (
-                        <div className="pt-8 border-t border-dashed border-slate-300">
-                            <p className="font-bold mb-4">Employee Acknowledgment:</p>
-                            <p className="mb-4 font-medium">I, <span className="font-bold text-[#A4163A]">[Employee Full Name]</span>, hereby acknowledge receipt of this Formal Warning Letter.</p>
-                            <div className="space-y-6">
-                                <div className="flex items-end gap-2 max-w-md">
-                                    <span className="font-bold whitespace-nowrap">Employee Signature:</span>
-                                    <div className="flex-1 border-b border-black h-5"></div>
-                                </div>
-                                <div className="flex items-end gap-2 max-w-[280px]">
-                                    <span className="font-bold whitespace-nowrap">Date:</span>
-                                    <div className="flex-1 border-b border-black h-5"></div>
-                                </div>
+                    <div className="mt-12 border-t border-slate-100 pt-8 space-y-4">
+                        <p className="font-bold mb-4">Employee Acknowledgment:</p>
+                        <p className="mb-8">
+                            I, <span className="font-bold text-[#A4163A]">[Employee Full Name]</span>, hereby acknowledge receipt of this Formal Warning Letter.
+                        </p>
+                        <div className="space-y-6 pt-6">
+                            <div className="flex items-end gap-2 max-w-[400px]">
+                                <span className="font-bold whitespace-nowrap">Employee Signature:</span>
+                                <div className="flex-1 border-b-[1.5px] border-black h-5"></div>
+                            </div>
+                            <div className="flex items-end gap-2 max-w-[250px]">
+                                <span className="font-bold whitespace-nowrap">Date:</span>
+                                <div className="flex-1 border-b-[1.5px] border-black h-5"></div>
                             </div>
                         </div>
-                    )}
+                    </div>
                 </div>
             </div>
         )
     }
 
-
+    if (isLoading) {
+        return <EditorSkeleton />
+    }
 
     return (
         <div className="min-h-screen bg-[#FDF4F6]">
@@ -699,8 +698,6 @@ export default function EditFormsPage() {
                                         )}
                                     </Button>
 
-
-
                                     <Button
                                         onClick={() => handleSave()}
                                         disabled={isSaving}
@@ -724,267 +721,263 @@ export default function EditFormsPage() {
                     </div>
                 </div>
 
-                {isLoading ? (
-                    <EditorSkeleton />
-                ) : (
-                    <div className={cn(
-                        "mx-auto p-4 md:p-6 lg:p-8 transition-all duration-500 ease-in-out",
-                        isFullWidth ? "max-w-[100%] px-4 md:px-10" : "max-w-[1400px]"
-                    )}>
-                        {hasLocalOnlyChanges && (
-                            <div className="bg-amber-50 border-2 border-amber-200 text-amber-800 p-5 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg animate-in fade-in slide-in-from-top-4 duration-700">
-                                <div className="flex items-center gap-4">
-                                    <div className="p-3 bg-amber-100 rounded-2xl">
-                                        <AlertTriangle className="w-6 h-6 text-amber-600" />
-                                    </div>
-                                    <div>
-                                        <h4 className="font-black text-lg tracking-tight">Sync Required</h4>
-                                        <p className="text-sm font-medium opacity-80">You have customized templates in this browser that are not yet saved to the database.</p>
-                                    </div>
+                <div className={cn(
+                    "mx-auto p-4 md:p-6 lg:p-8 transition-all duration-500 ease-in-out",
+                    isFullWidth ? "max-w-[100%] px-4 md:px-10" : "max-w-[1400px]"
+                )}>
+                    {hasLocalOnlyChanges && (
+                        <div className="bg-amber-50 border-2 border-amber-200 text-amber-800 p-5 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg animate-in fade-in slide-in-from-top-4 duration-700">
+                            <div className="flex items-center gap-4">
+                                <div className="p-3 bg-amber-100 rounded-2xl">
+                                    <AlertTriangle className="w-6 h-6 text-amber-600" />
                                 </div>
-                                <Button
-                                    variant="outline"
-                                    size="lg"
-                                    onClick={() => handleSave()}
-                                    disabled={isSaving}
-                                    className="bg-white hover:bg-amber-600 hover:text-white border-amber-300 text-amber-900 font-black rounded-2xl px-8 h-14 shadow-md transition-all active:scale-95"
-                                >
-                                    {isSaving ? 'Syncing...' : 'Migrate to Cloud'}
-                                </Button>
+                                <div>
+                                    <h4 className="font-black text-lg tracking-tight">Sync Required</h4>
+                                    <p className="text-sm font-medium opacity-80">You have customized templates in this browser that are not yet saved to the database.</p>
+                                </div>
                             </div>
-                        )}
+                            <Button
+                                variant="outline"
+                                size="lg"
+                                onClick={() => handleSave()}
+                                disabled={isSaving}
+                                className="bg-white hover:bg-amber-600 hover:text-white border-amber-300 text-amber-900 font-black rounded-2xl px-8 h-14 shadow-md transition-all active:scale-95"
+                            >
+                                {isSaving ? 'Syncing...' : 'Migrate to Cloud'}
+                            </Button>
+                        </div>
+                    )}
 
+                    <div className={cn(
+                        "grid gap-8 transition-all duration-500",
+                        showPreview
+                            ? "grid-cols-1 xl:grid-cols-[1fr_816px]"
+                            : "grid-cols-1 max-w-[1200px] mx-auto"
+                    )}>
+                        {/* Editor Side */}
                         <div className={cn(
-                            "grid gap-8 transition-all duration-500",
-                            showPreview
-                                ? "grid-cols-1 xl:grid-cols-[1fr_816px]"
-                                : "grid-cols-1 max-w-[1200px] mx-auto"
+                            "space-y-6 transition-all duration-500",
+                            showPreview ? "animate-in slide-in-from-left" : "w-full"
                         )}>
-                            {/* Editor Side */}
-                            <div className={cn(
-                                "space-y-6 transition-all duration-500",
-                                showPreview ? "animate-in slide-in-from-left" : "w-full"
-                            )}>
-                                <Card className="border-0 shadow-2xl rounded-3xl overflow-hidden bg-white">
-                                    <CardHeader className="bg-gradient-to-r from-[#4A081A] to-[#7B0F2B] text-white p-6">
-                                        <div className="flex items-center justify-between">
-                                            <CardTitle className="flex items-center gap-3">
-                                                <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md">
-                                                    <FileText className="w-6 h-6 text-rose-300" />
+                            <Card className="border-0 shadow-2xl rounded-3xl overflow-hidden bg-white">
+                                <CardHeader className="bg-gradient-to-r from-[#4A081A] to-[#7B0F2B] text-white p-6">
+                                    <div className="flex items-center justify-between">
+                                        <CardTitle className="flex items-center gap-3">
+                                            <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md">
+                                                <FileText className="w-6 h-6 text-rose-300" />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-xl font-bold tracking-tight">
+                                                    {activeTab === 'letterhead' ? 'Company Letterhead' : activeTab.startsWith('supervisor-tardiness') ? 'Supervisor Tardiness Advisory' : activeTab.startsWith('supervisor-leave') ? 'Supervisor Leave Advisory' : 'Employee Warning'}
+                                                </span>
+                                                <span className="text-[10px] font-medium text-rose-200/70 uppercase tracking-[0.2em]">{activeTab === 'letterhead' ? 'Shared Branding' : 'Configuration Panel'}</span>
+                                            </div>
+                                        </CardTitle>
+                                        <Badge className="bg-rose-500/20 text-rose-100 border border-rose-400/30 font-bold uppercase text-[9px] px-3 py-1 rounded-full backdrop-blur-sm">
+                                            {activeTab === 'letterhead' ? 'GLOBAL' : activeTab.replace('-', ' ').toUpperCase()}
+                                        </Badge>
+                                    </div>
+                                </CardHeader>
+                                <CardContent className="p-8 space-y-8">
+                                    {activeTab === 'letterhead' ? (
+                                        <div className="space-y-6 bg-rose-50/10 p-2 border-0">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <div className="p-2 bg-rose-100 rounded-lg">
+                                                    <ImageIcon className="w-4 h-4 text-[#A4163A]" />
                                                 </div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-xl font-bold tracking-tight">
-                                                        {activeTab === 'letterhead' ? 'Company Letterhead' : activeTab.startsWith('supervisor-tardiness') ? 'Supervisor Tardiness Advisory' : activeTab.startsWith('supervisor-leave') ? 'Supervisor Leave Advisory' : 'Employee Warning'}
-                                                    </span>
-                                                    <span className="text-[10px] font-medium text-rose-200/70 uppercase tracking-[0.2em]">{activeTab === 'letterhead' ? 'Shared Branding' : 'Configuration Panel'}</span>
-                                                </div>
-                                            </CardTitle>
-                                            <Badge className="bg-rose-500/20 text-rose-100 border border-rose-400/30 font-bold uppercase text-[9px] px-3 py-1 rounded-full backdrop-blur-sm">
-                                                {activeTab === 'letterhead' ? 'GLOBAL' : activeTab.replace('-', ' ').toUpperCase()}
-                                            </Badge>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="p-8 space-y-8">
-                                        {activeTab === 'letterhead' ? (
-                                            <div className="space-y-6 bg-rose-50/10 p-2 border-0">
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <div className="p-2 bg-rose-100 rounded-lg">
-                                                        <ImageIcon className="w-4 h-4 text-[#A4163A]" />
-                                                    </div>
-                                                    <h4 className="text-xs font-black text-[#A4163A] uppercase tracking-wider">Letterhead Customization</h4>
-                                                </div>
+                                                <h4 className="text-xs font-black text-[#A4163A] uppercase tracking-wider">Letterhead Customization</h4>
+                                            </div>
 
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                                    <div className="space-y-4">
-                                                        <div className="flex flex-col gap-1">
-                                                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Logo Image</Label>
-                                                            <span className="text-[9px] text-slate-400 pl-1 mb-2 font-medium">Recommended: Transparent PNG, 300x150px</span>
-                                                        </div>
-                                                        <div className="flex flex-col gap-3">
-                                                            {(templates as any)['tardiness-regular'].headerLogoImage ? (
-                                                                <div className="relative group w-full aspect-video bg-white rounded-2xl border-2 border-dashed border-rose-200 overflow-hidden flex items-center justify-center p-6 shadow-sm">
-                                                                    <img
-                                                                        src={(templates as any)['tardiness-regular'].headerLogoImage}
-                                                                        alt="Preview"
-                                                                        className="max-h-full max-w-full object-contain drop-shadow-sm"
-                                                                    />
-                                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
-                                                                        <Button
-                                                                            variant="outline"
-                                                                            size="sm"
-                                                                            className="h-10 px-4 rounded-xl bg-red-500 hover:bg-red-600 border-0 text-white font-bold"
-                                                                            onClick={() => updateTemplate('headerLogoImage', null)}
-                                                                        >
-                                                                            <Trash2 className="w-4 h-4 mr-2" />
-                                                                            Remove
-                                                                        </Button>
-                                                                    </div>
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                                <div className="space-y-4">
+                                                    <div className="flex flex-col gap-1">
+                                                        <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Logo Image</Label>
+                                                        <span className="text-[9px] text-slate-400 pl-1 mb-2 font-medium">Recommended: Transparent PNG, 300x150px</span>
+                                                    </div>
+                                                    <div className="flex flex-col gap-3">
+                                                        {(templates as any)['tardiness-regular'].headerLogoImage ? (
+                                                            <div className="relative group w-full aspect-video bg-white rounded-2xl border-2 border-dashed border-rose-200 overflow-hidden flex items-center justify-center p-6 shadow-sm">
+                                                                <img
+                                                                    src={(templates as any)['tardiness-regular'].headerLogoImage}
+                                                                    alt="Preview"
+                                                                    className="max-h-full max-w-full object-contain drop-shadow-sm"
+                                                                />
+                                                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
+                                                                    <Button
+                                                                        variant="outline"
+                                                                        size="sm"
+                                                                        className="h-10 px-4 rounded-xl bg-red-500 hover:bg-red-600 border-0 text-white font-bold"
+                                                                        onClick={() => updateTemplate('headerLogoImage', null)}
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4 mr-2" />
+                                                                        Remove
+                                                                    </Button>
                                                                 </div>
-                                                            ) : (
-                                                                <label className="w-full aspect-video bg-white hover:bg-rose-50/50 rounded-2xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all hover:border-[#A4163A] hover:shadow-md group">
-                                                                    <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
-                                                                    <div className="p-4 bg-rose-50 rounded-full group-hover:bg-rose-100 transition-colors">
-                                                                        <Upload className="w-8 h-8 text-rose-300 group-hover:text-[#A4163A]" />
-                                                                    </div>
-                                                                    <div className="text-center">
-                                                                        <span className="block text-[11px] font-black text-slate-600 uppercase tracking-wider">Upload Branding Logo</span>
-                                                                        <span className="block text-[9px] text-slate-400 font-bold mt-1 uppercase">PNG, JPG up to 2MB</span>
-                                                                    </div>
-                                                                </label>
-                                                            )}
-                                                        </div>
+                                                            </div>
+                                                        ) : (
+                                                            <label className="w-full aspect-video bg-white hover:bg-rose-50/50 rounded-2xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all hover:border-[#A4163A] hover:shadow-md group">
+                                                                <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                                                                <div className="p-4 bg-rose-50 rounded-full group-hover:bg-rose-100 transition-colors">
+                                                                    <Upload className="w-8 h-8 text-rose-300 group-hover:text-[#A4163A]" />
+                                                                </div>
+                                                                <div className="text-center">
+                                                                    <span className="block text-[11px] font-black text-slate-600 uppercase tracking-wider">Upload Branding Logo</span>
+                                                                    <span className="block text-[9px] text-slate-400 font-bold mt-1 uppercase">PNG, JPG up to 2MB</span>
+                                                                </div>
+                                                            </label>
+                                                        )}
                                                     </div>
+                                                </div>
 
-                                                    <div className="space-y-4">
-                                                        <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Header Subtext (Address/Tel)</Label>
-                                                        <Textarea
-                                                            value={(templates as any)['tardiness-regular'].headerDetails}
-                                                            onChange={(e) => updateTemplate('headerDetails', e.target.value)}
-                                                            placeholder="Enter company address, contact info..."
-                                                            className="min-h-[160px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
-                                                        />
-                                                        <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100/50 flex gap-2">
-                                                            <Clock className="w-4 h-4 text-blue-500 mt-0.5" />
-                                                            <p className="text-[10px] text-blue-800 leading-tight font-medium">This information will be displayed below the logo on all warning letter forms.</p>
-                                                        </div>
+                                                <div className="space-y-4">
+                                                    <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Header Subtext (Address/Tel)</Label>
+                                                    <Textarea
+                                                        value={(templates as any)['tardiness-regular'].headerDetails}
+                                                        onChange={(e) => updateTemplate('headerDetails', e.target.value)}
+                                                        placeholder="Enter company address, contact info..."
+                                                        className="min-h-[160px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
+                                                    />
+                                                    <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100/50 flex gap-2">
+                                                        <Clock className="w-4 h-4 text-blue-500 mt-0.5" />
+                                                        <p className="text-[10px] text-blue-800 leading-tight font-medium">This information will be displayed below the logo on all warning letter forms.</p>
                                                     </div>
                                                 </div>
                                             </div>
-                                        ) : (
-                                            <>
-                                                <div className="grid grid-cols-1 gap-6">
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="grid grid-cols-1 gap-6">
+                                                <div className="space-y-2.5">
+                                                    <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Document Title</Label>
+                                                    <Input
+                                                        value={(templates as any)[activeTab].title}
+                                                        onChange={(e) => updateTemplate('title', e.target.value)}
+                                                        className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2.5">
+                                                <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Subject / Warning Level</Label>
+                                                <Input
+                                                    value={(templates as any)[activeTab].subject}
+                                                    onChange={(e) => updateTemplate('subject', e.target.value)}
+                                                    className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                                                />
+                                            </div>
+
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between items-center pl-1">
+                                                    <Label className="text-[#4A081A] font-bold uppercase text-[10px] tracking-widest flex items-center gap-2">
+                                                        <Type className="w-3.5 h-3.5 text-[#A4163A]" />
+                                                        Letter Body Content
+                                                    </Label>
+                                                    <div className="flex items-center gap-2 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
+                                                        <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
+                                                        <span className="text-[9px] text-rose-700 uppercase font-black tracking-wider">Dynamic Component</span>
+                                                    </div>
+                                                </div>
+                                                <div className="relative group">
+                                                    <div className="absolute -inset-0.5 bg-gradient-to-b from-rose-100 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300" />
+                                                    <Textarea
+                                                        value={(templates as any)[activeTab].body}
+                                                        onChange={(e) => updateTemplate('body', e.target.value)}
+                                                        className="relative min-h-[400px] bg-white border-rose-100 shadow-inner rounded-xl font-serif text-[15px] leading-relaxed text-[#4A081A] focus:ring-0 focus:border-[#A4163A] transition-all p-6 resize-y"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-6 border-t border-slate-100">
+                                                <div className="grid grid-cols-2 gap-6">
                                                     <div className="space-y-2.5">
-                                                        <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Document Title</Label>
+                                                        <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Signatory Name</Label>
                                                         <Input
-                                                            value={(templates as any)[activeTab].title}
-                                                            onChange={(e) => updateTemplate('title', e.target.value)}
+                                                            value={(templates as any)[activeTab].signatoryName}
+                                                            onChange={(e) => updateTemplate('signatoryName', e.target.value)}
+                                                            placeholder="AIZLE MARIE M. ATIENZA"
+                                                            className="bg-white border-rose-100 shadow-sm rounded-xl font-bold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2.5">
+                                                        <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Signatory Title</Label>
+                                                        <Input
+                                                            value={(templates as any)[activeTab].footer}
+                                                            onChange={(e) => updateTemplate('footer', e.target.value)}
                                                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
                                                         />
                                                     </div>
                                                 </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </CardContent>
+                            </Card>
 
-                                                <div className="space-y-2.5">
-                                                    <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Subject / Warning Level</Label>
-                                                    <Input
-                                                        value={(templates as any)[activeTab].subject}
-                                                        onChange={(e) => updateTemplate('subject', e.target.value)}
-                                                        className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                                                    />
-                                                </div>
-
-                                                <div className="space-y-3">
-                                                    <div className="flex justify-between items-center pl-1">
-                                                        <Label className="text-[#4A081A] font-bold uppercase text-[10px] tracking-widest flex items-center gap-2">
-                                                            <Type className="w-3.5 h-3.5 text-[#A4163A]" />
-                                                            Letter Body Content
-                                                        </Label>
-                                                        <div className="flex items-center gap-2 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
-                                                            <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
-                                                            <span className="text-[9px] text-rose-701 uppercase font-black tracking-wider">Dynamic Component</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="relative group">
-                                                        <div className="absolute -inset-0.5 bg-gradient-to-b from-rose-100 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300" />
-                                                        <Textarea
-                                                            value={(templates as any)[activeTab].body}
-                                                            onChange={(e) => updateTemplate('body', e.target.value)}
-                                                            className="relative min-h-[400px] bg-white border-rose-100 shadow-inner rounded-xl font-serif text-[15px] leading-relaxed text-[#4A081A] focus:ring-0 focus:border-[#A4163A] transition-all p-6 resize-y"
-                                                        />
-                                                    </div>
-                                                </div>
-
-                                                <div className="pt-6 border-t border-slate-100">
-                                                    <div className="grid grid-cols-2 gap-6">
-                                                        <div className="space-y-2.5">
-                                                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Signatory Name</Label>
-                                                            <Input
-                                                                value={(templates as any)[activeTab].signatoryName}
-                                                                onChange={(e) => updateTemplate('signatoryName', e.target.value)}
-                                                                placeholder="AIZLE MARIE M. ATIENZA"
-                                                                className="bg-white border-rose-100 shadow-sm rounded-xl font-bold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-2.5">
-                                                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Signatory Title</Label>
-                                                            <Input
-                                                                value={(templates as any)[activeTab].footer}
-                                                                onChange={(e) => updateTemplate('footer', e.target.value)}
-                                                                className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </>
-                                        )}
+                            {activeTab !== 'letterhead' && (
+                                <Card className="border-0 shadow-xl rounded-2xl overflow-hidden bg-slate-50 border-l-[6px] border-[#A4163A]">
+                                    <CardHeader className="py-4 px-6 border-b border-slate-200/60 bg-white">
+                                        <div className="flex items-center justify-between">
+                                            <CardTitle className="text-xs font-bold text-[#4A081A] uppercase tracking-[0.15em] flex items-center gap-2">
+                                                <Layout className="w-4 h-4 text-[#A4163A]" />
+                                                Available Placeholders
+                                            </CardTitle>
+                                            <span className="text-[10px] font-medium text-slate-400 italic">Click to reference in body</span>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent className="p-6">
+                                        <div className="flex flex-wrap gap-2.5">
+                                            {(activeTab.startsWith('supervisor')
+                                                ? ['{{employee_name}}', '{{last_name}}', '{{instances_text}}', '{{instances_count}}', '{{entries_list}}', '{{pronoun_he_she}}', '{{pronoun_his_her}}']
+                                                : activeTab === 'leave'
+                                                    ? ['{{salutation}}', '{{last_name}}', '{{instances_text}}', '{{instances_count}}', '{{month}}', '{{year}}', '{{cutoff_text}}', '{{entries_list}}']
+                                                    : ['{{salutation}}', '{{last_name}}', '{{shift_time}}', '{{grace_period}}', '{{instances_text}}', '{{instances_count}}', '{{entries_list}}']
+                                            ).map(tag => (
+                                                <button
+                                                    key={tag}
+                                                    className="group relative px-3 py-1.5 bg-white hover:bg-[#A4163A] rounded-lg border border-slate-200 hover:border-[#A4163A] transition-all duration-200 shadow-sm"
+                                                >
+                                                    <code className="text-[10px] font-mono font-bold text-[#A4163A] group-hover:text-white">
+                                                        {tag}
+                                                    </code>
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="mt-5 flex items-start gap-3 p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
+                                            <div className="p-1.5 bg-blue-100 rounded-lg">
+                                                <Clock className="w-3.5 h-3.5 text-blue-600" />
+                                            </div>
+                                            <p className="text-[11px] leading-relaxed font-medium text-blue-800/80">
+                                                Insert these tags into your letter body. They will be automatically populated with the relevant employee details when generating the final document.
+                                            </p>
+                                        </div>
                                     </CardContent>
                                 </Card>
-
-                                {activeTab !== 'letterhead' && (
-                                    <Card className="border-0 shadow-xl rounded-2xl overflow-hidden bg-slate-50 border-l-[6px] border-[#A4163A]">
-                                        <CardHeader className="py-4 px-6 border-b border-slate-200/60 bg-white">
-                                            <div className="flex items-center justify-between">
-                                                <CardTitle className="text-xs font-bold text-[#4A081A] uppercase tracking-[0.15em] flex items-center gap-2">
-                                                    <Layout className="w-4 h-4 text-[#A4163A]" />
-                                                    Available Placeholders
-                                                </CardTitle>
-                                                <span className="text-[10px] font-medium text-slate-400 italic">Click to reference in body</span>
-                                            </div>
-                                        </CardHeader>
-                                        <CardContent className="p-6">
-                                            <div className="flex flex-wrap gap-2.5">
-                                                {(activeTab === 'supervisor'
-                                                    ? ['{{employee_name}}', '{{last_name}}', '{{instances_text}}', '{{instances_count}}', '{{entries_list}}', '{{pronoun_he_she}}', '{{pronoun_his_her}}']
-                                                    : activeTab === 'leave'
-                                                        ? ['{{salutation}}', '{{last_name}}', '{{instances_text}}', '{{instances_count}}', '{{month}}', '{{year}}', '{{cutoff_text}}', '{{entries_list}}']
-                                                        : ['{{salutation}}', '{{last_name}}', '{{shift_time}}', '{{grace_period}}', '{{instances_text}}', '{{instances_count}}', '{{entries_list}}']
-                                                ).map(tag => (
-                                                    <button
-                                                        key={tag}
-                                                        className="group relative px-3 py-1.5 bg-white hover:bg-[#A4163A] rounded-lg border border-slate-200 hover:border-[#A4163A] transition-all duration-200 shadow-sm"
-                                                    >
-                                                        <code className="text-[10px] font-mono font-bold text-[#A4163A] group-hover:text-white">
-                                                            {tag}
-                                                        </code>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            <div className="mt-5 flex items-start gap-3 p-3 bg-blue-50/50 rounded-xl border border-blue-100/50">
-                                                <div className="p-1.5 bg-blue-100 rounded-lg">
-                                                    <Clock className="w-3.5 h-3.5 text-blue-600" />
-                                                </div>
-                                                <p className="text-[11px] leading-relaxed font-medium text-blue-800/80">
-                                                    Insert these tags into your letter body. They will be automatically populated with the relevant employee details when generating the final document.
-                                                </p>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                )}
-                            </div>
-
-                            {/* Preview Side */}
-                            {showPreview && (
-                                <div className="space-y-6 animate-in slide-in-from-right duration-500">
-                                    <div className="flex items-center justify-between px-4 sticky top-[20px] lg:top-[120px] z-10 bg-[#FDF4F6]/80 backdrop-blur-sm py-3 rounded-2xl border border-rose-100 shadow-sm">
-                                        <h3 className="text-lg font-black text-[#4A081A] flex items-center gap-2">
-                                            <div className="p-1.5 bg-[#A4163A] rounded-lg">
-                                                <Eye className="w-4 h-4 text-white" />
-                                            </div>
-                                            Dynamic Preview
-                                        </h3>
-                                        <Badge className="bg-[#A4163A] text-white px-3 py-1 rounded-full uppercase text-[9px] font-black tracking-[0.15em] animate-pulse border-0">
-                                            Live Rendering
-                                        </Badge>
-                                    </div>
-                                    <div className="sticky top-[80px] lg:top-[180px] shadow-2xl rounded-sm overflow-auto border border-slate-200 bg-white max-h-[85vh]">
-                                        <div className="origin-top transition-transform duration-500" style={{ transform: 'scale(0.95)' }}>
-                                            {renderPreview()}
-                                        </div>
-                                    </div>
-                                </div>
                             )}
                         </div>
+
+                        {/* Preview Side */}
+                        {showPreview && (
+                            <div className="space-y-6 animate-in slide-in-from-right duration-500">
+                                <div className="flex items-center justify-between px-4 sticky top-[20px] lg:top-[120px] z-10 bg-[#FDF4F6]/80 backdrop-blur-sm py-3 rounded-2xl border border-rose-100 shadow-sm">
+                                    <h3 className="text-lg font-black text-[#4A081A] flex items-center gap-2">
+                                        <div className="p-1.5 bg-[#A4163A] rounded-lg">
+                                            <Eye className="w-4 h-4 text-white" />
+                                        </div>
+                                        Dynamic Preview
+                                    </h3>
+                                    <Badge className="bg-[#A4163A] text-white px-3 py-1 rounded-full uppercase text-[9px] font-black tracking-[0.15em] animate-pulse border-0">
+                                        Live Rendering
+                                    </Badge>
+                                </div>
+                                <div className="sticky top-[80px] lg:top-[180px] shadow-2xl rounded-sm overflow-auto border border-slate-200 bg-white max-h-[85vh]">
+                                    <div className="origin-top transition-transform duration-500" style={{ transform: 'scale(0.95)' }}>
+                                        {renderPreview()}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
             </Tabs>
 
             {/* --- BOTTOM DECORATION --- */}

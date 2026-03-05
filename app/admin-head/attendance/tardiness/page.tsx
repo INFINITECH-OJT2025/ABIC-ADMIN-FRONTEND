@@ -57,6 +57,51 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { getApiUrl } from '@/lib/api'
 
+// --- Skeleton Components ---
+const TardinessSkeleton = () => (
+  <div className="min-h-screen bg-slate-50/50">
+    {/* Placeholder Header Bar */}
+    <div className="sticky top-0 z-50 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-10 w-10 rounded-full" />
+        <Skeleton className="h-6 w-48" />
+      </div>
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-10 w-24 rounded-lg" />
+        <Skeleton className="h-10 w-24 rounded-lg" />
+        <Skeleton className="h-10 w-32 rounded-lg" />
+        <Skeleton className="h-10 w-48 rounded-lg" />
+      </div>
+    </div>
+
+    <div className="px-8 py-6 space-y-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {[1, 2].map((i) => (
+          <div key={i} className="bg-white border-2 border-[#FFE5EC] shadow-md rounded-xl overflow-hidden h-full flex flex-col">
+            <div className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4 flex justify-between items-center">
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-32 bg-stone-200" />
+                <Skeleton className="h-4 w-48 bg-stone-100" />
+              </div>
+              <Skeleton className="h-9 w-24 bg-stone-200" />
+            </div>
+            <div className="p-4 space-y-6 mt-2">
+              {Array(5).fill(0).map((_, idx) => (
+                <div key={idx} className="flex gap-4">
+                  <Skeleton className="h-10 w-1/3 bg-stone-100" />
+                  <Skeleton className="h-10 w-1/5 bg-stone-100" />
+                  <Skeleton className="h-10 w-1/5 bg-stone-100" />
+                  <Skeleton className="h-10 w-1/5 bg-stone-100" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)
+
 
 // ---------- TYPES & MOCK INITIAL DATA ----------
 interface LateEntry {
@@ -1641,6 +1686,9 @@ export default function AttendanceDashboard() {
 
   // ---------- RENDER ----------
 
+  if (isLoading) {
+    return <TardinessSkeleton />
+  }
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-stone-50 via-white to-red-50 text-stone-900 font-sans pb-12">
@@ -1923,81 +1971,35 @@ export default function AttendanceDashboard() {
 
         {/* ----- CUTOFF TABLES - WITH SUMMARY BUTTONS ----- */}
         <div className={`grid ${showCutoff === 'both' ? 'grid-cols-1 lg:grid-cols-2 gap-4' : 'grid-cols-1'} w-full`}>
-          {isLoading ? (
-            <>
-              {(showCutoff === 'first' || showCutoff === 'both') && (
-                <div className="bg-white border-2 border-[#FFE5EC] shadow-md rounded-xl overflow-hidden h-full flex flex-col">
-                  <div className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4 flex justify-between items-center">
-                    <div className="space-y-2">
-                      <Skeleton className="h-6 w-32 bg-stone-200" />
-                      <Skeleton className="h-4 w-48 bg-stone-100" />
-                    </div>
-                    <Skeleton className="h-9 w-24 bg-stone-200" />
-                  </div>
-                  <div className="p-4 space-y-6 mt-2">
-                    {Array(5).fill(0).map((_, i) => (
-                      <div key={i} className="flex gap-4">
-                        <Skeleton className="h-10 w-1/3 bg-stone-100" />
-                        <Skeleton className="h-10 w-1/5 bg-stone-100" />
-                        <Skeleton className="h-10 w-1/5 bg-stone-100" />
-                        <Skeleton className="h-10 w-1/5 bg-stone-100" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {(showCutoff === 'second' || showCutoff === 'both') && (
-                <div className="bg-white border-2 border-[#FFE5EC] shadow-md rounded-xl overflow-hidden h-full flex flex-col">
-                  <div className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4 flex justify-between items-center">
-                    <div className="space-y-2">
-                      <Skeleton className="h-6 w-32 bg-stone-200" />
-                      <Skeleton className="h-4 w-48 bg-stone-100" />
-                    </div>
-                    <Skeleton className="h-9 w-24 bg-stone-200" />
-                  </div>
-                  <div className="p-4 space-y-6 mt-2">
-                    {Array(5).fill(0).map((_, i) => (
-                      <div key={i} className="flex gap-4">
-                        <Skeleton className="h-10 w-1/3 bg-stone-100" />
-                        <Skeleton className="h-10 w-1/5 bg-stone-100" />
-                        <Skeleton className="h-10 w-1/5 bg-stone-100" />
-                        <Skeleton className="h-10 w-1/5 bg-stone-100" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              {(showCutoff === 'first' || showCutoff === 'both') && (
-                <CutoffTable
-                  title={`${selectedMonth} ${selectedYear} – 1-15`}
-                  entries={filteredFirstEntries}
-                  onUpdateTime={updateFirstCutoffTime}
-                  onSummaryClick={() => handleSummaryClick(
-                    `${selectedMonth} ${selectedYear} – 1-15`,
-                    firstCutoffEntries
-                  )}
-                  totalRecords={filteredFirstEntries.length}
-                />
-              )}
+          <>
+            {(showCutoff === 'first' || showCutoff === 'both') && (
+              <CutoffTable
+                title={`${selectedMonth} ${selectedYear} – 1-15`}
+                entries={filteredFirstEntries}
+                onUpdateTime={updateFirstCutoffTime}
+                onSummaryClick={() => handleSummaryClick(
+                  `${selectedMonth} ${selectedYear} – 1-15`,
+                  firstCutoffEntries
+                )}
+                totalRecords={filteredFirstEntries.length}
+              />
+            )}
 
 
-              {(showCutoff === 'second' || showCutoff === 'both') && (
-                <CutoffTable
-                  title={`${selectedMonth} ${selectedYear} – ${selectedMonth === 'February' ? '16-28/29' : '16-30/31'}`}
-                  entries={filteredSecondEntries}
-                  onUpdateTime={updateSecondCutoffTime}
-                  onSummaryClick={() => handleSummaryClick(
-                    `${selectedMonth} ${selectedYear} – ${selectedMonth === 'February' ? '16-28/29' : '16-30/31'}`,
-                    secondCutoffEntries
-                  )}
-                  totalRecords={filteredSecondEntries.length}
-                />
-              )}
-            </>
-          )}
+            {(showCutoff === 'second' || showCutoff === 'both') && (
+              <CutoffTable
+                title={`${selectedMonth} ${selectedYear} – ${selectedMonth === 'February' ? '16-28/29' : '16-30/31'}`}
+                entries={filteredSecondEntries}
+                onUpdateTime={updateSecondCutoffTime}
+                onSummaryClick={() => handleSummaryClick(
+                  `${selectedMonth} ${selectedYear} – ${selectedMonth === 'February' ? '16-28/29' : '16-30/31'}`,
+                  secondCutoffEntries
+                )}
+                totalRecords={filteredSecondEntries.length}
+              />
+            )}
+          </>
+
           <div className="col-span-full text-right mt-2 text-md text-[#A0153E] font-medium italic">
             * Table shows minutes from assigned shift start time • Summary counts arrivals after 5th minute grace period
           </div>

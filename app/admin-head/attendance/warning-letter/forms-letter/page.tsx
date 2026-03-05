@@ -520,6 +520,7 @@ function FormLetterContent() {
                         .replace(/{{grace_period}}/g, gracePeriod)
                         .replace(/{{instances_count_ordinal}}/g, totalCount === 1 ? '1st' : totalCount === 2 ? '2nd' : totalCount === 3 ? '3rd' : `${totalCount}th`)
                         .replace(/{{entries_list}}/g, entryListStr)
+                        .replace(/Employee Acknowledgment:[\s\S]*$/, ""); // Remove if present in stored template
 
                     // Reminders are always included for Supervisor Form
                 } else {
@@ -552,6 +553,7 @@ function FormLetterContent() {
                         .replace(/{{month}}/g, month)
                         .replace(/{{year}}/g, year)
                         .replace(/{{entries_list}}/g, entryListStr)
+                        .replace(/Employee Acknowledgment:[\s\S]*$/, ""); // Remove if present in stored template
 
                     // If Probee and is Leave template, remove the reminders section
                     if (isProbee && type === 'leave') {
@@ -663,9 +665,6 @@ function FormLetterContent() {
                 <div className="w-full px-4 md:px-8 py-6">
                     <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                         <div className="flex items-center gap-4">
-                            <Button variant="ghost" onClick={() => router.back()} className="rounded-full h-10 w-10 p-0 text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-                                <ChevronLeft className="w-6 h-6" />
-                            </Button>
                             <div>
                                 <h1 className="text-2xl md:text-3xl font-bold mb-2">Preview Warning Letter</h1>
                                 <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
@@ -674,13 +673,22 @@ function FormLetterContent() {
                                 </p>
                             </div>
                         </div>
+
+                        <Button
+                            variant="outline"
+                            onClick={() => router.back()}
+                            className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg flex items-center gap-2"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                            <span>BACK</span>
+                        </Button>
                     </div>
                 </div>
 
                 {/* Secondary Toolbar */}
                 <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm overflow-x-auto no-scrollbar">
                     <div className="w-full px-4 md:px-8 py-3">
-                        <div className="flex items-center gap-3 md:gap-4 min-w-max md:min-w-0">
+                        <div className="flex items-center justify-end gap-3 md:gap-4 min-w-max md:min-w-0">
                             <Button
                                 onClick={() => setIsEditMode(!isEditMode)}
                                 variant="outline"
@@ -707,14 +715,14 @@ function FormLetterContent() {
                             <Popover open={isActionOpen} onOpenChange={setIsActionOpen}>
                                 <PopoverTrigger asChild>
                                     <Button
-                                        className="h-10 px-6 rounded-lg font-black gap-2 bg-white border-transparent text-[#A4163A] hover:bg-rose-100 shadow-md active:scale-95 transition-all w-auto uppercase tracking-widest"
+                                        className="h-10 px-6 rounded-lg font-black gap-2 bg-white border border-white text-[#A4163A] hover:bg-rose-100 shadow-md active:scale-95 transition-all w-auto uppercase tracking-widest"
                                     >
                                         <Mail className="w-4 h-4" />
                                         Send via Email
                                         <ChevronDown className="w-4 h-4" />
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-72 p-0 rounded-2xl border-stone-200 shadow-2xl overflow-hidden" align="start">
+                                <PopoverContent className="w-72 p-0 rounded-2xl border-stone-200 shadow-2xl overflow-hidden" align="end">
                                     <div className="p-4 space-y-4 text-slate-900">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
@@ -1028,25 +1036,23 @@ function FormOneTemplate({
                     </div>
                 </div>
 
-                {/* Acknowledgment Section - Only show if it's NOT in the body already */}
-                {(!body.includes('Acknowledgment') && !body.includes('Receipt')) && (
-                    <div className="mt-8 border-t border-slate-100 pt-8 space-y-4">
-                        <p className="font-bold mb-4">Employee Acknowledgment:</p>
-                        <p className="mb-8">
-                            I, <span className="font-bold">{employee.name}</span>, hereby acknowledge receipt of this Formal Warning Letter.
-                        </p>
-                        <div className="space-y-6 pt-6">
-                            <div className="flex items-end gap-2 max-w-[400px]">
-                                <span className="font-bold whitespace-nowrap">Employee Signature:</span>
-                                <div className="flex-1 border-b-[1.5px] border-black h-5"></div>
-                            </div>
-                            <div className="flex items-end gap-2 max-w-[250px]">
-                                <span className="font-bold whitespace-nowrap">Date:</span>
-                                <div className="flex-1 border-b-[1.5px] border-black h-5"></div>
-                            </div>
+                {/* Acknowledgment Section */}
+                <div className="mt-8 border-t border-slate-100 pt-8 space-y-4">
+                    <p className="font-bold mb-4">Employee Acknowledgment:</p>
+                    <p className="mb-8">
+                        I, <span className="font-bold">{employee.name}</span>, hereby acknowledge receipt of this Formal Warning Letter.
+                    </p>
+                    <div className="space-y-6 pt-6">
+                        <div className="flex items-end gap-2 max-w-[400px]">
+                            <span className="font-bold whitespace-nowrap">Employee Signature:</span>
+                            <div className="flex-1 border-b-[1.5px] border-black h-5"></div>
+                        </div>
+                        <div className="flex items-end gap-2 max-w-[250px]">
+                            <span className="font-bold whitespace-nowrap">Date:</span>
+                            <div className="flex-1 border-b-[1.5px] border-black h-5"></div>
                         </div>
                     </div>
-                )}
+                </div>
             </CardContent>
         </Card>
     );
