@@ -482,11 +482,6 @@ export default function AdminHeadHierarchyPage() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <Badge className="bg-white/15 border border-white/30 text-white hover:bg-white/15 text-xs font-bold tracking-wider px-3 py-2">
-                ADMIN HEAD PANEL
-              </Badge>
-            </div>
           </div>
         </div>
 

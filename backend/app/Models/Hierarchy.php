@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Hierarchy extends Model
 {
+    protected $table = 'hierarchies';
+    
     protected $fillable = ['name', 'is_custom', 'department_id', 'parent_id'];
 
     public function department()

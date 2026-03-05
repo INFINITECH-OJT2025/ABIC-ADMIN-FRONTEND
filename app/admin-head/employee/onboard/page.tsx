@@ -281,6 +281,14 @@ function OnboardPageContent() {
     }
   }
 
+  const extractArrayPayload = <T,>(payload: any): T[] => {
+    if (Array.isArray(payload?.data)) return payload.data as T[]
+    if (Array.isArray(payload)) return payload as T[]
+    if (Array.isArray(payload?.positions)) return payload.positions as T[]
+    if (Array.isArray(payload?.departments)) return payload.departments as T[]
+    return []
+  }
+
   const ensureRehirePendingStatus = async (employeeId?: string | null) => {
     if (!isRehireFlow || !employeeId) return true
     try {
@@ -788,25 +796,71 @@ function OnboardPageContent() {
   // Fetch Functions
   const fetchPositions = async () => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/positions`)
-      const data = await response.json()
-      if (data.success) {
-        setPositions([...data.data].sort((a: Position, b: Position) => a.name.localeCompare(b.name)))
+      const response = await apiFetch('/api/positions', { headers: { Accept: 'application/json' } })
+      
+      if (!response.ok) {
+        console.error('Failed to fetch positions. Status:', response.status, response.statusText)
+        const errorText = await response.text()
+        console.error('Error response:', errorText)
+        setPositions([])
+        return
       }
+      
+      const data = await parseJsonFromResponse(response)
+      console.log('Positions API response:', data)
+      
+      if (!data) {
+        console.error('Failed to parse positions response')
+        setPositions([])
+        return
+      }
+      
+      const rows = extractArrayPayload<Position>(data)
+      console.log('Extracted positions:', rows.length, 'items')
+      
+      if (rows.length === 0) {
+        console.warn('No positions found in API response')
+      }
+      
+      setPositions([...rows].sort((a, b) => String(a?.name ?? '').localeCompare(String(b?.name ?? ''))))
     } catch (error) {
       console.error('Error fetching positions:', error)
+      setPositions([])
     }
   }
 
   const fetchDepartments = async () => {
     try {
-      const response = await fetch(`${getApiUrl()}/api/departments`)
-      const data = await response.json()
-      if (data.success) {
-        setDepartments([...data.data].sort((a: Department, b: Department) => a.name.localeCompare(b.name)))
+      const response = await apiFetch('/api/departments', { headers: { Accept: 'application/json' } })
+      
+      if (!response.ok) {
+        console.error('Failed to fetch departments. Status:', response.status, response.statusText)
+        const errorText = await response.text()
+        console.error('Error response:', errorText)
+        setDepartments([])
+        return
       }
+      
+      const data = await parseJsonFromResponse(response)
+      console.log('Departments API response:', data)
+      
+      if (!data) {
+        console.error('Failed to parse departments response')
+        setDepartments([])
+        return
+      }
+      
+      const rows = extractArrayPayload<Department>(data)
+      console.log('Extracted departments:', rows.length, 'items')
+      
+      if (rows.length === 0) {
+        console.warn('No departments found in API response')
+      }
+      
+      setDepartments([...rows].sort((a, b) => String(a?.name ?? '').localeCompare(String(b?.name ?? ''))))
     } catch (error) {
       console.error('Error fetching departments:', error)
+      setDepartments([])
     }
   }
 

@@ -285,25 +285,51 @@ export default function EvaluationPage() {
         </div>
       ) : (
         <>
-      {/* Maroon Gradient Header */}
-      <div className="bg-gradient-to-r from-[#4A081A] via-[#630C22] to-[#7B0F2B] text-white shadow-lg p-10 mb-8">
-        <div className="w-full flex flex-col md:flex-row justify-between items-center gap-6">
-          <div>
-            <h1 className="text-4xl font-extrabold mb-3 tracking-tight">Employee Evaluation</h1>
-            <p className="text-rose-100 text-lg font-medium">Manage employee evaluations and performance reviews</p>
+      {/* Header aligned with Hierarchy Management styling */}
+      <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6">
+        <div className="w-full px-4 md:px-8 py-6">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">Employee Evaluation</h1>
+              <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
+                <PieChart className="w-4 h-4" />
+                Manage employee evaluations and performance reviews
+              </p>
+            </div>
+
           </div>
-          <div className="flex gap-4">
-            <Button className="bg-white/10 hover:bg-white/20 text-white border border-white/30 backdrop-blur-sm px-6 h-12 rounded-xl font-bold transition-all flex items-center gap-2 text-sm md:text-base">
-              <Download className="w-5 h-5" />
-              Export Report
-            </Button>
-            <Button 
-              onClick={() => router.push('/admin-head/employee/evaluation/evaluate_employee')}
-              className="bg-white text-[#4A081A] hover:bg-rose-50 px-6 h-12 rounded-xl font-bold transition-all flex items-center gap-2 shadow-lg text-sm md:text-base"
-            >
-              <Plus className="w-5 h-5" />
-              Evaluate an Employee
-            </Button>
+        </div>
+
+        <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm">
+          <div className="w-full px-4 md:px-8 py-3 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 md:gap-4 text-xs font-bold uppercase tracking-wider text-white/85">
+              <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+                <UserCheck className="h-4 w-4" />
+                Total Employed: {employees.length}
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+                <Calendar className="h-4 w-4" />
+                Under Probation: {employees.filter(e => getDatesForEmployee(e)?.status === 'Probee').length}
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+                <TrendingUp className="h-4 w-4" />
+                Regular Employees: {employees.filter(e => ['Regular', 'Regularized'].includes(getDatesForEmployee(e)?.status || '')).length}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 w-full lg:w-auto">
+              <Button className="bg-white/10 hover:bg-white/20 text-white border border-white/30 px-4 h-10 rounded-lg font-bold transition-all flex items-center gap-2 text-xs md:text-sm w-full lg:w-auto">
+                <Download className="w-4 h-4" />
+                Export Report
+              </Button>
+              <Button
+                onClick={() => router.push('/admin-head/employee/evaluation/evaluate_employee')}
+                className="bg-white text-[#7B0F2B] hover:bg-rose-50 px-4 h-10 rounded-lg font-bold transition-all flex items-center gap-2 text-xs md:text-sm w-full lg:w-auto"
+              >
+                <Plus className="w-4 h-4" />
+                Evaluate an Employee
+              </Button>
+            </div>
           </div>
         </div>
       </div>

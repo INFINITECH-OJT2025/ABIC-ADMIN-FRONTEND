@@ -816,14 +816,12 @@ export default function MasterfilePage() {
                     )}
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-[#FFE5EC] text-[#800020] hover:bg-[#A4163A] hover:text-white font-bold transition-all shadow-sm rounded-lg"
+                    <button
                       onClick={() => fetchEmployeeDetails(employee.id)}
+                      className="px-6 py-2 bg-white border-2 border-[#A4163A] text-[#A4163A] font-bold rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ease-in-out hover:bg-[#A4163A] hover:text-white hover:border-[#A4163A] cursor-pointer"
                     >
                       View Details
-                    </Button>
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -911,17 +909,6 @@ export default function MasterfilePage() {
                     Manage and monitor employee master data and records.
                   </p>
                 </div>
-
-                <div className="flex items-center gap-3">
-                  <Button
-                    onClick={() => router.push('/admin-head/employee/onboard')}
-                    variant="outline"
-                    className="border-white/30 text-white hover:bg-white/20 hover:text-white bg-transparent backdrop-blur-sm shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg flex items-center gap-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>ONBOARD NEW EMPLOYEE</span>
-                  </Button>
-                </div>
               </div>
             </div>
 
@@ -933,7 +920,7 @@ export default function MasterfilePage() {
                   <div className="flex items-center bg-white/10 p-1 rounded-lg backdrop-blur-md border border-white/10">
                     <button
                       onClick={() => setActiveTab('all')}
-                      className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 uppercase tracking-wider ${activeTab === 'all'
+                      className={`cursor-pointer px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 uppercase tracking-wider ${activeTab === 'all'
                         ? 'bg-white text-[#A4163A] shadow-md'
                         : 'text-white/70 hover:text-white hover:bg-white/5'
                         }`}
@@ -942,7 +929,7 @@ export default function MasterfilePage() {
                     </button>
                     <button
                       onClick={() => setActiveTab('employed')}
-                      className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 uppercase tracking-wider ${activeTab === 'employed'
+                      className={`cursor-pointer px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 uppercase tracking-wider ${activeTab === 'employed'
                         ? 'bg-white text-[#A4163A] shadow-md'
                         : 'text-white/70 hover:text-white hover:bg-white/5'
                         }`}
@@ -951,7 +938,7 @@ export default function MasterfilePage() {
                     </button>
                     <button
                       onClick={() => setActiveTab('terminated')}
-                      className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 uppercase tracking-wider ${activeTab === 'terminated'
+                      className={`cursor-pointer px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 uppercase tracking-wider ${activeTab === 'terminated'
                         ? 'bg-white text-[#A4163A] shadow-md'
                         : 'text-white/70 hover:text-white hover:bg-white/5'
                         }`}
@@ -960,7 +947,7 @@ export default function MasterfilePage() {
                     </button>
                     <button
                       onClick={() => setActiveTab('pending')}
-                      className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 uppercase tracking-wider ${activeTab === 'pending'
+                      className={`cursor-pointer px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 uppercase tracking-wider ${activeTab === 'pending'
                         ? 'bg-white text-[#A4163A] shadow-md'
                         : 'text-white/70 hover:text-white hover:bg-white/5'
                         }`}
@@ -981,14 +968,26 @@ export default function MasterfilePage() {
                       />
                     </div>
 
-                    <Select value={sortOrder} onValueChange={(value: any) => setSortOrder(value)}>
-                      <SelectTrigger className="w-full sm:w-[180px] bg-white border-2 border-[#FFE5EC] h-10 rounded-lg shadow-sm focus:ring-[#A0153E] text-[#800020] font-bold">
+                    <Select
+                      value={sortOrder}
+                      onValueChange={(value: any) => setSortOrder(value)}
+                    >
+                      <SelectTrigger
+                        className="w-full sm:w-[180px] bg-white border-2 border-[#FFE5EC] h-10 rounded-lg shadow-sm focus:ring-[#A0153E] text-[#800020] font-bold select-none caret-transparent pr-4 [&>svg]:hidden"
+                      >
                         <div className="flex items-center gap-2 text-xs uppercase tracking-wider">
                           <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
                           <SelectValue placeholder="Sort by" />
                         </div>
                       </SelectTrigger>
-                      <SelectContent className="rounded-xl border-stone-200 shadow-xl overflow-hidden">
+                      <SelectContent
+                        position="popper"
+                        side="bottom"
+                        align="start"
+                        sideOffset={6}
+                        avoidCollisions={false}
+                        className="rounded-xl border-stone-200 shadow-xl overflow-hidden"
+                      >
                         <SelectItem value="recent" className="focus:bg-red-50 focus:text-[#630C22] font-bold text-xs py-2 uppercase tracking-wider cursor-pointer border-b border-slate-50 last:border-0">
                           <div className="flex items-center gap-3">
                             <History className="h-4 w-4" />

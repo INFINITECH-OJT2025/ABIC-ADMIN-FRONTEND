@@ -123,6 +123,61 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Disable text selection and cursor blinking on non-editable text */
+  h1, h2, h3, h4, h5, h6,
+  p:not(input, textarea),
+  span,
+  label,
+  button,
+  [role="button"],
+  table td,
+  table th,
+  .no-select {
+    @apply select-none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Show hand cursor for all interactive/clickable UI controls */
+  button:not(:disabled),
+  button:not([disabled]),
+  [role="button"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  [data-slot="select-trigger"],
+  [data-slot="select-item"],
+  [data-slot="dropdown-menu-trigger"],
+  [data-slot="dropdown-menu-item"],
+  [data-slot="menubar-trigger"],
+  [data-slot="menubar-item"],
+  [data-slot="navigation-menu-trigger"],
+  [data-slot="navigation-menu-link"],
+  [data-radix-collection-item]:not([data-disabled]),
+  select,
+  input[type="checkbox"],
+  input[type="radio"],
+  .cursor-pointer,
+  [class*="hover:"] {
+    cursor: pointer;
+  }
+
+  /* Ensure disabled buttons show not-allowed */
+  button:disabled,
+  button[disabled],
+  [aria-disabled="true"],
+  select:disabled,
+  input:disabled {
+    cursor: not-allowed;
+  }
+
+  /* Allow text selection only on editable inputs */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]),
+  textarea {
+    @apply select-text;
+    -webkit-user-select: text;
+    user-select: text;
+  }
 }
 
 /* Hide arrows in number inputs */

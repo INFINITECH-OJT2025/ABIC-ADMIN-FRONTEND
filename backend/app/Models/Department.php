@@ -17,6 +17,11 @@ class Department extends Model
 
     public function positions()
     {
+        return $this->hasMany(Position::class);
+    }
+
+    public function hierarchies()
+    {
         return $this->hasMany(Hierarchy::class);
     }
 }
