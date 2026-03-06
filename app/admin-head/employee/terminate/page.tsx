@@ -876,7 +876,7 @@ function TerminatePageContent() {
             'city_municipality',
             'barangay',
             'zip_code',
-            'email_address',
+            'email',
             'perm_street',
             'perm_region',
             'perm_province',
@@ -932,7 +932,7 @@ function TerminatePageContent() {
                 const employees = Array.isArray(employeesData?.data) ? employeesData.data : []
                 const matched = employees
                   .filter((emp: any) => {
-                    const email = String(emp?.email ?? emp?.email_address ?? '').trim().toLowerCase()
+                    const email = String(emp?.email ?? '').trim().toLowerCase()
                     return email === selectedEmail
                   })
                   .sort((a: any, b: any) => {

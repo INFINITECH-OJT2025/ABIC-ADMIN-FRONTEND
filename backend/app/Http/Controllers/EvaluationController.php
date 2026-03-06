@@ -102,7 +102,7 @@ class EvaluationController extends Controller
         $employee = Employee::findOrFail($employeeId);
         $evaluation = Evaluation::where('employee_id', $employeeId)->firstOrFail();
 
-        $recipient = trim((string) ($employee->email_address ?: $employee->email));
+        $recipient = trim((string) $employee->email);
         if ($recipient === '') {
             return response()->json([
                 'success' => false,
@@ -185,7 +185,7 @@ class EvaluationController extends Controller
 
     private function normalizeBreakdown($breakdown, ?int $totalScore, array $criteria): array
     {
-        $criterionIds = array_map(fn ($c) => $c['id'], $criteria);
+        $criterionIds = array_map(fn($c) => $c['id'], $criteria);
         $valid = is_array($breakdown) && count(array_intersect(array_keys($breakdown), $criterionIds)) > 0;
         if ($valid) {
             $result = [];

@@ -149,12 +149,14 @@ class EmployeeController extends Controller
                 'first_name' => 'required|string|max:255',
                 'last_name' => 'required|string|max:255',
                 'email' => 'required|string|email|max:255|unique:employees',
+                'mobile_number' => 'required|string|max:20',
             ]);
 
             $employee = Employee::create([
                 'first_name' => $validated['first_name'],
                 'last_name' => $validated['last_name'],
                 'email' => $validated['email'],
+                'mobile_number' => $validated['mobile_number'],
                 'status' => 'pending', // Default status
             ]);
 
@@ -236,7 +238,7 @@ class EmployeeController extends Controller
                 'perm_province' => 'sometimes|nullable|string|max:255',
                 'perm_region' => 'sometimes|nullable|string|max:255',
                 'perm_zip_code' => 'sometimes|nullable|string|max:255',
-                'email_address' => 'sometimes|nullable|string|max:255',
+
                 'password' => 'sometimes|nullable|string|min:6',
                 'status' => 'sometimes|in:pending,employed,terminated,resigned,rehire_pending,rehired_employee,resignation_pending,termination_pending',
                 'rehire_process' => 'sometimes|boolean',

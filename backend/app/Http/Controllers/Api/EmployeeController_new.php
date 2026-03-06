@@ -122,7 +122,6 @@ class EmployeeController extends Controller
                 'province' => 'sometimes|string|max:255',
                 'city_municipality' => 'sometimes|string|max:255',
                 'zip_code' => 'sometimes|string|max:255',
-                'email_address' => 'sometimes|string|max:255',
                 'password' => 'sometimes|string|min:6',
             ]);
 
@@ -181,7 +180,7 @@ class EmployeeController extends Controller
 
             // Generate a token (simple session token)
             $token = Str::random(80);
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Login successful',

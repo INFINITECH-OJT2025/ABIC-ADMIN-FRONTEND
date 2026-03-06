@@ -456,7 +456,7 @@ export default function MasterfilePage() {
           const termination = terminationsList
             .filter((t: any) => {
               const idMatch = String(t?.employee_id ?? '') === String(emp.id)
-              const terminationEmail = normalizeName(t?.employee?.email ?? t?.employee?.email_address ?? '')
+              const terminationEmail = normalizeName(t?.employee?.email ?? '')
               const emailMatch = Boolean(empEmail) && terminationEmail === empEmail
               return idMatch || emailMatch
             })
@@ -597,7 +597,7 @@ export default function MasterfilePage() {
     }
 
     // Batch 3: Contact Information
-    if (!emp.mobile_number || emp.mobile_number.toString().trim() === '' || (!emp.email && !emp.email_address)) {
+    if (!emp.mobile_number || emp.mobile_number.toString().trim() === '' || !emp.email) {
       return { isComplete: false, status: 'Pending: Contact Information', batchId: 3 }
     }
 
@@ -1489,7 +1489,7 @@ export default function MasterfilePage() {
                     <>
                       <div className="space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase">Email Address</label>
-                        <Input name="email_address" value={editFormData.email_address || editFormData.email || ''} onChange={handleEditChange} className="h-9" />
+                        <Input name="email" value={editFormData.email || ''} onChange={handleEditChange} className="h-9" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-xs font-bold text-slate-500 uppercase">Mobile Number</label>
@@ -1510,7 +1510,7 @@ export default function MasterfilePage() {
                     </>
                   ) : (
                     <>
-                      <DetailItem label="Email Address" value={selectedEmployee.email_address || selectedEmployee.email} required />
+                      <DetailItem label="Email Address" value={selectedEmployee.email} required />
                       <DetailItem label="Mobile Number" value={selectedEmployee.mobile_number ? `+63 ${selectedEmployee.mobile_number}` : ''} required />
                     </>
                   )}

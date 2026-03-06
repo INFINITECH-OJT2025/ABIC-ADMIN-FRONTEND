@@ -55,9 +55,9 @@ class EmployeeAdditionalFieldController extends Controller
             // Add column to employees table (always as nullable string — we handle types on the frontend)
             Schema::table('employees', function (Blueprint $table) use ($fieldKey, $validated) {
                 if ($validated['field_type'] === 'date') {
-                    $table->date($fieldKey)->nullable()->after('email_address');
+                    $table->date($fieldKey)->nullable()->after('email');
                 } else {
-                    $table->text($fieldKey)->nullable()->after('email_address');
+                    $table->text($fieldKey)->nullable()->after('email');
                 }
             });
 

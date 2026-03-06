@@ -122,6 +122,7 @@ function OnboardPageContent() {
     first_name: '',
     last_name: '',
     email: '',
+    mobile_number: '',
     position: '',
     onboarding_date: '',
     department: '',
@@ -322,7 +323,6 @@ function OnboardPageContent() {
         .filter((emp: any) => {
           const emailCandidates = [
             emp?.email,
-            emp?.email_address,
           ].map((value) => String(value ?? '').trim().toLowerCase()).filter(Boolean)
           return emailCandidates.includes(normalizedEmail)
         })
@@ -370,7 +370,6 @@ function OnboardPageContent() {
 
       const emailCandidates = [
         emp?.email,
-        emp?.email_address,
       ].map((value) => String(value ?? '').trim().toLowerCase()).filter(Boolean)
 
       return normalizedEmail ? emailCandidates.includes(normalizedEmail) : false
@@ -731,13 +730,16 @@ function OnboardPageContent() {
         setOnboardFormData({
           first_name: toPlainString(emp.first_name),
           last_name: toPlainString(emp.last_name),
-          email: toPlainString(emp.email || emp.email_address),
+          email: toPlainString(emp.email),
+          mobile_number: toPlainString(emp.mobile_number),
           position: toPlainString(emp.position),
           onboarding_date: toIsoDate(emp.onboarding_date || emp.date_hired),
           department: toPlainString(emp.department),
         })
         setProgressionFormData({
           ...emp,
+          email: toPlainString(emp.email),
+          mobile_number: toPlainString(emp.mobile_number),
           date_hired: toIsoDate(emp.date_hired || emp.onboarding_date)
         })
         setChecklistData({
@@ -1047,8 +1049,8 @@ function OnboardPageContent() {
 
   // Handlers
   const handleStartOnboarding = async () => {
-    const { first_name, last_name, email, position, onboarding_date, department } = onboardFormData
-    if (!first_name || !last_name || !email || !position || !onboarding_date || !department) {
+    const { first_name, last_name, email, mobile_number, position, onboarding_date, department } = onboardFormData
+    if (!first_name || !last_name || !email || !mobile_number || !position || !onboarding_date || !department) {
       toast.error('Please fill in all fields')
       return
     }
@@ -1092,7 +1094,7 @@ function OnboardPageContent() {
           first_name,
           last_name,
           email: email,
-          email_address: email,
+          mobile_number: mobile_number,
           position,
           department,
           date_hired: onboarding_date,
@@ -1116,7 +1118,7 @@ function OnboardPageContent() {
       const empResponse = await fetch(`${getApiUrl()}/api/employees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ first_name, last_name, email }),
+        body: JSON.stringify({ first_name, last_name, email, mobile_number }),
       })
 
       const empData = await empResponse.json()
@@ -1145,6 +1147,8 @@ function OnboardPageContent() {
         setProgressionFormData({
           first_name,
           last_name,
+          email,
+          mobile_number,
           position,
           department,
           date_hired: onboarding_date,
@@ -1163,6 +1167,7 @@ function OnboardPageContent() {
           first_name: '',
           last_name: '',
           email: '',
+          mobile_number: '',
           position: '',
           onboarding_date: '',
           department: '',
@@ -1366,7 +1371,7 @@ function OnboardPageContent() {
     }
 
     // 3. Email Limit (50)
-    if (name === 'email_address') {
+    if (name === 'email') {
       setProgressionFormData((prev) => ({ ...prev, [name]: value.slice(0, 50) }))
       return
     }
@@ -1439,7 +1444,7 @@ function OnboardPageContent() {
       'mobile_number', 'street',
       'sss_number', 'philhealth_number', 'pagibig_number', 'tin_number',
       'mlast_name', 'mfirst_name', 'flast_name', 'ffirst_name',
-      'region', 'province', 'city_municipality', 'barangay', 'zip_code', 'email_address',
+      'region', 'province', 'city_municipality', 'barangay', 'zip_code', 'email',
       'perm_street', 'perm_region', 'perm_province', 'perm_city_municipality', 'perm_barangay', 'perm_zip_code'
     ]
 
@@ -1461,7 +1466,7 @@ function OnboardPageContent() {
           !!data.birthplace && !!data.gender && !!data.civil_status
       case 3:
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-        return !!data.mobile_number && !!data.email_address && emailRegex.test(data.email_address)
+        return !!data.mobile_number && !!data.email && emailRegex.test(data.email)
       case 4:
         return true
       case 5:
@@ -1828,21 +1833,41 @@ function OnboardPageContent() {
                         )}
                       />
                     </div>
-                    <div className="md:col-span-2">
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="block text-sm font-semibold text-slate-700">Email Address <span className="text-red-500">*</span></label>
-                        {!isRehireFlow && emailChecking && (<div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium"><Loader2 className="w-3 h-3 animate-spin" />Checking availability...</div>)}
-                        {!isRehireFlow && !emailChecking && onboardFormData.email && (
-                          !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(onboardFormData.email) ? (
-                            <div className="flex items-center gap-1.5 text-xs text-rose-500 font-bold animate-in fade-in slide-in-from-right-2"><AlertCircle className="w-3 h-3" />Invalid email format</div>
-                          ) : emailExists ? (
-                            <div className="flex items-center gap-1.5 text-xs text-rose-500 font-bold animate-in fade-in slide-in-from-right-2"><AlertCircle className="w-3 h-3" />Email already exists</div>
-                          ) : (
-                            <div className="flex items-center gap-1.5 text-xs text-emerald-500 font-bold animate-in fade-in slide-in-from-right-2"><CheckCircle2 className="w-3 h-3" />Email available</div>
-                          )
-                        )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:col-span-2">
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="block text-sm font-semibold text-slate-700">Mobile Number <span className="text-red-500">*</span></label>
+                        </div>
+                        <div className="relative group">
+                          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-[#A4163A]">
+                            +63
+                          </div>
+                          <Input 
+                            value={onboardFormData.mobile_number} 
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, '').slice(0, 10)
+                              setOnboardFormData(prev => ({ ...prev, mobile_number: val }))
+                            }} 
+                            placeholder="9XXXXXXXXX" 
+                            className="pl-11 font-bold" 
+                            maxLength={10}
+                          />
+                        </div>
                       </div>
-                      <div className="relative">
+                      <div>
+                        <div className="flex justify-between items-center mb-2">
+                          <label className="block text-sm font-semibold text-slate-700">Email Address <span className="text-red-500">*</span></label>
+                          {!isRehireFlow && emailChecking && (<div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium"><Loader2 className="w-3 h-3 animate-spin" />Checking availability...</div>)}
+                          {!isRehireFlow && !emailChecking && onboardFormData.email && (
+                            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(onboardFormData.email) ? (
+                              <div className="flex items-center gap-1.5 text-xs text-rose-500 font-bold animate-in fade-in slide-in-from-right-2"><AlertCircle className="w-3 h-3" />Invalid email format</div>
+                            ) : emailExists ? (
+                              <div className="flex items-center gap-1.5 text-xs text-rose-500 font-bold animate-in fade-in slide-in-from-right-2"><AlertCircle className="w-3 h-3" />Email already exists</div>
+                            ) : (
+                              <div className="flex items-center gap-1.5 text-xs text-emerald-500 font-bold animate-in fade-in slide-in-from-right-2"><CheckCircle2 className="w-3 h-3" />Email available</div>
+                            )
+                          )}
+                        </div>
                         <Input 
                           type="email" 
                           value={onboardFormData.email} 
@@ -2260,8 +2285,8 @@ function OnboardPageContent() {
                         </div>
                         <div className="space-y-2">
                           <div className="flex justify-between items-center">
-                            <Label htmlFor="email_address" className="text-sm font-semibold">Email Address <span className="text-red-500">*</span></Label>
-                            {progressionFormData.email_address && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(progressionFormData.email_address) && (
+                            <Label htmlFor="email" className="text-sm font-semibold">Email Address <span className="text-red-500">*</span></Label>
+                            {progressionFormData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(progressionFormData.email) && (
                               <div className="flex items-center gap-1 text-[10px] text-rose-500 font-bold animate-in fade-in slide-in-from-right-1">
                                 <AlertCircle className="w-3 h-3" />
                                 Invalid Format
@@ -2269,17 +2294,17 @@ function OnboardPageContent() {
                             )}
                           </div>
                           <Input 
-                            id="email_address" 
+                            id="email" 
                             type="email" 
-                            name="email_address" 
-                            value={progressionFormData.email_address || ''} 
+                            name="email" 
+                            value={progressionFormData.email || ''} 
                             onChange={handleProgressionChange} 
                             maxLength={50} 
                             className={cn(
                               "font-medium transition-all duration-300",
-                              progressionFormData.email_address && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(progressionFormData.email_address)
+                              progressionFormData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(progressionFormData.email)
                                 ? "border-rose-400 focus-visible:ring-rose-400 bg-rose-50/30"
-                                : progressionFormData.email_address && "border-emerald-400 focus-visible:ring-emerald-400 bg-emerald-50/30"
+                                : progressionFormData.email && "border-emerald-400 focus-visible:ring-emerald-400 bg-emerald-50/30"
                             )} 
                           />
                         </div>
