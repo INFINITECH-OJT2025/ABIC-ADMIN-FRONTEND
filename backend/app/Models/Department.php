@@ -7,12 +7,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Department extends Model
 {
-    protected $fillable = ['name', 'is_custom'];
+    protected $fillable = ['name', 'office_id', 'is_custom', 'color'];
     protected $hidden = [];
     public $timestamps = true;
 
-    public function checklistTemplates(): HasMany
+    public function office()
     {
-        return $this->hasMany(DepartmentChecklistTemplate::class);
+        return $this->belongsTo(Office::class);
+    }
+
+    public function hierarchies()
+    {
+        return $this->hasMany(Hierarchy::class);
     }
 }

@@ -192,7 +192,11 @@ export default function AdminHeadPage() {
   }, [])
 
   const handleRefresh = () => {
-    loadActivities(true)
+    if (currentPage !== 1) {
+      setCurrentPage(1)
+    } else {
+      loadActivities(true)
+    }
     loadTardinessActivities()
   }
 
@@ -203,73 +207,76 @@ export default function AdminHeadPage() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-stone-50 via-white to-red-50 text-stone-900 font-sans pb-2">
-      <div className="relative w-full">
-        {/* ----- HEADER SECTION ----- */}
-        <header className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md p-4 md:p-8">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-1">Activity Logs</h1>
-              <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
-                <Activity className="w-4 h-4" />
-                ABIC REALTY & CONSULTANCY • Real-time Monitoring
-              </p>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                variant="outline"
-                className="bg-white/10 backdrop-blur-md border-white/20 text-white hover:bg-white/20 transition-all rounded-full px-5 py-2 h-auto text-sm font-bold uppercase tracking-wider flex items-center gap-2"
-              >
-                <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
-                <span>REFRESH</span>
-              </Button>
-            </div>
-          </div>
-        </header>
-
-        {/* ----- TOOLBAR SECTION - CATEGORIES & SEARCH ----- */}
-        <div className="bg-white border-b border-stone-200 sticky top-0 z-10">
-          <div className="w-full pl-6 pr-6 py-4">
-            <div className="flex flex-wrap items-center gap-6">
-              {/* Category Selection */}
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold text-stone-500 uppercase tracking-widest">CATEGORY</span>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-2 px-4 py-2 rounded-full border border-rose-100 bg-rose-50/30 text-[#A4163A] font-semibold hover:bg-rose-50 transition-colors">
-                      <span className="capitalize">{activeTab} Activities</span>
-                      <ChevronDown className="w-4 h-4" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56 bg-white border-stone-200 shadow-xl rounded-xl p-1.5" align="start">
-                    {['all', 'employee', 'department', 'position', 'attendance', 'auth'].map(tab => (
-                      <DropdownMenuItem
-                        key={tab}
-                        onClick={() => handleTabChange(tab)}
-                        className={cn(
-                          "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
-                          activeTab === tab ? "bg-red-50 text-red-900 font-semibold" : "text-stone-600 hover:bg-stone-50"
-                        )}
-                      >
-                        <span className="capitalize">{tab}</span>
-                        {activeTab === tab && <Check className="w-4 h-4 text-red-600" />}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+      <div className="relative w-full sticky top-0 z-10">
+        {/* ----- INTEGRATED HEADER & TOOLBAR ----- */}
+        <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md">
+          {/* Main Header Row */}
+          <div className="w-full px-4 md:px-8 py-6">
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold mb-1">Activity Logs</h1>
+                <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
+                  <Activity className="w-4 h-4" />
+                  ABIC REALTY & CONSULTANCY - Real-time Monitoring
+                </p>
               </div>
 
-              {/* Global Search Input */}
-              <div className="relative flex-1 max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" />
-                <Input
-                  placeholder="Search activity descriptions, users, or titles..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-stone-50/50 border-stone-200 pl-10 h-10 w-full focus:ring-2 focus:ring-[#A4163A] focus:border-transparent rounded-lg transition-all"
-                />
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={handleRefresh}
+                  disabled={refreshing}
+                  variant="outline"
+                  className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all rounded-full px-5 py-2 h-auto text-sm font-bold uppercase tracking-wider flex items-center gap-2"
+                >
+                  <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
+                  <span>REFRESH</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Secondary Toolbar */}
+          <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm">
+            <div className="w-full px-4 md:px-8 py-3">
+              <div className="flex flex-wrap items-center gap-3 md:gap-4">
+                {/* Category Selection */}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-white/70 uppercase tracking-wider">CATEGORY</span>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[200px] justify-between shadow-sm font-bold inline-flex items-center whitespace-nowrap rounded-lg cursor-pointer group border-2">
+                        <span className="capitalize">{activeTab} Activities</span>
+                        <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 bg-white border-stone-200 shadow-xl rounded-xl p-1.5" align="start">
+                      {['all', 'employee', 'department', 'position', 'attendance', 'auth'].map(tab => (
+                        <DropdownMenuItem
+                          key={tab}
+                          onClick={() => handleTabChange(tab)}
+                          className={cn(
+                            "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
+                            activeTab === tab ? "bg-red-50 text-red-900 font-semibold" : "text-stone-600 hover:bg-stone-50"
+                          )}
+                        >
+                          <span className="capitalize">{tab}</span>
+                          {activeTab === tab && <Check className="w-4 h-4 text-red-600" />}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Global Search Input */}
+                <div className="relative w-full md:w-[350px]">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#A0153E]" />
+                  <Input
+                    placeholder="Search activity descriptions, users, or titles..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="bg-white border-2 border-[#FFE5EC] text-slate-700 placeholder:text-slate-400 pl-10 h-10 w-full focus:ring-2 focus:ring-[#A0153E] focus:border-[#C9184A] shadow-sm rounded-lg transition-all"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -322,7 +329,7 @@ export default function AdminHeadPage() {
                             Entry added for <span className="font-semibold text-stone-900">{entry.employee_name}</span>{' '}
                             at <span className="font-medium">{timeText}</span>{' '}
                             on <span className="font-medium">{dateText}</span>
-                            {hasWarning && <span className="text-amber-700 font-semibold"> — {warnText}</span>}
+                            {hasWarning && <span className="text-amber-700 font-semibold"> - {warnText}</span>}
                           </p>
                           <p className="text-stone-400 text-xs mt-0.5">
                             {entry.minutes_late} min{entry.minutes_late !== 1 ? 's' : ''} late from 8:00 AM
@@ -437,7 +444,7 @@ export default function AdminHeadPage() {
                                 Entry added for <span className="font-semibold text-stone-900">{entry.employee_name}</span>{' '}
                                 at <span className="font-medium">{timeText}</span>{' '}
                                 on <span className="font-medium">{dateText}</span>
-                                {hasWarning && <span className="text-amber-700 font-semibold"> — {warnText}</span>}
+                                {hasWarning && <span className="text-amber-700 font-semibold"> - {warnText}</span>}
                               </p>
                               <p className="text-stone-400 text-xs mt-0.5">
                                 {entry.minutes_late} min{entry.minutes_late !== 1 ? 's' : ''} late from 8:00 AM

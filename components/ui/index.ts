@@ -11,3 +11,4 @@ export { Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableC
 export { Avatar, AvatarImage, AvatarFallback } from "./avatar"
 export { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./dropdown-menu"
 export { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "./sheet"
+export { Checkbox } from "./checkbox"

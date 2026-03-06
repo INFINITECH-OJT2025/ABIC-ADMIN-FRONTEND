@@ -1,0 +1,26 @@
+﻿
+   INFO  Running migrations.  
+
+  2026_03_02_000004_create_employees_table  4.47ms FAIL
+
+   Illuminate\Database\QueryException 
+
+  SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'employees' already exists (Connection: mysql, Host: 127.0.0.1, Port: 3306, Database: admin_head, SQL: create table `employees` (`id` varchar(255) not null, `email` varchar(255) not null, `status` enum('pending', 'employed', 'terminated', 'resigned', 'rehire_pending', 'rehired_employee', 'termination_pending', 'resignation_pending') not null default 'pending', `position` varchar(255) null, `department` varchar(255) null, `onboarding_date` date null, `access_level` varchar(255) null, `equipment_issued` text null, `training_completed` tinyint(1) not null default '0', `onboarding_notes` text null, `date_hired` date null, `last_name` varchar(255) null, `first_name` varchar(255) null, `middle_name` varchar(255) null, `suffix` varchar(255) null, `birthday` date null, `birthplace` varchar(255) null, `civil_status` varchar(255) null, `gender` varchar(255) null, `sss_number` varchar(255) null, `philhealth_number` varchar(255) null, `pagibig_number` varchar(255) null, `tin_number` varchar(255) null, `mlast_name` varchar(255) null, `mfirst_name` varchar(255) null, `mmiddle_name` varchar(255) null, `msuffix` varchar(255) null, `flast_name` varchar(255) null, `ffirst_name` varchar(255) null, `fmiddle_name` varchar(255) null, `fsuffix` varchar(255) null, `mobile_number` varchar(255) null, `house_number` varchar(255) null, `street` varchar(255) null, `village` varchar(255) null, `subdivision` varchar(255) null, `barangay` varchar(255) null, `region` varchar(255) null, `province` varchar(255) null, `city_municipality` varchar(255) null, `zip_code` varchar(255) null, `perm_house_number` varchar(255) null, `perm_street` varchar(255) null, `perm_village` varchar(255) null, `perm_subdivision` varchar(255) null, `perm_barangay` varchar(255) null, `perm_city_municipality` varchar(255) null, `perm_province` varchar(255) null, `perm_region` varchar(255) null, `perm_zip_code` varchar(255) null, `email_address` varchar(255) null, `height_1` text null, `feedback` text null, `heigh` text null, `height` text null, `date` date null, `created_at` timestamp null, `updated_at` timestamp null, primary key (`id`)) default character set utf8mb4 collate 'utf8mb4_unicode_ci')
+
+  at vendor\laravel\framework\src\Illuminate\Database\Connection.php:838
+    834Γûò             $exceptionType = $this->isUniqueConstraintError($e)
+    835Γûò                 ? UniqueConstraintViolationException::class
+    836Γûò                 : QueryException::class;
+    837Γûò 
+  Γ₧£ 838Γûò             throw new $exceptionType(
+    839Γûò                 $this->getNameWithReadWriteType(),
+    840Γûò                 $query,
+    841Γûò                 $this->prepareBindings($bindings),
+    842Γûò                 $e,
+
+  1   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      PDOException::("SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'employees' already exists")
+
+  2   vendor\laravel\framework\src\Illuminate\Database\Connection.php:584
+      PDOStatement::execute()
+

@@ -1,0 +1,5 @@
+﻿
+   INFO  Running migrations.  
+
+  2026_03_05_110327_add_header_fields_to_warning_letter_templates  177.17ms DONE
+

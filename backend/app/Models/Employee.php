@@ -39,4 +39,9 @@ class Employee extends Model
     protected $hidden = [
         'password',
     ];
+
+    public function evaluation()
+    {
+        return $this->hasOne(Evaluation::class, 'employee_id', 'id');
+    }
 }

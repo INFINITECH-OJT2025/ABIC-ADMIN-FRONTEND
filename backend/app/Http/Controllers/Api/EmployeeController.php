@@ -79,11 +79,16 @@ class EmployeeController extends Controller
     /**
      * Display a listing of all employees.
      */
-    public function index()
+    public function index(Request $request)
     {
+        $query = Employee::query();
+        if ($request->has('status')) {
+            $statuses = explode(',', $request->query('status'));
+            $query->whereIn('status', $statuses);
+        }
         return response()->json([
             'success' => true,
-            'data' => Employee::all()
+            'data' => $query->get()
         ]);
     }
 
@@ -233,7 +238,7 @@ class EmployeeController extends Controller
                 'perm_zip_code' => 'sometimes|nullable|string|max:255',
                 'email_address' => 'sometimes|nullable|string|max:255',
                 'password' => 'sometimes|nullable|string|min:6',
-                'status' => 'sometimes|in:pending,employed,terminated,resigned,rehire_pending,rehired_employee',
+                'status' => 'sometimes|in:pending,employed,terminated,resigned,rehire_pending,rehired_employee,resignation_pending,termination_pending',
                 'rehire_process' => 'sometimes|boolean',
             ]);
 
@@ -262,6 +267,14 @@ class EmployeeController extends Controller
 
             $employee->update($validated);
             $this->syncLatestRehireProfile($employee);
+
+            // Automatically create a 'Probee' evaluation record if the employee becomes employed or rehired
+            if (in_array($employee->status, ['employed', 'rehired_employee'])) {
+                \App\Models\Evaluation::firstOrCreate(
+                    ['employee_id' => $employee->id],
+                    ['status' => 'Probee']
+                );
+            }
 
             // Log activity
             $this->activityLogService->logEmployeeUpdated($employee, $changes, null, $request);
@@ -340,6 +353,14 @@ class EmployeeController extends Controller
             $employee->update($validated);
             $this->syncLatestRehireProfile($employee);
 
+            // Automatically create a 'Probee' evaluation record upon successful onboarding
+            if (in_array($employee->status, ['employed', 'rehired_employee'])) {
+                \App\Models\Evaluation::firstOrCreate(
+                    ['employee_id' => $employee->id],
+                    ['status' => 'Probee']
+                );
+            }
+
             // Log activity
             $this->activityLogService->logEmployeeOnboarded($employee, null, $request);
 
@@ -397,8 +418,8 @@ class EmployeeController extends Controller
                     'status' => 'completed',
                 ]);
 
-                // Keep employee as non-active using existing status semantics.
-                $employee->update(['status' => 'terminated']);
+                // Set employee status to pending until clearance is done.
+                $employee->update(['status' => 'resignation_pending']);
                 $this->activityLogService->logEmployeeResigned($employee, $resigned, null, $request);
 
                 return response()->json([
@@ -446,8 +467,8 @@ class EmployeeController extends Controller
                 })->afterResponse();
             }
 
-            // Update employee status to terminated
-            $employee->update(['status' => 'terminated']);
+            // Update employee status to termination_pending until clearance is complete
+            $employee->update(['status' => 'termination_pending']);
 
             // Log activity
             $this->activityLogService->logEmployeeTerminated($employee, $termination, null, $request);

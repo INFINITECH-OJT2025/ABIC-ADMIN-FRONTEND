@@ -55,10 +55,24 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Concatenate first_name and last_name as name
-    const results = await query("SELECT id, CONCAT(first_name, ' ', last_name) AS name, email, department, created_at FROM employees ORDER BY created_at DESC")
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status')
+
+    let sqlQuery = "SELECT id, first_name, last_name, CONCAT(first_name, ' ', last_name) AS name, email, department, position, gender, created_at FROM employees"
+    const values: any[] = []
+
+    if (status) {
+      const statusArray = status.split(',')
+      const placeholders = statusArray.map(() => '?').join(', ')
+      sqlQuery += ` WHERE status IN (${placeholders})`
+      values.push(...statusArray)
+    }
+
+    sqlQuery += " ORDER BY created_at DESC"
+
+    const results = await query(sqlQuery, values)
     return NextResponse.json({ success: true, data: results })
   } catch (error: any) {
     console.error('API Error in GET /api/admin-head/employees:', error)
