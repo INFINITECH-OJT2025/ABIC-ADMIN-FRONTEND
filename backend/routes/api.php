@@ -80,5 +80,11 @@ Route::put('/directory/agencies/{code}', [DirectoryController::class, 'update'])
 Route::put('/directory/agencies/{code}/image', [DirectoryController::class, 'updateImage']);
 Route::get('/directory/general-contacts', [DirectoryController::class, 'listGeneralContacts']);
 Route::put('/directory/general-contacts', [DirectoryController::class, 'updateGeneralContacts']);
+Route::post('/directory/images/upload', [DirectoryController::class, 'uploadImage']);
+Route::get('/directory/images', [DirectoryController::class, 'listImages']);
+Route::delete('/directory/images', [DirectoryController::class, 'deleteImage']);
+Route::get('/directory/images/file/{path}', [DirectoryController::class, 'showImageFile'])->where('path', '.*');
+
+// Backward-compatible aliases for old Cloudinary route names.
 Route::get('/directory/cloudinary-images', [DirectoryController::class, 'listCloudinaryImages']);
 Route::delete('/directory/cloudinary-images', [DirectoryController::class, 'deleteCloudinaryImage']);

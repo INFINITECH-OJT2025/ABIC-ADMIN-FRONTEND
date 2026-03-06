@@ -5,7 +5,6 @@
 
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { CldUploadWidget } from 'next-cloudinary'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -187,18 +186,22 @@ const DIRECTORY_FOLDER_ALIASES: Record<string, string> = {
   sss: 'sss',
   philhealth: 'philhealth',
   tin: 'bir',
-  pagibig: 'pagibig',
+  pagibig: 'pag-ibig',
+  'pag-ibig': 'pag-ibig',
   [GENERAL_CONTACTS_KEY]: 'general-contacts',
 }
 
-const getDirectoryFolderPath = (sectionCode: string): string => {
+const getDirectorySectionFolder = (sectionCode: string): string => {
   const normalized = normalizeCode(sectionCode)
   const mapped = DIRECTORY_FOLDER_ALIASES[normalized] || normalized || 'misc'
-  return `directory/${mapped}`
+  return mapped
 }
+
+const getDirectoryFolderPath = (sectionCode: string): string => `backend/storage/uploads/images/${getDirectorySectionFolder(sectionCode)}`
 
 
 const normalizeCode = (value: string): string => String(value || '').trim().toLowerCase()
+const normalizeDuplicateValue = (value: string): string => String(value || '').trim().toLowerCase()
 
 
 const getAgencyIcon = (code: string) => {
@@ -284,6 +287,7 @@ const parseBackendDateMs = (value: string | null | undefined): number => {
 
 export default function GovernmentDirectoryPage() {
   const deleteDialogTitleRef = useRef<HTMLHeadingElement | null>(null)
+  const agencyUploadInputRef = useRef<HTMLInputElement | null>(null)
   const agencyUploadTargetRef = useRef<string>('')
   const generalContactUploadInputRef = useRef<HTMLInputElement | null>(null)
   const generalContactUploadTargetRef = useRef<number | null>(null)
@@ -552,9 +556,63 @@ export default function GovernmentDirectoryPage() {
       .sort((a, b) => a.step_number - b.step_number)
   }, [editMode, draft, activeProcess])
 
+  const duplicateContactIndices = useMemo(() => {
+    const duplicates = new Set<number>()
+    if (!draft) return duplicates
+    const counts = new Map<string, number>()
+    draft.contacts.forEach((row) => {
+      const normalized = normalizeDuplicateValue(row.value)
+      if (!normalized) return
+      counts.set(normalized, (counts.get(normalized) ?? 0) + 1)
+    })
+    draft.contacts.forEach((row, index) => {
+      const normalized = normalizeDuplicateValue(row.value)
+      if (!normalized) return
+      if ((counts.get(normalized) ?? 0) > 1) duplicates.add(index)
+    })
+    return duplicates
+  }, [draft])
 
-  const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+  const duplicateProcessKeys = useMemo(() => {
+    const duplicates = new Set<string>()
+    if (!draft) return duplicates
+    const counts = new Map<string, number>()
+    draft.processes.forEach((row) => {
+      const normalized = normalizeDuplicateValue(row.process)
+      if (!normalized) return
+      const key = `${row.process_type}|${normalized}`
+      counts.set(key, (counts.get(key) ?? 0) + 1)
+    })
+    counts.forEach((count, key) => {
+      if (count > 1) duplicates.add(key)
+    })
+    return duplicates
+  }, [draft])
 
+  const duplicateProcessCount = useMemo(() => {
+    if (!draft) return 0
+    return draft.processes.filter((row) => {
+      const normalized = normalizeDuplicateValue(row.process)
+      if (!normalized) return false
+      return duplicateProcessKeys.has(`${row.process_type}|${normalized}`)
+    }).length
+  }, [draft, duplicateProcessKeys])
+
+  const duplicateGeneralContactIndices = useMemo(() => {
+    const duplicates = new Set<number>()
+    const counts = new Map<string, number>()
+    generalContactsDraft.forEach((row) => {
+      const normalized = normalizeDuplicateValue(row.value)
+      if (!normalized) return
+      counts.set(normalized, (counts.get(normalized) ?? 0) + 1)
+    })
+    generalContactsDraft.forEach((row, index) => {
+      const normalized = normalizeDuplicateValue(row.value)
+      if (!normalized) return
+      if ((counts.get(normalized) ?? 0) > 1) duplicates.add(index)
+    })
+    return duplicates
+  }, [generalContactsDraft])
 
   const startEditMode = () => {
     const backend = agenciesByCode[activeAgency]
@@ -702,6 +760,13 @@ export default function GovernmentDirectoryPage() {
         const message = draftValidation.error.issues[0]?.message || 'Please review your directory entries.'
         toast.error('Validation Failed', {
           description: message,
+        })
+        return
+      }
+
+      if (duplicateContactIndices.size > 0 || duplicateProcessCount > 0) {
+        toast.warning('Duplicate Entries Detected', {
+          description: 'Rows highlighted in red are duplicates. Resolve them before saving directory changes.',
         })
         return
       }
@@ -858,23 +923,22 @@ export default function GovernmentDirectoryPage() {
       setLoadingCloudinaryImages(true)
       setCloudinaryPickerTarget(target)
       const sectionCode = target.type === 'general-contact' ? GENERAL_CONTACTS_KEY : target.agencyCode
-      const folderPath = getDirectoryFolderPath(sectionCode)
-      const prefix = `${folderPath}/`
+      const folder = getDirectorySectionFolder(sectionCode)
       const response = await fetch(
-        `${getApiUrl()}/api/directory/cloudinary-images?folder=${encodeURIComponent(folderPath)}&prefix=${encodeURIComponent(prefix)}&max_results=60`,
+        `${getApiUrl()}/api/directory/images?folder=${encodeURIComponent(folder)}&max_results=60`,
         {
         headers: { Accept: 'application/json' },
         }
       )
-      await ensureOkResponse(response, 'Unable to load images from Cloudinary.')
+      await ensureOkResponse(response, 'Unable to load uploaded images from backend storage.')
       const result = await response.json()
       const rows = Array.isArray(result?.data) ? result.data : []
       setCloudinaryImages(rows)
       setCloudinaryPage(1)
       setCloudinaryPickerOpen(true)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to load Cloudinary images'
-      toast.error('Cloudinary Load Failed', { description: message })
+      const message = err instanceof Error ? err.message : 'Failed to load uploaded images'
+      toast.error('Image Load Failed', { description: message })
     } finally {
       setLoadingCloudinaryImages(false)
     }
@@ -1031,7 +1095,7 @@ export default function GovernmentDirectoryPage() {
     payload.set('file', file)
     payload.set('sectionCode', sectionCode)
 
-    const response = await fetch('/api/cloudinary/upload-directory-image', {
+    const response = await fetch('/api/directory/upload-image', {
       method: 'POST',
       body: payload,
     })
@@ -1084,7 +1148,7 @@ export default function GovernmentDirectoryPage() {
     void uploadGeneralContactAvatar(targetIndex, file)
   }
 
-  const isGeneralContactUploadAvailable = Boolean(process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME)
+  const isGeneralContactUploadAvailable = true
 
   const saveGeneralContacts = async () => {
     try {
@@ -1093,6 +1157,13 @@ export default function GovernmentDirectoryPage() {
         const message = contactsValidation.error.issues[0]?.message || 'Please review all general contact fields.'
         toast.error('Validation Failed', {
           description: message,
+        })
+        return
+      }
+
+      if (duplicateGeneralContactIndices.size > 0) {
+        toast.warning('Duplicate Entries Detected', {
+          description: 'Rows highlighted in red are duplicates. Resolve them before saving general contacts.',
         })
         return
       }
@@ -1148,24 +1219,26 @@ export default function GovernmentDirectoryPage() {
     }
   }
 
-  const handleImageUpdate = async (uploadResult: any, agencyCode: string) => {
+  const startAgencyUpload = (agencyCode: string) => {
+    agencyUploadTargetRef.current = normalizeCode(agencyCode || activeAgency)
+    agencyUploadInputRef.current?.click()
+  }
+
+  const uploadAgencyImage = async (agencyCode: string, file: File) => {
     try {
-      const info = uploadResult?.info ?? uploadResult
-      const imageUrl = info?.secure_url
-      const publicId = info?.public_id
-      const format = String(info?.format || '').toLowerCase()
-      const bytes = Number(info?.bytes || 0)
-      if (!imageUrl) {
-        throw new Error('Upload did not return an image URL.')
-      }
+      const rawName = String(file?.name || '')
+      const dotIndex = rawName.lastIndexOf('.')
+      const format = dotIndex >= 0 ? rawName.slice(dotIndex + 1).toLowerCase() : ''
+      const bytes = Number(file?.size || 0)
       validateImageRestrictions(format, bytes)
       setUpdatingImage(true)
+      const uploaded = await uploadDirectoryImage(file, agencyCode)
       await persistAgencyImage({
         agencyCode,
-        imageUrl,
-        publicId,
-        format,
-        bytes,
+        imageUrl: uploaded.secureUrl,
+        publicId: uploaded.publicId,
+        format: uploaded.format,
+        bytes: uploaded.bytes,
       })
       toast.success('Agency picture updated successfully!')
     } catch (err) {
@@ -1174,6 +1247,15 @@ export default function GovernmentDirectoryPage() {
     } finally {
       setUpdatingImage(false)
     }
+  }
+
+  const handleAgencyUploadInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const targetAgencyCode = normalizeCode(agencyUploadTargetRef.current || activeAgency)
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    agencyUploadTargetRef.current = ''
+    if (!targetAgencyCode || !file) return
+    void uploadAgencyImage(targetAgencyCode, file)
   }
 
 
@@ -1244,6 +1326,13 @@ export default function GovernmentDirectoryPage() {
 
   return (
     <div className="min-h-screen bg-[#F5F6F8] font-sans flex flex-col">
+      <input
+        ref={agencyUploadInputRef}
+        type="file"
+        accept={ALLOWED_UPLOAD_FORMATS.map((format) => `.${format}`).join(',')}
+        className="hidden"
+        onChange={handleAgencyUploadInputChange}
+      />
       <input
         ref={generalContactUploadInputRef}
         type="file"
@@ -1476,12 +1565,32 @@ export default function GovernmentDirectoryPage() {
                       Add Row
                     </Button>
                   </div>
+                  {duplicateGeneralContactIndices.size > 0 && (
+                    <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-bold text-rose-700 flex items-center gap-2">
+                      <TriangleAlert className="h-4 w-4 shrink-0" />
+                      {duplicateGeneralContactIndices.size} duplicate contact value{duplicateGeneralContactIndices.size > 1 ? 's are' : ' is'} highlighted in red. Resolve duplicates before saving.
+                    </div>
+                  )}
                   {generalContactsDraft.length === 0 ? (
                     <p className="text-sm text-slate-500">No rows yet. Click Add Row to create one.</p>
                   ) : (
                     <>
-                    {paginatedFilteredGeneralContactsDraft.map(({ row, index }) => (
-                      <div key={`general-contact-draft-${index}`} className="border border-slate-200 rounded-md p-3 space-y-2">
+                    {paginatedFilteredGeneralContactsDraft.map(({ row, index }) => {
+                      const isDuplicateGeneralContact = duplicateGeneralContactIndices.has(index)
+                      return (
+                      <div
+                        key={`general-contact-draft-${index}`}
+                        className={cn(
+                          "border border-slate-200 rounded-md p-3 space-y-2",
+                          isDuplicateGeneralContact ? "bg-rose-50/70 ring-1 ring-rose-300/90 border-rose-300" : ""
+                        )}
+                      >
+                        {isDuplicateGeneralContact && (
+                          <p className="text-[10px] font-black uppercase tracking-wider text-rose-700 inline-flex items-center gap-1">
+                            <TriangleAlert className="h-3 w-3" />
+                            Duplicate
+                          </p>
+                        )}
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2 min-w-0">
                             <div className="h-10 w-10 rounded-full overflow-hidden border border-slate-200 bg-slate-100 shrink-0 flex items-center justify-center">
@@ -1614,7 +1723,7 @@ export default function GovernmentDirectoryPage() {
                         <TextFieldStatus value={row.contact_person} max={VALIDATION_CONSTRAINTS.directory.generalContactPerson.max} />
                         <TextFieldStatus value={row.value} min={VALIDATION_CONSTRAINTS.directory.generalValue.min} max={VALIDATION_CONSTRAINTS.directory.generalValue.max} />
                       </div>
-                    ))}
+                    )})}
                     </>
                   )}
                 </div>
@@ -1726,38 +1835,14 @@ export default function GovernmentDirectoryPage() {
 
             <div className="absolute top-6 right-6 flex flex-col gap-3">
               {/* Upload Buttons */}
-              {uploadPreset ? (
-                <CldUploadWidget
-                  uploadPreset={uploadPreset}
-                  options={{
-                    multiple: false,
-                    maxFiles: 1,
-                    resourceType: 'image',
-                    sources: ['local'],
-                    folder: getDirectoryFolderPath(activeAgency),
-                    ...({ asset_folder: getDirectoryFolderPath(activeAgency) } as any),
-                    maxFileSize: MAX_IMAGE_BYTES,
-                    clientAllowedFormats: [...ALLOWED_UPLOAD_FORMATS],
-                  }}
-                  onSuccess={(result) => void handleImageUpdate(result, agencyUploadTargetRef.current || activeAgency)}
-                >
-                  {({ open }) => (
-                    <Button
-                      onClick={() => {
-                        agencyUploadTargetRef.current = activeAgency
-                        open()
-                      }}
-                      disabled={updatingImage}
-                      className="bg-[#A4163A] hover:bg-[#8a1230] text-white border-none rounded-lg px-6 shadow-lg shadow-red-900/20 font-bold"
-                    >
-                      {updatingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageUp className="mr-2 h-4 w-4" />}
-                      Update Picture
-                    </Button>
-                  )}
-                </CldUploadWidget>
-              ) : (
-                <Button disabled className="bg-slate-800 text-white rounded-lg">Config Error</Button>
-              )}
+              <Button
+                onClick={() => startAgencyUpload(activeAgency)}
+                disabled={updatingImage}
+                className="bg-[#A4163A] hover:bg-[#8a1230] text-white border-none rounded-lg px-6 shadow-lg shadow-red-900/20 font-bold"
+              >
+                {updatingImage ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImageUp className="mr-2 h-4 w-4" />}
+                Update Picture
+              </Button>
 
 
               <Button
@@ -1872,6 +1957,12 @@ export default function GovernmentDirectoryPage() {
 
             {/* TABLE / LIST */}
             <div className="relative z-10">
+              {editMode && duplicateProcessCount > 0 && (
+                <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-bold text-rose-700 flex items-center gap-2">
+                  <TriangleAlert className="h-4 w-4 shrink-0" />
+                  {duplicateProcessCount} duplicate process step{duplicateProcessCount > 1 ? 's are' : ' is'} highlighted in red. Resolve duplicates before saving.
+                </div>
+              )}
               <div className="border rounded-sm overflow-hidden border-slate-100 shadow-sm">
                 {editMode && (
                   <div className="bg-slate-50 p-3 border-b border-slate-100 flex justify-end">
@@ -1892,14 +1983,29 @@ export default function GovernmentDirectoryPage() {
                   <TableBody>
                     {editMode ? (
                       currentProcessDraftRows.length > 0 ? (
-                        currentProcessDraftRows.map((step, index) => (
-                          <TableRow key={index} className="border-slate-100 hover:bg-slate-50/50">
+                        currentProcessDraftRows.map((step, index) => {
+                          const normalizedProcess = normalizeDuplicateValue(step.process)
+                          const isDuplicateProcess = normalizedProcess.length > 0 && duplicateProcessKeys.has(`${step.process_type}|${normalizedProcess}`)
+                          return (
+                          <TableRow
+                            key={index}
+                            className={cn(
+                              "border-slate-100 hover:bg-slate-50/50",
+                              isDuplicateProcess ? "bg-rose-50/70 ring-1 ring-rose-300/90" : ""
+                            )}
+                          >
                             <TableCell className="text-center align-top py-6">
                               <div className="h-8 w-8 rounded-sm bg-[#A4163A]/10 text-[#A4163A] font-black text-sm flex items-center justify-center mx-auto">
                                 {index + 1}
                               </div>
                             </TableCell>
                             <TableCell className="py-6 align-top">
+                              {isDuplicateProcess && (
+                                <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-rose-700 inline-flex items-center gap-1">
+                                  <TriangleAlert className="h-3 w-3" />
+                                  Duplicate
+                                </p>
+                              )}
                               <div className="flex gap-2">
                                 <Textarea
                                   value={step.process}
@@ -1916,7 +2022,7 @@ export default function GovernmentDirectoryPage() {
                               </div>
                             </TableCell>
                           </TableRow>
-                        ))
+                        )})
                       ) : (
                         <TableRow>
                           <TableCell colSpan={2} className="h-32 text-center text-slate-400 italic">No draft steps yet.</TableCell>
@@ -1966,6 +2072,12 @@ export default function GovernmentDirectoryPage() {
               </Button>
             </div>
           )}
+          {editMode && duplicateContactIndices.size > 0 && (
+            <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-bold text-rose-700 flex items-center gap-2">
+              <TriangleAlert className="h-4 w-4 shrink-0" />
+              {duplicateContactIndices.size} duplicate contact value{duplicateContactIndices.size > 1 ? 's are' : ' is'} highlighted in red. Resolve duplicates before saving.
+            </div>
+          )}
 
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1980,6 +2092,7 @@ export default function GovernmentDirectoryPage() {
               .map((row, idx) => {
                 const isEditable = editMode && draft
                 const actualRow = isEditable ? row : row
+                const isDuplicateContact = isEditable && duplicateContactIndices.has(idx)
                 // Note: agency.details already has icon, but draft doesn't.
                 const Icon = isEditable
                   ? getDetailIcon(row.type, row.label)
@@ -1987,9 +2100,21 @@ export default function GovernmentDirectoryPage() {
 
 
                 return (
-                  <div key={idx} className="group bg-white rounded-sm p-3 border border-slate-200 hover:border-[#A4163A] transition-colors flex items-center justify-between gap-4 shadow-sm hover:shadow-md">
+                  <div
+                    key={idx}
+                    className={cn(
+                      "group bg-white rounded-sm p-3 border border-slate-200 hover:border-[#A4163A] transition-colors flex items-center justify-between gap-4 shadow-sm hover:shadow-md",
+                      isDuplicateContact ? "bg-rose-50/70 ring-1 ring-rose-300/90 border-rose-300" : ""
+                    )}
+                  >
                     {isEditable ? (
                       <div className="flex-1 space-y-2 relative z-10 w-full">
+                        {isDuplicateContact && (
+                          <p className="text-[10px] font-black uppercase tracking-wider text-rose-700 inline-flex items-center gap-1">
+                            <TriangleAlert className="h-3 w-3" />
+                            Duplicate
+                          </p>
+                        )}
                         <div className="flex gap-2">
                           <Input
                             value={row.type}
@@ -2112,7 +2237,7 @@ export default function GovernmentDirectoryPage() {
               Loading Uploaded Images
             </DialogTitle>
             <DialogDescription>
-              Fetching your uploaded images from Cloudinary. Please wait...
+              Fetching your uploaded images from backend storage. Please wait...
             </DialogDescription>
           </DialogHeader>
           <div className="px-6 pb-6">
@@ -2143,7 +2268,7 @@ export default function GovernmentDirectoryPage() {
           <div className="px-6 pb-6 overflow-y-auto max-h-[calc(85vh-10rem)]">
             {cloudinaryImages.length === 0 ? (
               <div className="py-10 text-center text-slate-500">
-                No uploaded images found in Cloudinary folder <span className="font-mono">{cloudinaryPickerFolderPath}</span>.
+                No uploaded images found in <span className="font-mono">{cloudinaryPickerFolderPath}</span>.
               </div>
             ) : (
               <>
@@ -2277,10 +2402,10 @@ export default function GovernmentDirectoryPage() {
               <TriangleAlert className="h-6 w-6" />
             </div>
             <AlertDialogTitle ref={deleteDialogTitleRef} tabIndex={-1} className={modalTokens.title}>
-              Delete this Cloudinary image?
+              Delete this uploaded image?
             </AlertDialogTitle>
             <AlertDialogDescription className={modalTokens.description}>
-              This will permanently delete the selected image file from Cloudinary.
+              This will permanently delete the selected image file from backend storage.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className={modalTokens.footer}>
@@ -2291,7 +2416,7 @@ export default function GovernmentDirectoryPage() {
                 if (!deleteCandidate) return
                 try {
                   setDeletingCloudinaryImage(true)
-                  const response = await fetch(`${getApiUrl()}/api/directory/cloudinary-images`, {
+                  const response = await fetch(`${getApiUrl()}/api/directory/images`, {
                     method: 'DELETE',
                     headers: {
                       'Content-Type': 'application/json',
@@ -2305,7 +2430,7 @@ export default function GovernmentDirectoryPage() {
 
 
                   setCloudinaryImages((prev) => prev.filter((item) => item.public_id !== deleteCandidate.public_id))
-                  toast.success('Image deleted from Cloudinary successfully!')
+                  toast.success('Image deleted successfully!')
                 } catch (err) {
                   const message = err instanceof Error ? err.message : 'Failed to delete image'
                   toast.error('Delete Failed', { description: message })

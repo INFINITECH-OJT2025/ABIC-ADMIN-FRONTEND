@@ -16,9 +16,6 @@ import { TextFieldStatus } from '@/components/ui/text-field-status'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from "@/components/ui/select"
-import {
   Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from "@/components/ui/command"
 import { Separator } from '@/components/ui/separator'
@@ -29,7 +26,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
-  Save, Lock, ChevronLeft, ChevronRight, Check, Trash2, Plus, LayoutDashboard, ClipboardList, FolderPlus, Filter, ArrowUpDown, ListFilter, CheckCircle2, CircleDashed, Clock3, History, ArrowUpAZ, ArrowDownAZ, ChevronDown, Loader2, X, GripVertical
+  Save, Lock, ChevronLeft, ChevronRight, Check, Trash2, Plus, LayoutDashboard, ClipboardList, FolderPlus, Filter, ArrowUpDown, ListFilter, CheckCircle2, CircleDashed, Clock3, History, ArrowUpAZ, ArrowDownAZ, ChevronDown, Loader2, X, GripVertical, TriangleAlert
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { getApiUrl } from '@/lib/api'
@@ -412,6 +409,23 @@ function OnboardingChecklistPageContent() {
     return JSON.stringify(currentTasks) !== JSON.stringify(savedTasks)
   }, [employeeInfo?.department, records, tasks])
 
+  const duplicateTaskIds = useMemo(() => {
+    const counts = new Map<string, number>()
+    tasks.forEach((row) => {
+      const normalized = String(row.task || '').trim().toLowerCase()
+      if (!normalized) return
+      counts.set(normalized, (counts.get(normalized) ?? 0) + 1)
+    })
+
+    const duplicates = new Set<number>()
+    tasks.forEach((row) => {
+      const normalized = String(row.task || '').trim().toLowerCase()
+      if (!normalized) return
+      if ((counts.get(normalized) ?? 0) > 1) duplicates.add(row.id)
+    })
+    return duplicates
+  }, [tasks])
+
   const editedTaskLabels = useMemo(() => {
     const labels = new Map<number, 'Edited' | 'Added'>()
     if (!hasUnsavedChanges) return labels
@@ -601,7 +615,10 @@ function OnboardingChecklistPageContent() {
       })()
 
       if (duplicateTask) {
-        throw new Error(`The task "${duplicateTask}" is duplicated. Please keep task names unique.`)
+        toast.warning('Duplicate Tasks Detected', {
+          description: `The task "${duplicateTask}" is duplicated. Remove highlighted duplicates before saving.`,
+        })
+        return false
       }
 
       const payload = {
@@ -752,21 +769,48 @@ function OnboardingChecklistPageContent() {
               {/* Department Selector */}
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-white/70 uppercase tracking-wider">Department</span>
-                <Select
-                  value={String(employeeInfo?.department || '').trim() || undefined}
-                  onValueChange={requestDepartmentChange}
-                >
-                  <SelectTrigger aria-label="Select department" className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[240px] shadow-sm font-bold rounded-lg border-2 ring-0 focus:ring-0">
-                    <SelectValue placeholder="Select Department" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl border-stone-200 shadow-xl">
-                    {departmentSelectOptions.map((department) => (
-                      <SelectItem key={department} value={department}>
-                        {department}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={open} onOpenChange={setOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={open}
+                      aria-label="Select department"
+                      className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[240px] shadow-sm font-bold rounded-lg border-2 ring-0 focus:ring-0 justify-between"
+                    >
+                      <span className="truncate">{String(employeeInfo?.department || '').trim() || 'Select Department'}</span>
+                      <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-70" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[300px] p-0 rounded-xl border-stone-200 shadow-xl">
+                    <Command>
+                      <CommandInput placeholder="Search department..." />
+                      <CommandList>
+                        <CommandEmpty>No department found.</CommandEmpty>
+                        <CommandGroup>
+                          {departmentSelectOptions.map((department) => (
+                            <CommandItem
+                              key={department}
+                              value={department}
+                              onSelect={() => {
+                                requestDepartmentChange(department)
+                                setOpen(false)
+                              }}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  String(employeeInfo?.department || '').trim() === department ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              {department}
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
 
 
@@ -837,6 +881,12 @@ function OnboardingChecklistPageContent() {
               </Button>
             </div>
           </div>
+          {duplicateTaskIds.size > 0 && (
+            <div className="mx-4 md:mx-8 mt-3 mb-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-[12px] font-bold text-rose-700 flex items-center gap-2">
+              <TriangleAlert className="h-4 w-4 shrink-0" />
+              {duplicateTaskIds.size} duplicate task{duplicateTaskIds.size > 1 ? 's are' : ' is'} highlighted in red. Remove duplicates before saving.
+            </div>
+          )}
 
           <Table>
             <TableHeader className="bg-[#FFE5EC]/40">
@@ -882,7 +932,8 @@ function OnboardingChecklistPageContent() {
                   }}
                   className={cn(
                     "border-b border-rose-50/30 last:border-0 hover:bg-[#FFE5EC]/5 transition-all duration-200 ease-out group",
-                    editedTaskLabels.has(item.id) ? "bg-amber-50/50 ring-1 ring-amber-200/80" : "",
+                    duplicateTaskIds.has(item.id) ? "bg-rose-50/70 ring-1 ring-rose-300/90" : "",
+                    !duplicateTaskIds.has(item.id) && editedTaskLabels.has(item.id) ? "bg-amber-50/50 ring-1 ring-amber-200/80" : "",
                     dragTaskId === item.id ? "opacity-45" : "",
                     dragOverTaskId === item.id && dragTaskId !== item.id ? "bg-rose-50/60 ring-1 ring-rose-200" : "",
                     recentlyMovedTaskId === item.id ? "bg-rose-50/40" : ""
@@ -906,11 +957,16 @@ function OnboardingChecklistPageContent() {
                           <GripVertical className="h-3.5 w-3.5" />
                         </button>
                         <div className="flex-1">
-                        {editedTaskLabels.has(item.id) && (
+                        {duplicateTaskIds.has(item.id) ? (
+                          <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-rose-700 inline-flex items-center gap-1">
+                            <TriangleAlert className="h-3 w-3" />
+                            Duplicate
+                          </p>
+                        ) : editedTaskLabels.has(item.id) ? (
                           <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-amber-700">
                             {editedTaskLabels.get(item.id)}
                           </p>
-                        )}
+                        ) : null}
                         <Input
                           value={item.task}
                           onChange={(e) => updateTaskText(item.id, e.target.value)}

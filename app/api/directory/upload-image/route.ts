@@ -8,6 +8,7 @@ export async function POST(request: NextRequest) {
     const body = await request.formData()
     const file = body.get('file')
     const sectionCodeRaw = String(body.get('sectionCode') || '').trim()
+
     if (!(file instanceof File)) {
       return NextResponse.json({ message: 'A file is required.' }, { status: 400 })
     }
@@ -43,3 +44,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ message: 'Unable to upload directory image.' }, { status: 500 })
   }
 }
+
