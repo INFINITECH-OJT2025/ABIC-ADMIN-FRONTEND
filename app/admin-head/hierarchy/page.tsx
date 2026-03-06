@@ -55,7 +55,7 @@ function NodePill({
 }) {
   const styles = {
     staff: "bg-white text-slate-700 border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300",
-    dept: "text-white border-transparent shadow-md",
+    dept: "bg-white text-slate-700 border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300",
     exec: "bg-gradient-to-r from-violet-600 to-indigo-500 text-white border-transparent shadow-lg shadow-indigo-500/20",
     admin: "bg-gradient-to-r from-rose-500 to-orange-400 text-white border-transparent shadow-lg shadow-rose-500/20",
   }
@@ -64,8 +64,8 @@ function NodePill({
 
   return (
     <div
-      className={`group relative rounded-xl border-2 px-6 py-2.5 text-center text-xs font-bold tracking-wide transition-all duration-200 ${styles[variant]} ${!isHighRank && variant === 'dept' ? 'border-white/10' : ''}`}
-      style={variant === 'dept' && color ? { backgroundColor: color } : {}}
+      className={`group relative rounded-xl border-2 px-6 py-2.5 text-center text-xs font-bold tracking-wide transition-all duration-200 ${styles[variant]}`}
+      style={!isHighRank && color ? { borderLeftColor: color, borderLeftWidth: '4px' } : {}}
     >
       {label}
       {onEdit && (
@@ -80,10 +80,12 @@ function NodePill({
   )
 }
 
-function HierarchyBranch({ node, allNodes, onEdit }: { node: PositionNode; allNodes: PositionNode[]; onEdit: (node: PositionNode) => void }) {
+function HierarchyBranch({ node, allNodes, onEdit, execId, adminId }: { node: PositionNode; allNodes: PositionNode[]; onEdit: (node: PositionNode) => void; execId?: string; adminId?: string }) {
   const children = allNodes.filter((item) => item.parentId === node.id)
 
-  const getVariant = (title: string, deptId: string) => {
+  const getVariant = (title: string, deptId: string, nodeId?: string) => {
+    if (nodeId && nodeId === execId) return "exec"
+    if (nodeId && nodeId === adminId) return "admin"
     const lowTitle = title.toLowerCase()
     if (lowTitle.includes("admin head")) return "admin"
     if (lowTitle.includes("executive")) return "exec"
@@ -98,7 +100,7 @@ function HierarchyBranch({ node, allNodes, onEdit }: { node: PositionNode; allNo
     <div className="space-y-3">
       <NodePill
         label={node.title}
-        variant={getVariant(node.title, node.departmentId)}
+        variant={getVariant(node.title, node.departmentId, node.id)}
         color={node.color}
         onEdit={() => onEdit(node)}
       />
@@ -108,7 +110,7 @@ function HierarchyBranch({ node, allNodes, onEdit }: { node: PositionNode; allNo
             {children.map((child) => (
               <div key={child.id} className="relative">
                 <div className="absolute -left-6 top-5 h-[1.5px] w-6 bg-slate-200" />
-                <HierarchyBranch node={child} allNodes={allNodes} onEdit={onEdit} />
+                 <HierarchyBranch node={child} allNodes={allNodes} onEdit={onEdit} execId={execId} adminId={adminId} />
               </div>
             ))}
           </div>
@@ -128,7 +130,7 @@ export default function AdminHeadHierarchyPage() {
 
   const [positionTitle, setPositionTitle] = useState("")
   const [selectedDepartment, setSelectedDepartment] = useState("")
-  const [selectedParent, setSelectedParent] = useState("admin-head")
+  const [selectedParent, setSelectedParent] = useState("root")
   const [selectedChildren, setSelectedChildren] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
   const [editingPosition, setEditingPosition] = useState<PositionNode | null>(null)
@@ -157,7 +159,7 @@ export default function AdminHeadHierarchyPage() {
         body: JSON.stringify({
           name: editTitle,
           department_id: editDepartment === 'core' ? null : Number(editDepartment),
-          parent_id: editParent === 'admin-head' ? null : Number(editParent)
+          parent_id: editParent === 'root' ? null : Number(editParent)
         })
       })
       if (!res.ok) throw new Error('Failed to update position')
@@ -219,7 +221,7 @@ export default function AdminHeadHierarchyPage() {
         id: h.id.toString(),
         title: h.name || 'Unknown',
         departmentId: h.department_id ? h.department_id.toString() : 'core',
-        parentId: h.parent_id ? h.parent_id.toString() : 'admin-head',
+        parentId: h.parent_id ? h.parent_id.toString() : 'root',
         createdAt: new Date(h.created_at || h.updated_at).getTime(),
         color: h.department?.color || (mappedDeps.find((d: any) => d.id === h.department_id?.toString())?.color) || '#59D2DE'
       }))
@@ -238,6 +240,13 @@ export default function AdminHeadHierarchyPage() {
   useEffect(() => {
     fetchData()
   }, [])
+
+  const { execNode, adminNode } = useMemo(() => {
+    const coreRoots = positions.filter(p => p.parentId === 'root' && p.departmentId === 'core')
+    const exec = coreRoots[0]
+    const admin = exec ? positions.find(p => p.parentId === exec.id && p.departmentId === 'core') : (coreRoots[1] || null)
+    return { execNode: exec, adminNode: admin }
+  }, [positions])
 
   const parentOptions = useMemo(() => {
     if (!selectedDepartment) return []
@@ -448,7 +457,7 @@ export default function AdminHeadHierarchyPage() {
         body: JSON.stringify({
           name: cleanTitle,
           department_id: selectedDepartment === 'core' ? null : Number(selectedDepartment),
-          parent_id: selectedParent === 'admin-head' ? null : Number(selectedParent),
+          parent_id: selectedParent === 'root' ? null : Number(selectedParent),
           is_custom: true
         })
       })
@@ -496,9 +505,9 @@ export default function AdminHeadHierarchyPage() {
                 <Users className="h-4 w-4" />
                 Staff Positions: {positions.length}
               </div>
-              <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+               <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
                 <ShieldCheck className="h-4 w-4" />
-                Top Hierarchy: Executive Officer {">"} Admin Head
+                Top Hierarchy: {execNode ? execNode.title : '---'} {adminNode ? ` > ${adminNode.title}` : ''}
               </div>
             </div>
           </div>
@@ -584,7 +593,7 @@ export default function AdminHeadHierarchyPage() {
                 value={selectedDepartment}
                 onValueChange={(value) => {
                   setSelectedDepartment(value)
-                  setSelectedParent("admin-head")
+                   setSelectedParent("root")
                 }}
               >
                 <SelectTrigger className="h-10">
@@ -603,7 +612,7 @@ export default function AdminHeadHierarchyPage() {
                   <SelectValue placeholder="Reports to" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin-head">Admin Head</SelectItem>
+                   <SelectItem value="root">{adminNode ? adminNode.title : (execNode ? execNode.title : "Root (Top Level)")}</SelectItem>
                   {parentOptions.map((item) => (
                     <SelectItem key={item.id} value={item.id}>{item.title}</SelectItem>
                   ))}
@@ -667,15 +676,42 @@ export default function AdminHeadHierarchyPage() {
           </CardHeader>
           <CardContent className="space-y-8 overflow-x-auto">
             <div className="min-w-[940px] space-y-6">
-              <div className="flex flex-col items-center gap-3">
-                <NodePill label="Executive Officer" variant="exec" />
-                <div className="h-5 w-px bg-slate-400" />
-                <NodePill label="Admin Head" variant="admin" />
+               <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center gap-4">
+                  {execNode && (
+                    <NodePill
+                      label={execNode.title}
+                      variant="exec"
+                      onEdit={() => setEditingPosition(execNode)}
+                    />
+                  )}
+                  {execNode && adminNode && <div className="h-6 w-px bg-slate-300" />}
+                  {adminNode && (
+                    <NodePill
+                      label={adminNode.title}
+                      variant="admin"
+                      onEdit={() => setEditingPosition(adminNode)}
+                    />
+                  )}
+                  {!execNode && !adminNode && (
+                    <div className="text-slate-400 italic text-sm py-4">No top-level positions defined</div>
+                  )}
+                </div>
+                {(execNode || adminNode) && (
+                  <div className="h-12 w-px bg-slate-300 relative mt-4">
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 rounded-full bg-slate-300" />
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-center gap-6">
-                {positions.filter((item) => item.departmentId === "core" && item.parentId === "admin-head").map((item) => (
-                  <HierarchyBranch key={item.id} node={item} allNodes={positions} onEdit={setEditingPosition} />
+                {positions.filter((item) => 
+                  item.departmentId === "core" && 
+                  [execNode?.id, adminNode?.id, "root"].includes(item.parentId) && 
+                  item.id !== adminNode?.id && 
+                  item.id !== execNode?.id
+                ).map((item) => (
+                  <HierarchyBranch key={item.id} node={item} allNodes={positions} onEdit={setEditingPosition} execId={execNode?.id} adminId={adminNode?.id} />
                 ))}
               </div>
 
@@ -705,7 +741,8 @@ export default function AdminHeadHierarchyPage() {
                         {officeDepts.map((department) => {
                           const roots = positions.filter((item) => {
                             if (item.departmentId !== department.id) return false
-                            if (item.parentId === "admin-head") return true
+                             if (adminNode && item.parentId === adminNode.id) return true
+                             if (execNode && item.parentId === execNode.id) return true
                             // If parent belongs to a different department OR is core, show as root here
                             const parent = positions.find((pos) => pos.id === item.parentId)
                             return !parent || parent.departmentId !== department.id
@@ -734,7 +771,7 @@ export default function AdminHeadHierarchyPage() {
                                       <p className="text-sm font-medium">No positions assigned</p>
                                     </div>
                                   ) : (
-                                    roots.map((root) => <HierarchyBranch key={root.id} node={root} allNodes={positions} onEdit={setEditingPosition} />)
+                                     roots.map((root) => <HierarchyBranch key={root.id} node={root} allNodes={positions} onEdit={setEditingPosition} execId={execNode?.id} adminId={adminNode?.id} />)
                                   )}
                                 </div>
                               </div>
@@ -759,9 +796,9 @@ export default function AdminHeadHierarchyPage() {
                 <span className="text-sm font-bold uppercase tracking-wider text-slate-500">Staff =</span>
                 <div className="h-9 w-24 rounded-xl border-2 border-slate-200 bg-white shadow-sm" />
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-bold uppercase tracking-wider text-slate-500">Departments =</span>
-                <div className="h-9 w-24 rounded-xl border border-transparent shadow-md bg-[#59D2DE]" />
+               <div className="flex items-center gap-3">
+                <span className="text-sm font-bold uppercase tracking-wider text-slate-500">Heads =</span>
+                <div className="h-9 w-24 rounded-xl border-2 border-slate-200 bg-white shadow-sm border-l-4 border-l-[#59D2DE]" />
               </div>
             </div>
           </CardContent>
