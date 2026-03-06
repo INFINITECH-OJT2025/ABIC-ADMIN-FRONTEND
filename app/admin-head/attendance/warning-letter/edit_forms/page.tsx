@@ -1,5 +1,6 @@
 'use client'
 
+
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -34,27 +35,36 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { getApiUrl } from '@/lib/api'
 
+
 const DEFAULT_TARDINESS_REGULAR_TEMPLATE = {
     title: 'TARDINESS WARNING LETTER',
     subject: 'Written Warning - Frequent Tardiness',
     body: `Dear {{salutation}} {{last_name}},
 
+
 Good day.
+
 
 This letter serves as a Formal Warning regarding your tardiness. Please be reminded that your scheduled time-in is {{shift_time}}, with a five (5)-minute grace period until {{grace_period}}, in accordance with company policy.
 
+
 Despite this allowance, you have incurred {{instances_text}} ({{instances_count}}) instances of tardiness beyond the allowable grace period within the current cut-off period, which constitutes a violation of the Company's Attendance and Punctuality Policy.
+
 
 Below is the recorded instances for this cut-off period:
 {{entries_list}}
 
+
 Consistent tardiness negatively affects team productivity, disrupts workflow, and fails to meet the company's standards for punctuality and professionalism.
+
 
 Please be reminded of the following:
 1. You are expected to immediately correct your attendance behavior and strictly adhere to your scheduled working hours.
 2. Any future occurrences of tardiness may result in stricter disciplinary action, up to and including suspension or termination, in accordance with company policy.
 
+
 This notice shall be documented accordingly. Your cooperation and compliance are expected.
+
 
 Thank you.`,
     footer: 'Admin Supervisor/HR',
@@ -64,19 +74,25 @@ Thank you.`,
 (02) 8646-6136`
 }
 
+
 const DEFAULT_TARDINESS_PROBEE_TEMPLATE = {
     title: 'TARDINESS WARNING LETTER',
     subject: 'Tardiness Notice',
     body: `Dear {{salutation}} {{last_name}},
 
+
 This letter serves as a formal warning regarding your repeated tardiness. It has been recorded that you have reported late to work {{instances_text}} ({{instances_count}}) times, exceeding the company's grace period of five (5) minutes.
 
+
 We trust that you will take this matter seriously and make the necessary adjustments to improve your attendance and punctuality moving forward.
+
 
 Additionally, please note the specific dates of tardiness recorded for this cut-off:
 {{entries_list}}
 
+
 Consistent tardiness affects team productivity, disrupts workflow, and your evaluation needed for your regularization, which requires all employees to report to work on time and adhere to their scheduled working hours.
+
 
 Thank you.`,
     footer: 'Admin Assistant',
@@ -86,26 +102,34 @@ Thank you.`,
 (02) 8646-6136`
 }
 
+
 const DEFAULT_LEAVE_TEMPLATE = {
     title: 'FIRST WARNING LETTER',
     subject: 'Record of Extended Leave of Absence',
     body: `Dear {{salutation}} {{last_name}},
 
+
 This letter serves as a Formal Warning regarding your attendance record for the current cutoff period.
+
 
 It has been noted that you incurred {{instances_text}} ({{instances_count}}) absences within the {{cutoff_text}} of {{month}} {{year}}, specifically on the following dates:
 {{entries_list}}
 
+
 These absences negatively affect work operations and your evaluation needed for your regularization.
 
+
 Please be reminded that repeated absences, especially within a short period, may lead to further disciplinary action in accordance with company rules and regulations.
+
 
 Moving forward, you are expected to:
 1. Improve your attendance immediately,
 2. Avoid unnecessary or unapproved absences, and
 3. Provide proper documentation or notice for any unavoidable absence.
 
+
 Failure to comply may result in stricter sanctions, up to and including suspension or termination.
+
 
 Please acknowledge receipt of this warning by signing below.`,
     footer: 'Admin Assistant',
@@ -115,25 +139,33 @@ Please acknowledge receipt of this warning by signing below.`,
 (02) 8646-6136`
 }
 
+
 const DEFAULT_SUPERVISOR_TARDINESS_TEMPLATE = {
     title: 'WARNING LETTER',
     subject: 'Employee Attendance Advisory',
     body: `Dear Ma'am Angely,
 
+
 This letter serves as a Formal Warning regarding the tardiness of {{salutation}} {{employee_name}}. {{pronoun_he_she}} has accumulated {{instances_text}} ({{instances_count}}) occurrences of tardiness beyond the grace period of {{grace_period}} within the current cut-off period.
 
+
 In accordance with company policy, reaching the {{instances_count_ordinal}} occurrence of tardiness within a single cut-off period is subject to appropriate coaching, warning, and/or sanction. We request that you address this matter with the concerned employee and coordinate with the HR/Admin Department for proper documentation and necessary action.
+
 
 Additionally, please note the specific dates recorded for this cut-off:
 {{entries_list}}
 
+
 Consistent tardiness affects team productivity, disrupts workflow, and violates the company’s Attendance and Punctuality Policy, which requires all employees to report to work on time and adhere to their scheduled working hours.
+
 
 Please be reminded of the following:
 1. {{salutation}} {{last_name}} is expected to correct {{pronoun_his_her}} attendance behavior immediately.
 2. Future occurrences of tardiness may result in stricter disciplinary action, including suspension or termination, in accordance with company policy.
 
+
 Kindly ensure that the employee is informed and that corrective action is enforced appropriately.
+
 
 Thank you.`,
     footer: 'Admin Assistant',
@@ -142,26 +174,34 @@ Thank you.`,
     headerDetails: `Unit 202 Campos Rueda Bldg., Urban Avenue, Brgy.Pio Del Pilar, Makati City, 1230
 (02) 8646-6136`
 }
+
 
 const DEFAULT_SUPERVISOR_LEAVE_TEMPLATE = {
     title: 'WARNING LETTER',
     subject: 'Employee Attendance Advisory - Leave',
     body: `Dear Ma'am Angely,
 
+
 This letter serves as a Formal Warning regarding the leave absences of {{salutation}} {{employee_name}}. {{pronoun_he_she}} has accumulated {{instances_text}} ({{instances_count}}) days of leave within the current cut-off period.
 
+
 In accordance with company policy, reaching this threshold within a single cut-off period is subject to appropriate coaching, warning, and/or sanction. We request that you address this matter with the concerned employee and coordinate with the HR/Admin Department for proper documentation and necessary action.
+
 
 Additionally, please note the specific dates recorded for this cut-off:
 {{entries_list}}
 
+
 These absences negatively affect work operations and your evaluation needed for your regularization.
+
 
 Please be reminded of the following:
 1. {{salutation}} {{last_name}} is expected to correct {{pronoun_his_her}} attendance behavior immediately.
 2. Future occurrences of absences may result in stricter disciplinary action, including suspension or termination, in accordance with company policy.
 
+
 Kindly ensure that the employee is informed and that corrective action is enforced appropriately.
+
 
 Thank you.`,
     footer: 'Admin Assistant',
@@ -170,6 +210,7 @@ Thank you.`,
     headerDetails: `Unit 202 Campos Rueda Bldg., Urban Avenue, Brgy.Pio Del Pilar, Makati City, 1230
 (02) 8646-6136`
 }
+
 
 // --- Skeleton Component ---
 const EditorSkeleton = () => (
@@ -185,14 +226,17 @@ const EditorSkeleton = () => (
             </div>
         </div>
 
+
         <div className="max-w-[1400px] mx-auto px-10 pt-10 space-y-10">
             <div className="flex justify-center">
                 <Skeleton className="h-10 w-[800px] rounded-xl" />
             </div>
 
+
             <div className="flex justify-center">
                 <Skeleton className="h-8 w-[600px] rounded-lg" />
             </div>
+
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <div className="space-y-6">
@@ -243,6 +287,7 @@ const EditorSkeleton = () => (
     </div>
 )
 
+
 export default function EditFormsPage() {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState('letterhead')
@@ -258,7 +303,9 @@ export default function EditFormsPage() {
     const [showPreview, setShowPreview] = useState(true)
     const [isFullWidth, setIsFullWidth] = useState(true)
 
+
     const [hasLocalOnlyChanges, setHasLocalOnlyChanges] = useState(false)
+
 
     // Load templates from API on mount
     useEffect(() => {
@@ -268,7 +315,9 @@ export default function EditFormsPage() {
                 const res = await fetch(`${getApiUrl()}/api/warning-letter-templates`)
                 const data = await res.json()
 
+
                 const localSaved = localStorage.getItem('warning_letter_templates')
+
 
                 if (data && data.success && Array.isArray(data.data)) {
                     const mapped: any = { ...templates }
@@ -287,6 +336,7 @@ export default function EditFormsPage() {
                         }
                     })
                     setTemplates(mapped)
+
 
                     // Check if local storage differs from recently fetched server data
                     if (localSaved) {
@@ -308,8 +358,10 @@ export default function EditFormsPage() {
             }
         }
 
+
         fetchTemplates()
     }, [])
+
 
     const handleSave = async (silent = false) => {
         if (!silent) setIsSaving(true)
@@ -319,6 +371,7 @@ export default function EditFormsPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(templates)
             })
+
 
             if (res.ok) {
                 localStorage.setItem('warning_letter_templates', JSON.stringify(templates))
@@ -337,6 +390,7 @@ export default function EditFormsPage() {
         }
     }
 
+
     const resetTemplate = (type: string) => {
         const defaults: any = {
             'tardiness-regular': DEFAULT_TARDINESS_REGULAR_TEMPLATE,
@@ -346,8 +400,10 @@ export default function EditFormsPage() {
             'supervisor-leave': DEFAULT_SUPERVISOR_LEAVE_TEMPLATE
         }
 
+
         const newTemplate = defaults[type];
         setHasLocalOnlyChanges(true)
+
 
         setTemplates(prev => {
             const updated = { ...prev };
@@ -366,13 +422,17 @@ export default function EditFormsPage() {
             return updated;
         });
 
+
         toast.info('Template and global header reset to default values.')
     }
+
 
     const updateTemplate = (key: string, value: any) => {
         const headerFields = ['headerLogoImage', 'headerDetails'];
 
+
         setHasLocalOnlyChanges(true);
+
 
         if (headerFields.includes(key)) {
             // Update all templates for header fields
@@ -389,14 +449,17 @@ export default function EditFormsPage() {
         }
     }
 
+
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
+
 
         if (file.size > 2 * 1024 * 1024) {
             toast.error('Image is too large. Please select a logo under 2MB.')
             return
         }
+
 
         const reader = new FileReader()
         reader.onload = (event) => {
@@ -407,6 +470,7 @@ export default function EditFormsPage() {
         reader.readAsDataURL(file)
     }
 
+
     const renderPreview = () => {
         const type = activeTab === 'letterhead' ? 'tardiness-regular' : activeTab
         const template = (templates as any)[type]
@@ -414,8 +478,10 @@ export default function EditFormsPage() {
         let content = template.body
         const todayLabel = "[Letter Date]"
 
+
         // Placeholder replacements for preview instead of mock data
         const mockEntriesList = `[List of Attendance/Leave Entries for current cut-off]`
+
 
         if (type.startsWith('tardiness')) {
             content = content
@@ -463,7 +529,9 @@ export default function EditFormsPage() {
                 .replace(/{{entries_list}}/g, mockEntriesList)
         }
 
+
         const isSupervisor = type.startsWith('supervisor')
+
 
         return (
             <div className="bg-white border-0 shadow-2xl px-16 py-12 w-[816px] mx-auto min-h-[1056px] font-serif flex flex-col items-center print:shadow-none print:p-0">
@@ -477,6 +545,7 @@ export default function EditFormsPage() {
                         <img src="/images/abic-header.png" alt="Company Header" className="max-w-[650px] w-full object-contain" />
                     )}
 
+
                     {template.headerDetails && (
                         <div className="text-center mt-1 text-[10px] leading-tight text-slate-600 max-w-[500px] whitespace-pre-wrap">
                             {template.headerDetails}
@@ -484,15 +553,18 @@ export default function EditFormsPage() {
                     )}
                 </div>
 
+
                 <div className="w-full text-center mb-6">
                     <h1 className="text-xl font-black text-black tracking-wide uppercase">
                         {template.title}
                     </h1>
                 </div>
 
+
                 <div className="w-full text-right mb-8 text-sm font-bold">
                     Date: {todayLabel}
                 </div>
+
 
                 <div className="w-full text-left mb-6 text-sm font-bold space-y-1">
                     {!isSupervisor && (
@@ -508,10 +580,12 @@ export default function EditFormsPage() {
                     )}
                 </div>
 
+
                 <div className="w-full text-justify text-sm leading-relaxed flex-1 text-slate-800">
                     {content.split('\n').map((line: string, idx: number) => {
                         const trimmed = line.trim();
                         if (!trimmed) return <div key={idx} className="h-4" />;
+
 
                         // Bullet points
                         if (trimmed.startsWith('•')) {
@@ -522,6 +596,7 @@ export default function EditFormsPage() {
                                 </div>
                             );
                         }
+
 
                         // Numbered lists (e.g., "1.", "2.")
                         const numMatch = trimmed.match(/^(\d+)\.\s*(.*)/);
@@ -534,13 +609,16 @@ export default function EditFormsPage() {
                             );
                         }
 
+
                         // Salutation & Closing (usually small/no indent)
                         const isSalutation = trimmed.toLowerCase().startsWith('dear') || trimmed.endsWith(',');
                         const isClosing = trimmed.toLowerCase() === 'thank you.' || trimmed.toLowerCase() === 'respectfully,' || trimmed.toLowerCase() === 'respectfully yours,';
 
+
                         if (isSalutation || isClosing) {
                             return <div key={idx} className="mb-4">{line}</div>;
                         }
+
 
                         // Paragraph with first-line indent
                         return (
@@ -551,6 +629,7 @@ export default function EditFormsPage() {
                     })}
                 </div>
 
+
                 {/* Official Footer Signature */}
                 <div className="w-full mt-12 text-left text-sm space-y-8">
                     <div>
@@ -560,6 +639,7 @@ export default function EditFormsPage() {
                             <p className="font-medium text-slate-600">{template.footer || 'Admin Assistant'}</p>
                         </div>
                     </div>
+
 
                     <div className="mt-12 border-t border-slate-100 pt-8 space-y-4">
                         <p className="font-bold mb-4">Employee Acknowledgment:</p>
@@ -582,9 +662,11 @@ export default function EditFormsPage() {
         )
     }
 
+
     if (isLoading) {
         return <EditorSkeleton />
     }
+
 
     return (
         <div className="min-h-screen bg-[#FDF4F6]">
@@ -602,6 +684,7 @@ export default function EditFormsPage() {
                                 </p>
                             </div>
 
+
                             <div className="flex items-center gap-3">
                                 <Button
                                     onClick={() => setIsFullWidth(!isFullWidth)}
@@ -611,6 +694,7 @@ export default function EditFormsPage() {
                                 >
                                     {isFullWidth ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
                                 </Button>
+
 
                                 <Button
                                     onClick={() => router.push('/admin-head/attendance/warning-letter')}
@@ -623,6 +707,7 @@ export default function EditFormsPage() {
                             </div>
                         </div>
                     </div>
+
 
                     {/* Secondary Toolbar */}
                     <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm overflow-x-auto no-scrollbar">
@@ -698,6 +783,7 @@ export default function EditFormsPage() {
                                         )}
                                     </Button>
 
+
                                     <Button
                                         onClick={() => handleSave()}
                                         disabled={isSaving}
@@ -720,6 +806,7 @@ export default function EditFormsPage() {
                         </div>
                     </div>
                 </div>
+
 
                 <div className={cn(
                     "mx-auto p-4 md:p-6 lg:p-8 transition-all duration-500 ease-in-out",
@@ -748,6 +835,7 @@ export default function EditFormsPage() {
                         </div>
                     )}
 
+
                     <div className={cn(
                         "grid gap-8 transition-all duration-500",
                         showPreview
@@ -760,14 +848,14 @@ export default function EditFormsPage() {
                             showPreview ? "animate-in slide-in-from-left" : "w-full"
                         )}>
                             <Card className="border-0 shadow-2xl rounded-3xl overflow-hidden bg-white">
-                                <CardHeader className="bg-gradient-to-r from-[#4A081A] to-[#7B0F2B] text-white p-6">
+                                <CardHeader className="bg-gradient-to-r from-[#7B0F2B] to-[#A4163A] text-white p-6">
                                     <div className="flex items-center justify-between">
                                         <CardTitle className="flex items-center gap-3">
                                             <div className="p-2 bg-white/10 rounded-xl backdrop-blur-md">
                                                 <FileText className="w-6 h-6 text-rose-300" />
                                             </div>
                                             <div className="flex flex-col">
-                                                <span className="text-xl font-bold tracking-tight">
+                                                <span className="text-xl text-white font-bold tracking-tight">
                                                     {activeTab === 'letterhead' ? 'Company Letterhead' : activeTab.startsWith('supervisor-tardiness') ? 'Supervisor Tardiness Advisory' : activeTab.startsWith('supervisor-leave') ? 'Supervisor Leave Advisory' : 'Employee Warning'}
                                                 </span>
                                                 <span className="text-[10px] font-medium text-rose-200/70 uppercase tracking-[0.2em]">{activeTab === 'letterhead' ? 'Shared Branding' : 'Configuration Panel'}</span>
@@ -787,6 +875,7 @@ export default function EditFormsPage() {
                                                 </div>
                                                 <h4 className="text-xs font-black text-[#A4163A] uppercase tracking-wider">Letterhead Customization</h4>
                                             </div>
+
 
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                                 <div className="space-y-4">
@@ -829,6 +918,7 @@ export default function EditFormsPage() {
                                                     </div>
                                                 </div>
 
+
                                                 <div className="space-y-4">
                                                     <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Header Subtext (Address/Tel)</Label>
                                                     <Textarea
@@ -857,6 +947,7 @@ export default function EditFormsPage() {
                                                 </div>
                                             </div>
 
+
                                             <div className="space-y-2.5">
                                                 <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">Subject / Warning Level</Label>
                                                 <Input
@@ -865,6 +956,7 @@ export default function EditFormsPage() {
                                                     className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
                                                 />
                                             </div>
+
 
                                             <div className="space-y-3">
                                                 <div className="flex justify-between items-center pl-1">
@@ -886,6 +978,7 @@ export default function EditFormsPage() {
                                                     />
                                                 </div>
                                             </div>
+
 
                                             <div className="pt-6 border-t border-slate-100">
                                                 <div className="grid grid-cols-2 gap-6">
@@ -912,6 +1005,7 @@ export default function EditFormsPage() {
                                     )}
                                 </CardContent>
                             </Card>
+
 
                             {activeTab !== 'letterhead' && (
                                 <Card className="border-0 shadow-xl rounded-2xl overflow-hidden bg-slate-50 border-l-[6px] border-[#A4163A]">
@@ -955,6 +1049,7 @@ export default function EditFormsPage() {
                             )}
                         </div>
 
+
                         {/* Preview Side */}
                         {showPreview && (
                             <div className="space-y-6 animate-in slide-in-from-right duration-500">
@@ -980,8 +1075,12 @@ export default function EditFormsPage() {
                 </div>
             </Tabs>
 
+
             {/* --- BOTTOM DECORATION --- */}
             <div className="h-40 bg-gradient-to-t from-[#FFE5EC] to-transparent opacity-30 mt-20" />
         </div>
     )
 }
+
+
+
