@@ -833,7 +833,7 @@ export default function MasterfilePage() {
   )
 
   const DetailSkeleton = () => (
-    <div className="max-w-7xl mx-auto space-y-8 animate-pulse">
+    <div className="max-w-5xl mx-auto space-y-8 animate-pulse">
       <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-slate-200">
         <div className="bg-slate-50/50 p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="flex items-center gap-5">
@@ -1390,7 +1390,7 @@ export default function MasterfilePage() {
   )}
 </div>
 
-<div className="max-w-7xl mx-auto px-4 md:px-8 py-6">
+<div className="px-4 md:px-8 py-6">
   <div className="bg-white p-3 md:p-6 rounded-lg shadow-lg border-b-2 md:border-2 border-[#FFE5EC]">
     {isDetailLoading ? (
       <div className="flex items-center justify-center p-12">

@@ -125,7 +125,12 @@
   }
 
   /* Disable text selection and cursor blinking on non-editable text */
-  h1, h2, h3, h4, h5, h6,
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6,
   p:not(input, textarea),
   span,
   label,
@@ -134,7 +139,7 @@
   table td,
   table th,
   .no-select {
-    @apply select-none;
+    @apply select-none cursor-default caret-transparent;
     -webkit-user-select: none;
     user-select: none;
   }
@@ -158,7 +163,7 @@
   input[type="checkbox"],
   input[type="radio"],
   .cursor-pointer,
-  [class*="hover:"] {
+  [class*="hover:"]:not(.cursor-default) {
     cursor: pointer;
   }
 
