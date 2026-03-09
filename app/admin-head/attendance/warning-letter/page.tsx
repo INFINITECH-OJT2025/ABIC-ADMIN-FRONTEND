@@ -120,7 +120,7 @@ interface LateEntry {
   minutesLate: number;
   warning_level: number;
   late_occurrence?: number;
-  department?: string;
+  position?: string;
   is_email_sent?: boolean;
 }
 
@@ -129,6 +129,7 @@ interface LeaveEntry {
   employee_id: string;
   employee_name: string;
   department: string;
+  position?: string;
   category: "half-day" | "whole-day";
   start_date: string;
   leave_end_date: string;
@@ -235,6 +236,10 @@ export default function WarningLetterPage() {
           const cutoff = day <= 15 ? "cutoff1" : "cutoff2";
           const key = `${entry.employee_id}-${months[m]}-${cutoff}`;
 
+          const empInfo = empData.data?.find(
+            (emp: any) => String(emp.id) === String(entry.employee_id),
+          );
+
           if (!allLeaveGroups.has(key)) {
             allLeaveGroups.set(key, {
               ...entry,
@@ -243,6 +248,7 @@ export default function WarningLetterPage() {
               total_days: Number(entry.number_of_days),
               remarks_list: [entry.remarks],
               reasons_list: entry.cite_reason ? [entry.cite_reason] : [],
+              position: empInfo?.position || empInfo?.role,
             });
           } else {
             const existing = allLeaveGroups.get(key);
@@ -338,6 +344,7 @@ export default function WarningLetterPage() {
             employee_name:
               e.employee_name || empInfo?.name || String(e.employee_id),
             department: empInfo?.department || empInfo?.office_name,
+            position: empInfo?.position || empInfo?.role,
             cutoff: cutoff,
           };
         });
@@ -704,9 +711,9 @@ export default function WarningLetterPage() {
                                   : "Probee"}
                               </Badge>
                             </div>
-                            {(entry as any).department && (
+                            {(entry as any).position && (
                               <span className="text-[11px] text-slate-400 font-bold uppercase tracking-tight">
-                                {(entry as any).department}
+                                {(entry as any).position}
                               </span>
                             )}
                           </div>
@@ -743,7 +750,7 @@ export default function WarningLetterPage() {
                             className="text-[#800020] hover:text-[#800020] hover:bg-rose-50/50 rounded-xl font-bold gap-2 text-xs h-10 px-6 border border-transparent hover:border-rose-100 transition-all shadow-none hover:shadow-sm cursor-pointer"
                           >
                             <FileText className="w-4 h-4 text-[#800020]" />
-                            View Analysis
+                            View Form
                             <ChevronRight className="w-3 h-3 ml-auto opacity-30 group-hover/row:translate-x-1 transition-transform" />
                           </Button>
                         </TableCell>
@@ -856,7 +863,7 @@ export default function WarningLetterPage() {
                               </Badge>
                             </div>
                             <span className="text-[11px] text-slate-400 font-bold uppercase tracking-tight line-clamp-1">
-                              {entry.department}
+                              {entry.position || entry.department}
                             </span>
                           </div>
                         </TableCell>
@@ -906,7 +913,7 @@ export default function WarningLetterPage() {
                             className="text-[#800020] hover:text-[#800020] hover:bg-rose-50/50 rounded-xl font-bold gap-2 text-xs h-10 px-6 border border-transparent hover:border-rose-100 transition-all shadow-none hover:shadow-sm cursor-pointer"
                           >
                             <FileText className="w-4 h-4 text-[#800020]" />
-                            View Analysis
+                            View Form
                             <ChevronRight className="w-3 h-3 ml-auto opacity-30 group-hover/row:translate-x-1 transition-transform" />
                           </Button>
                         </TableCell>
