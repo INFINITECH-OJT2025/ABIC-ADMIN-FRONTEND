@@ -1470,7 +1470,7 @@ function OnboardPageContent() {
       case 4:
         return true
       case 5:
-        return !!data.mlast_name && !!data.mfirst_name
+        return true
       case 6:
         return !!data.region && !!data.province && !!data.city_municipality &&
           !!data.barangay && !!data.zip_code && !!data.street
@@ -2336,11 +2336,11 @@ function OnboardPageContent() {
                     {/* BATCH 5: Family Information */}
                     {currentBatch === 5 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <Card className="border-rose-100 bg-rose-50/30 p-4">
-                          <h4 className="font-bold text-rose-800 mb-4 flex items-center gap-2"><div className="w-1 h-4 bg-rose-500 rounded-full"></div>Mother's Maiden Name</h4>
+                        <Card className="border-slate-100 bg-slate-50/30 p-4">
+                          <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2"><div className="w-1 h-4 bg-slate-500 rounded-full"></div>Mother's Maiden Name (Optional)</h4>
                           <div className="space-y-4">
-                            <Input placeholder="Last Name *" name="mlast_name" value={progressionFormData.mlast_name || ''} onChange={handleProgressionChange} maxLength={50} className="font-medium" />
-                            <Input placeholder="First Name *" name="mfirst_name" value={progressionFormData.mfirst_name || ''} onChange={handleProgressionChange} maxLength={50} className="font-medium" />
+                            <Input placeholder="Last Name" name="mlast_name" value={progressionFormData.mlast_name || ''} onChange={handleProgressionChange} maxLength={50} className="font-medium" />
+                            <Input placeholder="First Name" name="mfirst_name" value={progressionFormData.mfirst_name || ''} onChange={handleProgressionChange} maxLength={50} className="font-medium" />
                             <Input placeholder="Middle Name" name="mmiddle_name" value={progressionFormData.mmiddle_name || ''} onChange={handleProgressionChange} maxLength={50} className="font-medium" />
                             <select 
                               name="msuffix" 

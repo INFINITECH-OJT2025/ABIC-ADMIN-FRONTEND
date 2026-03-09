@@ -603,10 +603,7 @@ export default function MasterfilePage() {
 
     // Batch 4: Government IDs (optional in onboarding flow)
 
-    // Batch 5: Family Information
-    if (!emp.mlast_name || emp.mlast_name.toString().trim() === '' || !emp.mfirst_name || emp.mfirst_name.toString().trim() === '') {
-      return { isComplete: false, status: 'Pending: Family Information', batchId: 5 }
-    }
+    // Batch 5: Family Information (optional)
 
     // Batch 6: Current Address Information
     const addressFields = ['street', 'barangay', 'region', 'province', 'city_municipality', 'zip_code']
