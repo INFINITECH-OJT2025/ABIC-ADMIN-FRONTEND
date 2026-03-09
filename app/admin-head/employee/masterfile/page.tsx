@@ -860,26 +860,7 @@ export default function MasterfilePage() {
 
     // Batch 5: Family Information (optional)
 
-    // Batch 6: Current Address Information
-    const addressFields = [
-      "street",
-      "barangay",
-      "region",
-      "province",
-      "city_municipality",
-      "zip_code",
-    ];
-    for (const field of addressFields) {
-      if (!emp[field] || emp[field].toString().trim() === "") {
-        return {
-          isComplete: false,
-          status: "Pending: Current Address Information",
-          batchId: 6,
-        };
-      }
-    }
-
-    // Batch 7: Permanent Address Information
+    // Batch 6: Permanent Address Information
     const permAddressFields = [
       "perm_street",
       "perm_barangay",
@@ -893,6 +874,25 @@ export default function MasterfilePage() {
         return {
           isComplete: false,
           status: "Pending: Permanent Address Information",
+          batchId: 6,
+        };
+      }
+    }
+
+    // Batch 7: Current Address Information
+    const addressFields = [
+      "street",
+      "barangay",
+      "region",
+      "province",
+      "city_municipality",
+      "zip_code",
+    ];
+    for (const field of addressFields) {
+      if (!emp[field] || emp[field].toString().trim() === "") {
+        return {
+          isComplete: false,
+          status: "Pending: Current Address Information",
           batchId: 7,
         };
       }
@@ -914,8 +914,8 @@ export default function MasterfilePage() {
     3: "Contact Information",
     4: "Government IDs",
     5: "Family Information",
-    6: "Current Address",
-    7: "Permanent Address",
+    6: "Permanent Address",
+    7: "Current Address",
   };
 
   const handleSetAsEmployed = async () => {

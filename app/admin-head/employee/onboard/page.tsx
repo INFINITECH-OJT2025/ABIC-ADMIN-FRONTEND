@@ -209,6 +209,9 @@ function OnboardPageContent() {
   const [nameChecking, setNameChecking] = useState(false);
   const [nameExists, setNameExists] = useState(false);
 
+  // Address Copy State
+  const [sameAsPermanent, setSameAsPermanent] = useState(false);
+
   // Modal State
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -281,15 +284,15 @@ function OnboardPageContent() {
     },
     {
       id: 6,
-      title: "Current Address",
-      icon: MapPin,
-      description: "Current residence",
-    },
-    {
-      id: 7,
       title: "Permanent Address",
       icon: MapPin,
       description: "Permanent residence",
+    },
+    {
+      id: 7,
+      title: "Current Address",
+      icon: MapPin,
+      description: "Current residence",
     },
   ];
 
@@ -539,6 +542,8 @@ function OnboardPageContent() {
           if (parsed.checklistRecordId)
             setChecklistRecordId(parsed.checklistRecordId);
           if (parsed.completedTasks) setCompletedTasks(parsed.completedTasks);
+          if (parsed.sameAsPermanent !== undefined)
+            setSameAsPermanent(parsed.sameAsPermanent);
         } else if (!hasExplicitEmployee) {
           // Opening /onboard without an ID should always start a clean onboarding session.
           localStorage.removeItem("employee_onboarding_state");
@@ -983,6 +988,12 @@ function OnboardPageContent() {
   };
 
   useEffect(() => {
+    if (currentBatch === 7) {
+      handleSyncPermanentToCurrent();
+    }
+  }, [sameAsPermanent, currentBatch]);
+
+  useEffect(() => {
     if (view !== "onboard" || Object.values(onboardFormData).some((v) => v)) {
       localStorage.setItem(
         "employee_onboarding_state",
@@ -994,6 +1005,7 @@ function OnboardPageContent() {
           checklistData,
           checklistRecordId,
           completedTasks,
+          sameAsPermanent,
         }),
       );
     }
@@ -1006,6 +1018,7 @@ function OnboardPageContent() {
     checklistRecordId,
     completedTasks,
     onboardFormData,
+    sameAsPermanent,
   ]);
 
   const clearStorage = () => {
@@ -1656,6 +1669,36 @@ function OnboardPageContent() {
     }
   };
 
+  const handleSyncPermanentToCurrent = () => {
+    if (sameAsPermanent) {
+      setProgressionFormData((prev) => ({
+        ...prev,
+        house_number: prev.perm_house_number || "",
+        street: prev.perm_street || "",
+        village: prev.perm_village || "",
+        subdivision: prev.perm_subdivision || "",
+        region: prev.perm_region || "",
+        province: prev.perm_province || "",
+        city_municipality: prev.perm_city_municipality || "",
+        barangay: prev.perm_barangay || "",
+        zip_code: prev.perm_zip_code || "",
+      }));
+    } else {
+      setProgressionFormData((prev) => ({
+        ...prev,
+        house_number: "",
+        street: "",
+        village: "",
+        subdivision: "",
+        region: "",
+        province: "",
+        city_municipality: "",
+        barangay: "",
+        zip_code: "",
+      }));
+    }
+  };
+
   const handleProgressionChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
@@ -1844,21 +1887,22 @@ function OnboardPageContent() {
         return true;
       case 6:
         return (
-          !!data.region &&
-          !!data.province &&
-          !!data.city_municipality &&
-          !!data.barangay &&
-          !!data.zip_code &&
-          !!data.street
-        );
-      case 7:
-        return (
           !!data.perm_region &&
           !!data.perm_province &&
           !!data.perm_city_municipality &&
           !!data.perm_barangay &&
           !!data.perm_zip_code &&
           !!data.perm_street
+        );
+      case 7:
+        return (
+          sameAsPermanent ||
+          (!!data.region &&
+            !!data.province &&
+            !!data.city_municipality &&
+            !!data.barangay &&
+            !!data.zip_code &&
+            !!data.street)
         );
       default:
         return true;
@@ -3277,182 +3321,8 @@ function OnboardPageContent() {
                       </div>
                     )}
 
-                    {/* BATCH 6: Current Address Details */}
+                    {/* BATCH 6: Permanent Address Details */}
                     {currentBatch === 6 && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="house_number"
-                            className="text-sm font-semibold"
-                          >
-                            House number
-                          </Label>
-                          <Input
-                            id="house_number"
-                            name="house_number"
-                            value={progressionFormData.house_number || ""}
-                            onChange={handleProgressionChange}
-                            maxLength={100}
-                            className="font-medium"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="street"
-                            className="text-sm font-semibold"
-                          >
-                            Street <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="street"
-                            name="street"
-                            value={progressionFormData.street || ""}
-                            onChange={handleProgressionChange}
-                            maxLength={100}
-                            className="font-medium"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="village"
-                            className="text-sm font-semibold"
-                          >
-                            Village
-                          </Label>
-                          <Input
-                            id="village"
-                            name="village"
-                            value={progressionFormData.village || ""}
-                            onChange={handleProgressionChange}
-                            maxLength={100}
-                            className="font-medium"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="subdivision"
-                            className="text-sm font-semibold"
-                          >
-                            Subdivision
-                          </Label>
-                          <Input
-                            id="subdivision"
-                            name="subdivision"
-                            value={progressionFormData.subdivision || ""}
-                            onChange={handleProgressionChange}
-                            maxLength={100}
-                            className="font-medium"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="region"
-                            className="text-sm font-semibold"
-                          >
-                            Region <span className="text-red-500">*</span>
-                          </Label>
-                          <select
-                            name="region"
-                            value={progressionFormData.region || ""}
-                            onChange={handleProgressionChange}
-                            className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium"
-                          >
-                            <option value="">Select Region...</option>
-                            {regions.map((r) => (
-                              <option key={r.code} value={r.name}>
-                                {r.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="province"
-                            className="text-sm font-semibold"
-                          >
-                            Province <span className="text-red-500">*</span>
-                          </Label>
-                          <select
-                            name="province"
-                            value={progressionFormData.province || ""}
-                            onChange={handleProgressionChange}
-                            disabled={!progressionFormData.region}
-                            className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium"
-                          >
-                            <option value="">Select Province...</option>
-                            {currentProvinces.map((p) => (
-                              <option key={p.code} value={p.name}>
-                                {p.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="city_municipality"
-                            className="text-sm font-semibold"
-                          >
-                            City/Municipality{" "}
-                            <span className="text-red-500">*</span>
-                          </Label>
-                          <select
-                            name="city_municipality"
-                            value={progressionFormData.city_municipality || ""}
-                            onChange={handleProgressionChange}
-                            disabled={!progressionFormData.province}
-                            className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium"
-                          >
-                            <option value="">Select City...</option>
-                            {currentCities.map((c) => (
-                              <option key={c.code} value={c.name}>
-                                {c.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="space-y-2">
-                          <Label
-                            htmlFor="barangay"
-                            className="text-sm font-semibold"
-                          >
-                            Barangay <span className="text-red-500">*</span>
-                          </Label>
-                          <select
-                            name="barangay"
-                            value={progressionFormData.barangay || ""}
-                            onChange={handleProgressionChange}
-                            disabled={!progressionFormData.city_municipality}
-                            className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium"
-                          >
-                            <option value="">Select Barangay...</option>
-                            {currentBarangays.map((b) => (
-                              <option key={b.code} value={b.name}>
-                                {b.name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                          <Label
-                            htmlFor="zip_code"
-                            className="text-sm font-semibold"
-                          >
-                            ZIP Code <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="zip_code"
-                            name="zip_code"
-                            value={progressionFormData.zip_code || ""}
-                            onChange={handleProgressionChange}
-                            maxLength={10}
-                            className="font-medium"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    {/* BATCH 7: Permanent Address Details */}
-                    {currentBatch === 7 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
                           <Label
@@ -3623,6 +3493,206 @@ function OnboardPageContent() {
                             value={progressionFormData.perm_zip_code || ""}
                             onChange={handleProgressionChange}
                             className="font-medium"
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* BATCH 7: Current Address Details */}
+                    {currentBatch === 7 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="md:col-span-2 flex items-center gap-2 bg-blue-50 border border-blue-200 p-3 rounded-lg">
+                          <input
+                            type="checkbox"
+                            id="sameAsPermanent"
+                            checked={sameAsPermanent}
+                            onChange={(e) => {
+                              setSameAsPermanent(e.target.checked);
+                              if (e.target.checked) {
+                                handleSyncPermanentToCurrent();
+                              }
+                            }}
+                            className="w-4 h-4 cursor-pointer accent-[#630C22] rounded"
+                          />
+                          <Label
+                            htmlFor="sameAsPermanent"
+                            className="text-xs font-medium cursor-pointer m-0 text-slate-700"
+                          >
+                            Same as Permanent Address
+                          </Label>
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="house_number"
+                            className="text-sm font-semibold"
+                          >
+                            House number
+                          </Label>
+                          <Input
+                            id="house_number"
+                            name="house_number"
+                            value={progressionFormData.house_number || ""}
+                            onChange={handleProgressionChange}
+                            disabled={sameAsPermanent}
+                            maxLength={100}
+                            className="font-medium disabled:bg-slate-100 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="street"
+                            className="text-sm font-semibold"
+                          >
+                            Street <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            id="street"
+                            name="street"
+                            value={progressionFormData.street || ""}
+                            onChange={handleProgressionChange}
+                            disabled={sameAsPermanent}
+                            maxLength={100}
+                            className="font-medium disabled:bg-slate-100 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="village"
+                            className="text-sm font-semibold"
+                          >
+                            Village
+                          </Label>
+                          <Input
+                            id="village"
+                            name="village"
+                            value={progressionFormData.village || ""}
+                            onChange={handleProgressionChange}
+                            disabled={sameAsPermanent}
+                            maxLength={100}
+                            className="font-medium disabled:bg-slate-100 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="subdivision"
+                            className="text-sm font-semibold"
+                          >
+                            Subdivision
+                          </Label>
+                          <Input
+                            id="subdivision"
+                            name="subdivision"
+                            value={progressionFormData.subdivision || ""}
+                            onChange={handleProgressionChange}
+                            disabled={sameAsPermanent}
+                            maxLength={100}
+                            className="font-medium disabled:bg-slate-100 disabled:cursor-not-allowed"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="region"
+                            className="text-sm font-semibold"
+                          >
+                            Region <span className="text-red-500">*</span>
+                          </Label>
+                          <select
+                            name="region"
+                            value={progressionFormData.region || ""}
+                            onChange={handleProgressionChange}
+                            disabled={sameAsPermanent}
+                            className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium disabled:bg-slate-100 disabled:cursor-not-allowed"
+                          >
+                            <option value="">Select Region...</option>
+                            {regions.map((r) => (
+                              <option key={r.code} value={r.name}>
+                                {r.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="province"
+                            className="text-sm font-semibold"
+                          >
+                            Province <span className="text-red-500">*</span>
+                          </Label>
+                          <select
+                            name="province"
+                            value={progressionFormData.province || ""}
+                            onChange={handleProgressionChange}
+                            disabled={!progressionFormData.region || sameAsPermanent}
+                            className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium disabled:bg-slate-100 disabled:cursor-not-allowed"
+                          >
+                            <option value="">Select Province...</option>
+                            {currentProvinces.map((p) => (
+                              <option key={p.code} value={p.name}>
+                                {p.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="city_municipality"
+                            className="text-sm font-semibold"
+                          >
+                            City/Municipality{" "}
+                            <span className="text-red-500">*</span>
+                          </Label>
+                          <select
+                            name="city_municipality"
+                            value={progressionFormData.city_municipality || ""}
+                            onChange={handleProgressionChange}
+                            disabled={!progressionFormData.province || sameAsPermanent}
+                            className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium disabled:bg-slate-100 disabled:cursor-not-allowed"
+                          >
+                            <option value="">Select City...</option>
+                            {currentCities.map((c) => (
+                              <option key={c.code} value={c.name}>
+                                {c.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor="barangay"
+                            className="text-sm font-semibold"
+                          >
+                            Barangay <span className="text-red-500">*</span>
+                          </Label>
+                          <select
+                            name="barangay"
+                            value={progressionFormData.barangay || ""}
+                            onChange={handleProgressionChange}
+                            disabled={!progressionFormData.city_municipality || sameAsPermanent}
+                            className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium disabled:bg-slate-100 disabled:cursor-not-allowed"
+                          >
+                            <option value="">Select Barangay...</option>
+                            {currentBarangays.map((b) => (
+                              <option key={b.code} value={b.name}>
+                                {b.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <Label
+                            htmlFor="zip_code"
+                            className="text-sm font-semibold"
+                          >
+                            ZIP Code <span className="text-red-500">*</span>
+                          </Label>
+                          <Input
+                            id="zip_code"
+                            name="zip_code"
+                            value={progressionFormData.zip_code || ""}
+                            onChange={handleProgressionChange}
+                            disabled={sameAsPermanent}
+                            maxLength={10}
+                            className="font-medium disabled:bg-slate-100 disabled:cursor-not-allowed"
                           />
                         </div>
                       </div>
