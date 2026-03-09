@@ -809,93 +809,16 @@ export default function MasterfilePage() {
   const checkCompleteness = (emp: any) => {
     if (!emp) return { isComplete: false, status: "Incomplete", batchId: 1 };
 
-    // Batch 1: Employee Details (Manual override for onboarding flow)
-    // If the employee is still 'pending' and hasn't finished the profile,
-    // we want them to go through Batch 1. We require date_hired to be explicitly set.
-    if (
-      !emp.position ||
-      emp.position.toString().trim() === "" ||
-      !emp.date_hired
-    ) {
+    // Primary check: Has the employee completed the onboarding process by clicking "Complete & Finish"?
+    if (!emp.onboarding_completed) {
+      // Use the explicitly saved batch ID from the database if available
+      const batchId = emp.current_onboarding_batch || 1;
+
       return {
         isComplete: false,
-        status: "Pending: Employee Details",
-        batchId: 1,
+        status: `BATCH ${batchId}: ${batchLabelById[batchId].toUpperCase()}`,
+        batchId,
       };
-    }
-
-    // Batch 2: Personal Information
-    const personalFields = [
-      "last_name",
-      "first_name",
-      "birthday",
-      "birthplace",
-      "civil_status",
-      "gender",
-    ];
-    for (const field of personalFields) {
-      if (!emp[field] || emp[field].toString().trim() === "") {
-        return {
-          isComplete: false,
-          status: "Pending: Personal Information",
-          batchId: 2,
-        };
-      }
-    }
-
-    // Batch 3: Contact Information
-    if (
-      !emp.mobile_number ||
-      emp.mobile_number.toString().trim() === "" ||
-      !emp.email
-    ) {
-      return {
-        isComplete: false,
-        status: "Pending: Contact Information",
-        batchId: 3,
-      };
-    }
-
-    // Batch 4: Government IDs (optional in onboarding flow)
-
-    // Batch 5: Family Information (optional)
-
-    // Batch 6: Permanent Address Information
-    const permAddressFields = [
-      "perm_street",
-      "perm_barangay",
-      "perm_region",
-      "perm_province",
-      "perm_city_municipality",
-      "perm_zip_code",
-    ];
-    for (const field of permAddressFields) {
-      if (!emp[field] || emp[field].toString().trim() === "") {
-        return {
-          isComplete: false,
-          status: "Pending: Permanent Address Information",
-          batchId: 6,
-        };
-      }
-    }
-
-    // Batch 7: Current Address Information
-    const addressFields = [
-      "street",
-      "barangay",
-      "region",
-      "province",
-      "city_municipality",
-      "zip_code",
-    ];
-    for (const field of addressFields) {
-      if (!emp[field] || emp[field].toString().trim() === "") {
-        return {
-          isComplete: false,
-          status: "Pending: Current Address Information",
-          batchId: 7,
-        };
-      }
     }
 
     return {
@@ -904,7 +827,7 @@ export default function MasterfilePage() {
         emp.status === "rehire_pending"
           ? "PENDING: COMPLETE & FINISH REHIRE"
           : "READY TO EMPLOY",
-      batchId: 1,
+      batchId: 7,
     };
   };
 
@@ -927,8 +850,8 @@ export default function MasterfilePage() {
     if (!isComplete) {
       setConfirmModal({
         isOpen: true,
-        title: "Information Incomplete",
-        description: `Cannot ${isRehire ? "re-hire" : "employ"}: Missing required Information. Please complete the employee profile first.`,
+        title: "Onboarding Incomplete",
+        description: `Cannot ${isRehire ? "re-hire" : "employ"}: Onboarding must be finished by clicking "Complete & Finish" in the Onboard page.`,
         variant: "warning",
         confirmText: "Got it",
         hideCancel: true,

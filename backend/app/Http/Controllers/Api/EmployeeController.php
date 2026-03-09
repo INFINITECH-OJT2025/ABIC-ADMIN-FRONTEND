@@ -242,6 +242,9 @@ class EmployeeController extends Controller
                 'password' => 'sometimes|nullable|string|min:6',
                 'status' => 'sometimes|in:pending,employed,terminated,resigned,rehire_pending,rehired_employee,resignation_pending,termination_pending',
                 'rehire_process' => 'sometimes|boolean',
+                'onboarding_completed' => 'sometimes|boolean',
+                'current_onboarding_batch' => 'sometimes|integer',
+                'same_as_permanent' => 'sometimes|boolean',
             ]);
 
             $isRehireProcess = $request->boolean('rehire_process');

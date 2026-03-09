@@ -931,9 +931,27 @@ function OnboardPageContent() {
         employeeEmailParam ?? undefined,
       );
 
-      if (emp) {
-        setOnboardingEmployeeId(String(emp?.id ?? id));
-        setOnboardFormData({
+        if (emp) {
+          setOnboardingEmployeeId(String(emp?.id ?? id));
+          if (emp.current_onboarding_batch !== undefined && emp.current_onboarding_batch !== null) {
+            setCurrentBatch(Number(emp.current_onboarding_batch));
+          }
+          if (emp.same_as_permanent !== undefined) {
+            setSameAsPermanent(Boolean(emp.same_as_permanent));
+          } else {
+            // Check if fields match manually if flag is missing
+            const fieldsMatch =
+              emp.region === emp.perm_region &&
+              emp.province === emp.perm_province &&
+              emp.city_municipality === emp.perm_city_municipality &&
+              emp.barangay === emp.perm_barangay &&
+              emp.zip_code === emp.perm_zip_code &&
+              emp.region !== undefined &&
+              emp.region !== null &&
+              emp.region !== "";
+            setSameAsPermanent(fieldsMatch);
+          }
+          setOnboardFormData({
           first_name: toPlainString(emp.first_name),
           last_name: toPlainString(emp.last_name),
           email: toPlainString(emp.email),
@@ -1955,10 +1973,18 @@ function OnboardPageContent() {
             isRehireFlow
               ? {
                   ...cleanedData,
+                  same_as_permanent: sameAsPermanent,
+                  current_onboarding_batch: 7,
                   rehire_process: false,
                   status: "rehire_pending",
+                  onboarding_completed: true,
                 }
-              : cleanedData,
+              : {
+                  ...cleanedData,
+                  same_as_permanent: sameAsPermanent,
+                  current_onboarding_batch: 7,
+                  onboarding_completed: true,
+                },
           ),
         },
       );
@@ -2003,10 +2029,16 @@ function OnboardPageContent() {
             isRehireFlow
               ? {
                   ...cleanedData,
+                  same_as_permanent: sameAsPermanent,
+                  current_onboarding_batch: currentBatch,
                   rehire_process: true,
                   status: "rehire_pending",
                 }
-              : cleanedData,
+              : {
+                  ...cleanedData,
+                  same_as_permanent: sameAsPermanent,
+                  current_onboarding_batch: currentBatch,
+                },
           ),
         },
       );
@@ -2188,6 +2220,15 @@ function OnboardPageContent() {
 
             {/* Actions */}
             <div className="flex items-center gap-3">
+              {view === "update-info" && (
+                <button
+                  onClick={() => setView("checklist")}
+                  className="border-2 border-white/40 text-white hover:bg-white/20 hover:border-white/60 bg-transparent backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2 cursor-pointer"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span>BACK TO CHECKLIST</span>
+                </button>
+              )}
               <button
                 onClick={handleCancelOnboarding}
                 className="border-2 border-white/40 text-white hover:bg-white/20 hover:border-white/60 bg-transparent backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2 cursor-pointer"
@@ -2761,7 +2802,7 @@ function OnboardPageContent() {
                       }
                       className="h-10 px-6 bg-[#A4163A] hover:bg-[#800020] text-white rounded-lg font-bold text-[10px] uppercase tracking-wider shadow-md transform active:scale-95 transition-all font-sans"
                     >
-                      Proceed to Official Filing
+                      Proceed to Employee Data Entry
                       <ChevronRight className="ml-2 w-3.5 h-3.5" />
                     </Button>
                   </div>
