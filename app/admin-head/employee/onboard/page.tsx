@@ -212,6 +212,9 @@ function OnboardPageContent() {
   // Address Copy State
   const [sameAsPermanent, setSameAsPermanent] = useState(false);
 
+  // Navigation Guard - Prevent multiple navigations
+  const isNavigatingRef = React.useRef(false);
+
   // Modal State
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -396,7 +399,7 @@ function OnboardPageContent() {
     }
   };
 
-  const cancelRehireStatus = async (employeeId?: string | null) => {
+  const cancelRehireStatus = React.useCallback(async (employeeId?: string | null) => {
     if (!isRehireFlow || !employeeId) return true;
     try {
       const response = await apiFetch(
@@ -416,7 +419,7 @@ function OnboardPageContent() {
       console.error("Failed to revert to terminated status:", error);
       return false;
     }
-  };
+  }, [isRehireFlow]);
 
   const fetchEmployeeByIdentifier = async (
     identifier: string,
@@ -2123,17 +2126,21 @@ function OnboardPageContent() {
           "Are you sure you want to cancel the re-hiring process? The employee status will remain 'Terminated' and all progress will be lost.",
         variant: "destructive",
         onConfirm: async () => {
-          setIsSaving(true);
+          if (isNavigatingRef.current) return;
+          isNavigatingRef.current = true;
+          
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           try {
             await cancelRehireStatus(onboardingEmployeeId);
             clearStorage();
-            router.push("/admin-head/employee/masterfile");
+            sessionStorage.removeItem(`rehire_push_${onboardingEmployeeId}`);
           } catch (error) {
             console.error("Cancel rehire status failed:", error);
-            toast.error("Failed to cancel re-hire process");
-          } finally {
-            setIsSaving(false);
           }
+          // Direct navigation after modal closes
+          setTimeout(() => {
+            window.location.href = "/admin-head/employee/masterfile";
+          }, 200);
         },
       });
       return;
@@ -2180,14 +2187,11 @@ function OnboardPageContent() {
       "You have unsaved onboarding progress. Leave this page without saving?";
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!hasUnsavedProgress) return;
-      event.preventDefault();
-      event.returnValue = warningMessage;
-      return warningMessage;
+      // Disabled: No browser "Leave site?" dialog
+      return;
     };
 
     const handleLinkNavigation = (event: MouseEvent) => {
-      if (!hasUnsavedProgress) return;
       const target = event.target as HTMLElement | null;
       const anchor = target?.closest("a[href]") as HTMLAnchorElement | null;
       if (!anchor) return;
@@ -2199,8 +2203,11 @@ function OnboardPageContent() {
       if (!href || href.startsWith("#") || href.startsWith("javascript:"))
         return;
 
+      // Use the actual target URL from the anchor's href attribute or fully qualified href
+      const targetUrl = anchor.href;
+
       const currentUrl = new URL(window.location.href);
-      const nextUrl = new URL(anchor.href, window.location.href);
+      const nextUrl = new URL(targetUrl, window.location.href);
       const isSamePage =
         currentUrl.pathname === nextUrl.pathname &&
         currentUrl.search === nextUrl.search &&
@@ -2208,10 +2215,13 @@ function OnboardPageContent() {
 
       if (isSamePage) return;
 
-      event.preventDefault();
-      event.stopPropagation();
-
+      // PRIORITY CHECK: Rehire flow intercept (regardless of unsaved progress)
       if (isRehireFlow && onboardingEmployeeId) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (isNavigatingRef.current) return;
+
         setConfirmModal({
           isOpen: true,
           title: "Cancel Rehire Process?",
@@ -2219,21 +2229,31 @@ function OnboardPageContent() {
             "Navigating away will cancel the re-hiring process. The employee status will remain 'Terminated'. Proceed?",
           variant: "destructive",
           onConfirm: async () => {
-            setIsSaving(true);
+            if (isNavigatingRef.current) return;
+            isNavigatingRef.current = true;
+            
+            setConfirmModal((prev) => ({ ...prev, isOpen: false }));
             try {
               await cancelRehireStatus(onboardingEmployeeId);
               clearStorage();
-              router.push(href);
+              sessionStorage.removeItem(`rehire_push_${onboardingEmployeeId}`);
             } catch (error) {
               console.error("Cancel rehire status failed:", error);
-              router.push(href);
-            } finally {
-              setIsSaving(false);
             }
+            // Direct navigation after modal closes
+            setTimeout(() => {
+              window.location.href = targetUrl;
+            }, 200);
           },
         });
         return;
       }
+
+      // Regular unsaved progress check
+      if (!hasUnsavedProgress) return;
+
+      event.preventDefault();
+      event.stopPropagation();
 
       if (window.confirm(warningMessage)) {
         clearStorage();
@@ -2246,6 +2266,8 @@ function OnboardPageContent() {
         // Stop the movement and push current back
         window.history.pushState(null, "", window.location.href);
 
+        if (isNavigatingRef.current) return;
+
         setConfirmModal({
           isOpen: true,
           title: "Cancel Rehire Process?",
@@ -2253,20 +2275,23 @@ function OnboardPageContent() {
             "Navigating away will cancel the re-hiring process. The employee status will remain 'Terminated'. Proceed?",
           variant: "destructive",
           onConfirm: async () => {
-            setIsSaving(true);
+            if (isNavigatingRef.current) return;
+            isNavigatingRef.current = true;
+            
+            setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+            // Remove listener before navigation
+            window.removeEventListener("popstate", handlePopState);
             try {
               await cancelRehireStatus(onboardingEmployeeId);
               clearStorage();
-              // Remove listener and go back for real
-              window.removeEventListener("popstate", handlePopState);
-              window.history.back();
+              sessionStorage.removeItem(`rehire_push_${onboardingEmployeeId}`);
             } catch (error) {
               console.error("Popstate cancel failed:", error);
-              window.removeEventListener("popstate", handlePopState);
-              window.history.back();
-            } finally {
-              setIsSaving(false);
             }
+            // Direct navigation after modal closes
+            setTimeout(() => {
+              window.history.back();
+            }, 200);
           },
         });
       }
@@ -2276,9 +2301,14 @@ function OnboardPageContent() {
     document.addEventListener("click", handleLinkNavigation, true);
     window.addEventListener("popstate", handlePopState);
 
-    // Initial push to lock the current history entry
-    if (isRehireFlow && onboardingEmployeeId) {
-      window.history.pushState(null, "", window.location.href);
+    // Initial push to lock the current history entry - only once
+    if (isRehireFlow && onboardingEmployeeId && !isNavigatingRef.current) {
+      // Use a flag to prevent repeated pushState calls
+      const hasInitialPush = sessionStorage.getItem(`rehire_push_${onboardingEmployeeId}`);
+      if (!hasInitialPush) {
+        window.history.pushState(null, "", window.location.href);
+        sessionStorage.setItem(`rehire_push_${onboardingEmployeeId}`, "1");
+      }
     }
 
     return () => {
@@ -2290,7 +2320,6 @@ function OnboardPageContent() {
     hasUnsavedProgress,
     isRehireFlow,
     onboardingEmployeeId,
-    router,
     cancelRehireStatus,
   ]);
 
