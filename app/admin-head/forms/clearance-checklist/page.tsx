@@ -336,6 +336,7 @@ export default function ClearanceChecklistPage() {
   const departmentSelectOptions = useMemo(() => {
     const current = employeeInfo?.department?.trim()
     return [...new Set([...(current ? [current] : []), ...departmentOptions])]
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
   }, [employeeInfo?.department, departmentOptions])
 
   const departmentIdByName = useMemo(() => {
