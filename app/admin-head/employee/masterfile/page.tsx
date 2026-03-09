@@ -562,28 +562,33 @@ export default function MasterfilePage() {
       const apiUrl = getApiUrl();
       const employeesUrl = `${apiUrl}/api/employees`;
       const checklistsUrl = `${apiUrl}/api/onboarding-checklist`;
-
+      const clearanceChecklistsUrl = `${apiUrl}/api/clearance-checklist`;
       const terminationsUrl = `${apiUrl}/api/terminations`;
 
-      const [empRes, checkRes, termRes] = await Promise.all([
+      const [empRes, checkRes, clearanceRes, termRes] = await Promise.all([
         fetch(employeesUrl, { headers: { Accept: "application/json" } }),
         fetch(checklistsUrl, { headers: { Accept: "application/json" } }),
+        fetch(clearanceChecklistsUrl, { headers: { Accept: "application/json" } }),
         fetch(terminationsUrl, { headers: { Accept: "application/json" } }),
       ]);
 
-      if (!empRes.ok || !checkRes.ok || !termRes.ok) {
+      if (!empRes.ok || !checkRes.ok || !clearanceRes.ok || !termRes.ok) {
         throw new Error(
-          `HTTP Error: employees=${empRes.status}, checklists=${checkRes.status}, terminations=${termRes.status}`,
+          `HTTP Error: employees=${empRes.status}, checklists=${checkRes.status}, clearance=${clearanceRes.status}, terminations=${termRes.status}`,
         );
       }
 
       const empData = await empRes.json();
       const checkData = await checkRes.json();
+      const clearanceData = await clearanceRes.json();
       const termData = await termRes.json();
 
       if (empData.success) {
         const checklistsList = Array.isArray(checkData.data)
           ? checkData.data
+          : [];
+        const clearanceList = Array.isArray(clearanceData.data)
+          ? clearanceData.data
           : [];
         const terminationsList =
           termData.success && Array.isArray(termData.data) ? termData.data : [];
@@ -744,6 +749,47 @@ export default function MasterfilePage() {
                 },
               };
             }
+
+            // Clearance Checklist Logic
+            const clearanceMatches = clearanceList.filter((c: any) => {
+              const checklistEmployeeId = String(
+                c?.employeeId ?? c?.employee_id ?? "",
+              )
+                .trim()
+                .toLowerCase();
+              if (empId && checklistEmployeeId && checklistEmployeeId === empId) {
+                return true;
+              }
+              const candidate = normalizeName(c?.name);
+              if (!candidate) return false;
+              if (candidate === fullName) return true;
+              if (firstName && lastName) {
+                return (
+                  candidate.includes(firstName) &&
+                  candidate.includes(lastName)
+                );
+              }
+              return false;
+            });
+
+            if (clearanceMatches.length > 0) {
+              const clearance = clearanceMatches.sort((a: any, b: any) => {
+                const aTime = new Date(a?.updated_at ?? a?.created_at ?? 0).getTime();
+                const bTime = new Date(b?.updated_at ?? b?.created_at ?? 0).getTime();
+                return bTime - aTime;
+              })[0];
+
+              const tasks = Array.isArray(clearance.tasks) ? clearance.tasks : [];
+              const doneCount = tasks.filter(
+                (t: any) => String(t?.status ?? "").toUpperCase() === "DONE",
+              ).length;
+
+              enhancedEmp.clearance_progress = {
+                done: doneCount,
+                total: tasks.length,
+              };
+            }
+
             return enhancedEmp;
           }),
         );
@@ -1602,12 +1648,21 @@ export default function MasterfilePage() {
                             {/* Bottom Row: Status Badges */}
                             <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
                               {isTerminationPending ? (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] font-bold text-rose-600 bg-rose-50 border-rose-200 shadow-none uppercase tracking-wider rounded-md"
-                                >
-                                  {displayStatus}
-                                </Badge>
+                                <>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] font-bold text-rose-600 bg-rose-50 border-rose-200 shadow-none uppercase tracking-wider rounded-md"
+                                  >
+                                    {displayStatus}
+                                  </Badge>
+                                  {(employee as any).clearance_progress &&
+                                    (employee as any).clearance_progress.total > 0 && (
+                                      <span className="text-[9px] font-bold text-rose-500 whitespace-nowrap">
+                                        Tasks: {(employee as any).clearance_progress.done}/
+                                        {(employee as any).clearance_progress.total}
+                                      </span>
+                                    )}
+                                </>
                               ) : isFullyComplete ? (
                                 <Badge
                                   variant="outline"
