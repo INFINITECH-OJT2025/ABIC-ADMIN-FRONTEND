@@ -731,9 +731,7 @@ export default function MasterfilePage() {
               const checklistBelongsToCurrentRehire =
                 enhancedEmp.status !== "rehire_pending"
                   ? true
-                  : Number.isFinite(rehireCycleStartAt) &&
-                    rehireCycleStartAt > 0 &&
-                    checklistUpdatedAt >= rehireCycleStartAt;
+                  : true; // Bypass rehire date filtering temporarily to match individual checklist view
 
               enhancedEmp = {
                 ...enhancedEmp,
@@ -1598,9 +1596,9 @@ export default function MasterfilePage() {
                                     size="sm"
                                     onClick={() =>
                                       router.push(
-                                        checklistTasksComplete
-                                          ? `/admin-head/employee/onboard?id=${employee.id}&view=update-info&rehire=1&batch=${displayBatchId}`
-                                          : `/admin-head/employee/onboard?id=${employee.id}&view=checklist&rehire=1&batch=${displayBatchId}`,
+                                        !employee.onboarding_tasks?.isComplete
+                                          ? `/admin-head/employee/onboard?id=${employee.id}&view=checklist&rehire=1&batch=${displayBatchId}`
+                                          : `/admin-head/employee/onboard?id=${employee.id}&view=update-info&rehire=1&batch=${displayBatchId}`,
                                       )
                                     }
                                     className={`h-8 px-3 text-[11px] font-bold border rounded-lg transition-all whitespace-nowrap ${

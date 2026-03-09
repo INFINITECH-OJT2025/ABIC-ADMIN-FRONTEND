@@ -396,6 +396,28 @@ function OnboardPageContent() {
     }
   };
 
+  const cancelRehireStatus = async (employeeId?: string | null) => {
+    if (!isRehireFlow || !employeeId) return true;
+    try {
+      const response = await apiFetch(
+        `/api/employees/${encodeURIComponent(employeeId)}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "terminated",
+            rehire_process: false,
+          }),
+        },
+      );
+      const data = await parseJsonFromResponse(response);
+      return Boolean(response.ok && data?.success);
+    } catch (error) {
+      console.error("Failed to revert to terminated status:", error);
+      return false;
+    }
+  };
+
   const fetchEmployeeByIdentifier = async (
     identifier: string,
     fallbackEmail?: string,
@@ -797,7 +819,7 @@ function OnboardPageContent() {
   }) => {
     const { employeeName, employeeId, rehireStartedAt } = params;
     try {
-      const response = await fetch(`${getApiUrl()}/api/onboarding-checklist`, {
+      const response = await fetch(`${getApiUrl()}/api/onboarding-checklist?employeeId=${encodeURIComponent(employeeId ?? "")}&type=${isRehireFlow ? 'rehire' : 'onboard'}`, {
         headers: { Accept: "application/json" },
       });
       const data = await response.json();
@@ -817,13 +839,21 @@ function OnboardPageContent() {
         return bTime - aTime;
       });
 
-      const rehireStartTs = new Date(rehireStartedAt ?? 0).getTime();
+      const normalizeDateOnly = (value: unknown) => {
+        const raw = toPlainString(value);
+        if (!raw) return "";
+        const datePart = raw.includes("T") ? raw.split("T")[0] : raw;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
+        const parsed = new Date(raw);
+        if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+        return "";
+      };
+
+      const rehireStartDay = normalizeDateOnly(rehireStartedAt);
       const scopedForCurrentRehire = sortedByLatest.filter((item: any) => {
-        if (!Number.isFinite(rehireStartTs) || rehireStartTs <= 0) return true;
-        const itemUpdatedTs = new Date(
-          item?.updated_at ?? item?.created_at ?? 0,
-        ).getTime();
-        return Number.isFinite(itemUpdatedTs) && itemUpdatedTs >= rehireStartTs;
+        if (!rehireStartDay) return true;
+        const itemDate = normalizeDateOnly(item?.startDate ?? item?.start_date ?? item?.created_at);
+        return itemDate && itemDate >= rehireStartDay;
       });
 
       let matched = normalizedEmployeeId
@@ -1573,6 +1603,7 @@ function OnboardPageContent() {
             name: toPlainString(checklistData.name),
             position: toPlainString(checklistData.position),
             department: normalizedDepartment,
+            type: isRehireFlow ? 'rehire' : 'onboard',
             startDate: normalizedStartDate,
             status: isRehireFlow
               ? finalizeRehire
@@ -2083,13 +2114,38 @@ function OnboardPageContent() {
     });
   };
 
-  const handleCancelOnboarding = () => {
+  const handleCancelOnboarding = async () => {
+    if (isRehireFlow && onboardingEmployeeId) {
+      setConfirmModal({
+        isOpen: true,
+        title: "Cancel Rehire Process?",
+        description:
+          "Are you sure you want to cancel the re-hiring process? The employee status will remain 'Terminated' and all progress will be lost.",
+        variant: "destructive",
+        onConfirm: async () => {
+          setIsSaving(true);
+          try {
+            await cancelRehireStatus(onboardingEmployeeId);
+            clearStorage();
+            router.push("/admin-head/employee/masterfile");
+          } catch (error) {
+            console.error("Cancel rehire status failed:", error);
+            toast.error("Failed to cancel re-hire process");
+          } finally {
+            setIsSaving(false);
+          }
+        },
+      });
+      return;
+    }
+
     if (hasUnsavedProgress) {
       const shouldLeave = window.confirm(
         "You have unsaved onboarding progress. Leave this page without saving?",
       );
       if (!shouldLeave) return;
     }
+
     clearStorage();
     router.push("/admin-head/employee/masterfile");
   };
@@ -2152,21 +2208,91 @@ function OnboardPageContent() {
 
       if (isSamePage) return;
 
-      const shouldLeave = window.confirm(warningMessage);
-      if (!shouldLeave) {
-        event.preventDefault();
-        event.stopPropagation();
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (isRehireFlow && onboardingEmployeeId) {
+        setConfirmModal({
+          isOpen: true,
+          title: "Cancel Rehire Process?",
+          description:
+            "Navigating away will cancel the re-hiring process. The employee status will remain 'Terminated'. Proceed?",
+          variant: "destructive",
+          onConfirm: async () => {
+            setIsSaving(true);
+            try {
+              await cancelRehireStatus(onboardingEmployeeId);
+              clearStorage();
+              router.push(href);
+            } catch (error) {
+              console.error("Cancel rehire status failed:", error);
+              router.push(href);
+            } finally {
+              setIsSaving(false);
+            }
+          },
+        });
+        return;
+      }
+
+      if (window.confirm(warningMessage)) {
+        clearStorage();
+        router.push(href);
+      }
+    };
+
+    const handlePopState = (event: PopStateEvent) => {
+      if (isRehireFlow && onboardingEmployeeId) {
+        // Stop the movement and push current back
+        window.history.pushState(null, "", window.location.href);
+
+        setConfirmModal({
+          isOpen: true,
+          title: "Cancel Rehire Process?",
+          description:
+            "Navigating away will cancel the re-hiring process. The employee status will remain 'Terminated'. Proceed?",
+          variant: "destructive",
+          onConfirm: async () => {
+            setIsSaving(true);
+            try {
+              await cancelRehireStatus(onboardingEmployeeId);
+              clearStorage();
+              // Remove listener and go back for real
+              window.removeEventListener("popstate", handlePopState);
+              window.history.back();
+            } catch (error) {
+              console.error("Popstate cancel failed:", error);
+              window.removeEventListener("popstate", handlePopState);
+              window.history.back();
+            } finally {
+              setIsSaving(false);
+            }
+          },
+        });
       }
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("click", handleLinkNavigation, true);
+    window.addEventListener("popstate", handlePopState);
+
+    // Initial push to lock the current history entry
+    if (isRehireFlow && onboardingEmployeeId) {
+      window.history.pushState(null, "", window.location.href);
+    }
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("click", handleLinkNavigation, true);
+      window.removeEventListener("popstate", handlePopState);
     };
-  }, [hasUnsavedProgress]);
+  }, [
+    hasUnsavedProgress,
+    isRehireFlow,
+    onboardingEmployeeId,
+    router,
+    cancelRehireStatus,
+  ]);
 
   return (
     <div className="min-h-screen w-full bg-[#F5F6F8] text-stone-900 font-sans pb-10 relative">

@@ -560,10 +560,16 @@ class EmployeeController extends Controller
             }
 
             // Put employee in re-hire setup pending status first.
-            $employee->update(['status' => 'rehire_pending']);
+            // Reset onboarding_completed and current_onboarding_batch so they must complete the process again
+            $rehiredAt = $request->input('rehired_at') ? Carbon::parse($request->input('rehired_at')) : now();
+            $employee->update([
+                'status' => 'rehire_pending',
+                'onboarding_completed' => false,
+                'current_onboarding_batch' => 1,
+                'rehired_at' => $rehiredAt
+            ]);
 
             $currentId = $employee->id;
-            $rehiredAt = $request->input('rehired_at') ? Carbon::parse($request->input('rehired_at')) : now();
             $rehireYear = $rehiredAt->format('y');
             $idParts = explode('-', $currentId);
 
