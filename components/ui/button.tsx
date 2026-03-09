@@ -1,40 +1,64 @@
-import * as React from "react"
-import { Slot } from "radix-ui"
+import * as React from "react";
+import { Slot } from "radix-ui";
 
-export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "outline" | "ghost"
-  size?: "default" | "sm" | "lg" | "icon"
-  asChild?: boolean
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: "default" | "outline" | "ghost";
+  size?: "default" | "sm" | "lg" | "icon";
+  asChild?: boolean;
 }
 
+export const buttonVariants = ({
+  variant = "default",
+  size = "default",
+  className = "",
+}: {
+  variant?: "default" | "outline" | "ghost";
+  size?: "default" | "sm" | "lg" | "icon";
+  className?: string;
+}) => {
+  const baseStyles =
+    "inline-flex items-center justify-center cursor-pointer text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
+
+  const variants = {
+    default:
+      "bg-gradient-to-r from-[#8B0000] to-[#A52A2A] text-white hover:from-[#700000] hover:to-[#8B1A1A] shadow-lg rounded-md",
+    outline:
+      "border border-input bg-background hover:bg-accent hover:text-accent-foreground rounded-md",
+    ghost: "hover:bg-accent hover:text-accent-foreground rounded-md",
+  };
+
+  const sizes = {
+    default: "h-10 px-4 py-2",
+    sm: "h-9 rounded-md px-3",
+    lg: "h-11 rounded-md px-8",
+    icon: "h-10 w-10",
+  };
+
+  return `${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`.trim();
+};
+
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className = "", variant = "default", size = "default", asChild = false, ...props }, ref) => {
-    const Comp = asChild ? Slot.Root : "button"
-    const baseStyles = "inline-flex items-center justify-center cursor-pointer text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
-
-    const variants = {
-      default: "bg-gradient-to-r from-[#8B0000] to-[#A52A2A] text-white hover:from-[#700000] hover:to-[#8B1A1A] shadow-lg",
-      outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-      ghost: "hover:bg-accent hover:text-accent-foreground",
-    }
-
-    const sizes = {
-      default: "h-10 px-4 py-2",
-      sm: "h-9 rounded-md px-3",
-      lg: "h-11 rounded-md px-8",
-      icon: "h-10 w-10",
-    }
+  (
+    {
+      className = "",
+      variant = "default",
+      size = "default",
+      asChild = false,
+      ...props
+    },
+    ref,
+  ) => {
+    const Comp = asChild ? Slot.Root : "button";
 
     return (
       <Comp
-        className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`.trim()}
+        className={buttonVariants({ variant, size, className })}
         ref={ref}
         {...props}
       />
-    )
-  }
-)
-Button.displayName = "Button"
+    );
+  },
+);
+Button.displayName = "Button";
 
-export { Button }
+export { Button };

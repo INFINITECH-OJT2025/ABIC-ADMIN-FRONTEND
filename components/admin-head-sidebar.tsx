@@ -1,12 +1,9 @@
 //sidebar
 
-"use client"
+"use client";
 
-
-
-
-import React, { useState } from 'react'
-import Image from 'next/image'
+import React, { useState } from "react";
+import Image from "next/image";
 import {
   ChevronDown,
   Menu,
@@ -27,11 +24,11 @@ import {
   X,
   PanelLeft,
   Activity,
-  GitBranch
-} from 'lucide-react'
-import Link from 'next/link'
-import { cn } from '@/lib/utils'
-import { useRouter } from 'next/navigation'
+  GitBranch,
+} from "lucide-react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -39,58 +36,39 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog"
-import { Button } from "@/components/ui/button"
-
-
-
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export default function AdminHeadSidebar() {
-  const [isCollapsed, setIsCollapsed] = useState(false)
-  const [isEmployeeOpen, setIsEmployeeOpen] = useState(false)
-  const [isAttendanceOpen, setIsAttendanceOpen] = useState(false)
-  const [isFormsOpen, setIsFormsOpen] = useState(false)
-  const [logoError, setLogoError] = useState(false)
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
-  const router = useRouter()
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isEmployeeOpen, setIsEmployeeOpen] = useState(false);
+  const [isAttendanceOpen, setIsAttendanceOpen] = useState(false);
+  const [isFormsOpen, setIsFormsOpen] = useState(false);
+  const [logoError, setLogoError] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const router = useRouter();
 
-
-
-
-
-
-  const toggleSidebar = () => setIsCollapsed(!isCollapsed)
-
+  const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
   const handleLogout = () => {
     // Perform any logout logic here (e.g., clearing tokens)
-    router.push('/logout')
-  }
-
-
-
+    router.push("/logout");
+  };
 
   return (
-    <div className={`${isCollapsed ? 'w-20' : 'w-64'} bg-gradient-to-r from-[#7B0F2B] to-[#A4163A] text-white h-screen sticky top-0 p-4 flex flex-col transition-all duration-300 ease-in-out z-50`}>
-
-
+    <div
+      className={`${isCollapsed ? "w-20" : "w-64"} bg-gradient-to-r from-[#7B0F2B] to-[#A4163A] text-white h-screen sticky top-0 p-4 flex flex-col transition-all duration-300 ease-in-out z-50`}
+    >
       <button
         onClick={toggleSidebar}
         className={cn(
           "mb-4 p-2 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center",
-          !isCollapsed && "absolute top-4 right-4 z-50"
+          !isCollapsed && "absolute top-4 right-4 z-50",
         )}
         title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
       >
         {isCollapsed ? <PanelLeft size={24} /> : <X size={24} />}
       </button>
-
-
-
-
-
-
-
 
       {/* Logo */}
       {!isCollapsed ? (
@@ -142,15 +120,6 @@ export default function AdminHeadSidebar() {
         </div>
       )}
 
-
-
-
-
-
-
-
-
-
       {/* Navigation Menu */}
       <nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar py-2">
         {/* EMPLOYEE with Dropdown */}
@@ -159,27 +128,32 @@ export default function AdminHeadSidebar() {
             onClick={() => setIsEmployeeOpen(!isEmployeeOpen)}
             className={cn(
               "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
-              isCollapsed ? "justify-center" : "justify-between"
+              isCollapsed ? "justify-center" : "justify-between",
             )}
           >
             <div className="flex items-center gap-3">
               <Users size={22} className="shrink-0" />
-              {!isCollapsed && <span className="font-medium whitespace-nowrap">EMPLOYEE</span>}
+              {!isCollapsed && (
+                <span className="font-medium whitespace-nowrap">EMPLOYEE</span>
+              )}
             </div>
             {!isCollapsed && (
               <ChevronDown
                 size={16}
-                className={`transition-transform shrink-0 ${isEmployeeOpen ? 'rotate-180' : ''} group-hover:rotate-180`}
+                className={`transition-transform shrink-0 ${isEmployeeOpen ? "rotate-180" : ""} group-hover:rotate-180`}
               />
             )}
-
-
           </button>
 
-
           {/* Employee Dropdown Menu (Hover + Click) */}
-          <div className={`${isCollapsed ? 'fixed left-20 top-auto w-56 z-50' : 'ml-10 mt-1'} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isEmployeeOpen ? 'block' : 'hidden'} group-hover:block`}>
-            {isCollapsed && <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">EMPLOYEE</div>}
+          <div
+            className={`${isCollapsed ? "fixed left-20 top-auto w-56 z-50" : "ml-10 mt-1"} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isEmployeeOpen ? "block" : "hidden"} group-hover:block`}
+          >
+            {isCollapsed && (
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                EMPLOYEE
+              </div>
+            )}
             <Link
               href="/admin-head/employee/masterfile"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
@@ -211,36 +185,38 @@ export default function AdminHeadSidebar() {
           </div>
         </div>
 
-
-
-
         {/* FORMS with Dropdown */}
         <div className="group relative">
           <button
             onClick={() => setIsFormsOpen(!isFormsOpen)}
             className={cn(
               "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
-              isCollapsed ? "justify-center" : "justify-between"
+              isCollapsed ? "justify-center" : "justify-between",
             )}
           >
             <div className="flex items-center gap-3">
               <FileText size={22} className="shrink-0" />
-              {!isCollapsed && <span className="font-medium whitespace-nowrap">FORMS</span>}
+              {!isCollapsed && (
+                <span className="font-medium whitespace-nowrap">FORMS</span>
+              )}
             </div>
             {!isCollapsed && (
               <ChevronDown
                 size={16}
-                className={`transition-transform shrink-0 ${isFormsOpen ? 'rotate-180' : ''} group-hover:rotate-180`}
+                className={`transition-transform shrink-0 ${isFormsOpen ? "rotate-180" : ""} group-hover:rotate-180`}
               />
             )}
           </button>
 
-
-
-
           {/* Forms Dropdown Menu (Hover + Click) */}
-          <div className={`${isCollapsed ? 'fixed left-20 top-auto w-56 z-50' : 'ml-10 mt-1'} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isFormsOpen ? 'block' : 'hidden'} group-hover:block`}>
-            {isCollapsed && <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">FORMS</div>}
+          <div
+            className={`${isCollapsed ? "fixed left-20 top-auto w-56 z-50" : "ml-10 mt-1"} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isFormsOpen ? "block" : "hidden"} group-hover:block`}
+          >
+            {isCollapsed && (
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                FORMS
+              </div>
+            )}
             <Link
               href="/admin-head/forms/clearance-checklist"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
@@ -258,50 +234,25 @@ export default function AdminHeadSidebar() {
           </div>
         </div>
 
-
-
-
-        {/* DIRECTORY */}
-        <div className="group relative">
-          <Link
-            href="/admin-head/directory"
-            className={cn(
-              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : ""
-            )}
-          >
-            <BookOpen size={22} className="shrink-0" />
-            {!isCollapsed && <span className="font-medium whitespace-nowrap">DIRECTORY</span>}
-          </Link>
-          {isCollapsed && (
-            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">DIRECTORY</div>
-              <Link
-                href="/admin-head/directory"
-                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-              >
-                <BookOpen size={18} />
-                <span>Directory</span>
-              </Link>
-            </div>
-          )}
-        </div>
-
         {/* HIERARCHY */}
         <div className="group relative">
           <Link
             href="/admin-head/hierarchy"
             className={cn(
               "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : ""
+              isCollapsed ? "justify-center" : "",
             )}
           >
             <GitBranch size={22} className="shrink-0" />
-            {!isCollapsed && <span className="font-medium whitespace-nowrap">HIERARCHY</span>}
+            {!isCollapsed && (
+              <span className="font-medium whitespace-nowrap">HIERARCHY</span>
+            )}
           </Link>
           {isCollapsed && (
             <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">HIERARCHY</div>
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                HIERARCHY
+              </div>
               <Link
                 href="/admin-head/hierarchy"
                 className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
@@ -313,40 +264,40 @@ export default function AdminHeadSidebar() {
           )}
         </div>
 
-
-
-
-
-
-
-
         {/* ATTENDANCE with Dropdown */}
         <div className="group relative">
           <button
             onClick={() => setIsAttendanceOpen(!isAttendanceOpen)}
             className={cn(
               "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
-              isCollapsed ? "justify-center" : "justify-between"
+              isCollapsed ? "justify-center" : "justify-between",
             )}
           >
             <div className="flex items-center gap-3">
               <Calendar size={22} className="shrink-0" />
-              {!isCollapsed && <span className="font-medium whitespace-nowrap">ATTENDANCE</span>}
+              {!isCollapsed && (
+                <span className="font-medium whitespace-nowrap">
+                  ATTENDANCE
+                </span>
+              )}
             </div>
             {!isCollapsed && (
               <ChevronDown
                 size={16}
-                className={`transition-transform shrink-0 ${isAttendanceOpen ? 'rotate-180' : ''} group-hover:rotate-180`}
+                className={`transition-transform shrink-0 ${isAttendanceOpen ? "rotate-180" : ""} group-hover:rotate-180`}
               />
             )}
           </button>
 
-
-
-
           {/* Attendance Dropdown Menu (Hover + Click) */}
-          <div className={`${isCollapsed ? 'fixed left-20 top-auto w-56 z-50' : 'ml-10 mt-1'} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isAttendanceOpen ? 'block' : 'hidden'} group-hover:block`}>
-            {isCollapsed && <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">ATTENDANCE</div>}
+          <div
+            className={`${isCollapsed ? "fixed left-20 top-auto w-56 z-50" : "ml-10 mt-1"} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isAttendanceOpen ? "block" : "hidden"} group-hover:block`}
+          >
+            {isCollapsed && (
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                ATTENDANCE
+              </div>
+            )}
             <Link
               href="/admin-head/attendance/leave"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
@@ -375,10 +326,8 @@ export default function AdminHeadSidebar() {
               <FileText size={18} />
               <span>Warning Letter</span>
             </Link>
-
           </div>
         </div>
-
 
         {/* ACTIVITY LOGS */}
         <div className="group relative">
@@ -386,15 +335,21 @@ export default function AdminHeadSidebar() {
             href="/admin-head"
             className={cn(
               "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : ""
+              isCollapsed ? "justify-center" : "",
             )}
           >
             <Activity size={22} className="shrink-0" />
-            {!isCollapsed && <span className="font-medium whitespace-nowrap">ACTIVITY LOGS</span>}
+            {!isCollapsed && (
+              <span className="font-medium whitespace-nowrap">
+                ACTIVITY LOGS
+              </span>
+            )}
           </Link>
           {isCollapsed && (
             <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">ACTIVITY LOGS</div>
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                ACTIVITY LOGS
+              </div>
               <Link
                 href="/admin-head"
                 className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
@@ -406,12 +361,38 @@ export default function AdminHeadSidebar() {
           )}
         </div>
 
-
+        {/* DIRECTORY */}
+        <div className="group relative">
+          <Link
+            href="/admin-head/directory"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
+              isCollapsed ? "justify-center" : "",
+            )}
+          >
+            <BookOpen size={22} className="shrink-0" />
+            {!isCollapsed && (
+              <span className="font-medium whitespace-nowrap">DIRECTORY</span>
+            )}
+          </Link>
+          {isCollapsed && (
+            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                DIRECTORY
+              </div>
+              <Link
+                href="/admin-head/directory"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+              >
+                <BookOpen size={18} />
+                <span>Directory</span>
+              </Link>
+            </div>
+          )}
+        </div>
       </nav>
 
-
       <div className="mx-6 mb-4 border-t border-white/10" />
-
 
       <div className="flex justify-center mb-4 w-full px-4">
         <button
@@ -420,15 +401,17 @@ export default function AdminHeadSidebar() {
             "flex items-center gap-3 rounded-xl transition-all duration-300 font-bold text-sm tracking-widest w-full justify-center",
             "bg-gradient-to-r from-white/10 to-white/5 hover:from-white/20 hover:to-white/10 text-white shadow-lg shadow-black/20",
             "group active:scale-95 py-3.5 uppercase border border-white/20 hover:border-white/40 hover:shadow-white/5",
-            isCollapsed ? "px-0 w-12 h-12" : ""
+            isCollapsed ? "px-0 w-12 h-12" : "",
           )}
           title="Log Out"
         >
-          <LogOut size={20} className="group-hover:-translate-x-0.5 transition-transform duration-300" />
+          <LogOut
+            size={20}
+            className="group-hover:-translate-x-0.5 transition-transform duration-300"
+          />
           {!isCollapsed && <span>LOGOUT</span>}
         </button>
       </div>
-
 
       {/* Logout Confirmation Dialog */}
       <Dialog open={showLogoutConfirm} onOpenChange={setShowLogoutConfirm}>
@@ -438,9 +421,12 @@ export default function AdminHeadSidebar() {
               <LogOut className="w-8 h-8 text-[#4A081A]" />
             </div>
             <div className="space-y-2">
-              <DialogTitle className="text-2xl font-bold text-[#4A081A]">Confirm Logout</DialogTitle>
+              <DialogTitle className="text-2xl font-bold text-[#4A081A]">
+                Confirm Logout
+              </DialogTitle>
               <DialogDescription className="text-stone-500 font-medium">
-                Are you sure you want to sign out? You will need to log back in to access your dashboard.
+                Are you sure you want to sign out? You will need to log back in
+                to access your dashboard.
               </DialogDescription>
             </div>
           </DialogHeader>
@@ -461,12 +447,6 @@ export default function AdminHeadSidebar() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-
-
-
-
-
-    </div >
-  )
+    </div>
+  );
 }
