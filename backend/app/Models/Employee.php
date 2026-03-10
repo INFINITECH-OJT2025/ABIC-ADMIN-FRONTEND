@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
 {
@@ -43,5 +44,10 @@ class Employee extends Model
     public function evaluation()
     {
         return $this->hasOne(Evaluation::class, 'employee_id', 'id');
+    }
+
+    public function officeSupplyTransactionsRequested(): HasMany
+    {
+        return $this->hasMany(OfficeSupplyTransaction::class, 'requested_by_employee_id', 'id');
     }
 }

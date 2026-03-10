@@ -20,4 +20,14 @@ class Department extends Model
     {
         return $this->hasMany(Hierarchy::class);
     }
+
+    public function officeSupplyItems(): HasMany
+    {
+        return $this->hasMany(OfficeSupplyItem::class, 'department_id');
+    }
+
+    public function officeSupplyTransactions(): HasMany
+    {
+        return $this->hasMany(OfficeSupplyTransaction::class, 'department_id');
+    }
 }

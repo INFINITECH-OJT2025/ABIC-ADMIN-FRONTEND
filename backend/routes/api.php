@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\ClearanceChecklistController;
 use App\Http\Controllers\Api\DirectoryController;
 use App\Http\Controllers\Api\OnboardingChecklistController;
+use App\Http\Controllers\Api\OfficeSupplyInventoryController;
 use App\Http\Controllers\Api\DepartmentChecklistTemplateController;
 use App\Http\Controllers\EvaluationController;
 use Illuminate\Http\Request;
@@ -51,6 +52,12 @@ Route::put('/clearance-checklist/{id}', [ClearanceChecklistController::class, 'u
 // Department Checklist Template Routes
 Route::get('/department-checklist-templates', [DepartmentChecklistTemplateController::class, 'index']);
 Route::put('/department-checklist-templates', [DepartmentChecklistTemplateController::class, 'upsert']);
+
+// Office Supplies Inventory Routes
+Route::get('/office-supply/items', [OfficeSupplyInventoryController::class, 'indexItems']);
+Route::post('/office-supply/items', [OfficeSupplyInventoryController::class, 'storeItem']);
+Route::get('/office-supply/transactions', [OfficeSupplyInventoryController::class, 'indexTransactions']);
+Route::post('/office-supply/transactions', [OfficeSupplyInventoryController::class, 'storeTransaction']);
 
 // Termination routes
 Route::post('/employees/{id}/terminate', [EmployeeController::class, 'terminate']);

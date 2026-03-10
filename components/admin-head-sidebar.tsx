@@ -27,7 +27,8 @@ import {
   X,
   PanelLeft,
   Activity,
-  GitBranch
+  GitBranch,
+  Boxes
 } from 'lucide-react'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
@@ -258,35 +259,6 @@ export default function AdminHeadSidebar() {
           </div>
         </div>
 
-
-
-
-        {/* DIRECTORY */}
-        <div className="group relative">
-          <Link
-            href="/admin-head/directory"
-            className={cn(
-              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : ""
-            )}
-          >
-            <BookOpen size={22} className="shrink-0" />
-            {!isCollapsed && <span className="font-medium whitespace-nowrap">DIRECTORY</span>}
-          </Link>
-          {isCollapsed && (
-            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">DIRECTORY</div>
-              <Link
-                href="/admin-head/directory"
-                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-              >
-                <BookOpen size={18} />
-                <span>Directory</span>
-              </Link>
-            </div>
-          )}
-        </div>
-
         {/* HIERARCHY */}
         <div className="group relative">
           <Link
@@ -406,6 +378,57 @@ export default function AdminHeadSidebar() {
           )}
         </div>
 
+        {/* DIRECTORY */}
+        <div className="group relative">
+          <Link
+            href="/admin-head/directory"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
+              isCollapsed ? "justify-center" : ""
+            )}
+          >
+            <BookOpen size={22} className="shrink-0" />
+            {!isCollapsed && <span className="font-medium whitespace-nowrap">DIRECTORY</span>}
+          </Link>
+          {isCollapsed && (
+            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">DIRECTORY</div>
+              <Link
+                href="/admin-head/directory"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+              >
+                <BookOpen size={18} />
+                <span>Directory</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* INVENTORY */}
+        <div className="group relative">
+          <Link
+            href="/admin-head/inventory"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
+              isCollapsed ? "justify-center" : ""
+            )}
+          >
+            <Boxes size={22} className="shrink-0" />
+            {!isCollapsed && <span className="font-medium whitespace-nowrap">INVENTORY</span>}
+          </Link>
+          {isCollapsed && (
+            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">INVENTORY</div>
+              <Link
+                href="/admin-head/inventory"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+              >
+                <Boxes size={18} />
+                <span>Inventory</span>
+              </Link>
+            </div>
+          )}
+        </div>
 
       </nav>
 

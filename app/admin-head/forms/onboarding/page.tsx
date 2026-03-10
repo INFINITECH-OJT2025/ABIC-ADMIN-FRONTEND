@@ -245,19 +245,6 @@ function OnboardingChecklistPageContent() {
     setSelectedDepartmentId(departmentMatch?.id ?? null)
   }, [employeeInfo?.department, departmentsData])
 
-  useEffect(() => {
-    if (loading) return
-    if (employeeInfo) return
-    const firstDepartment = departmentOptions[0]
-    if (!firstDepartment) return
-    const blank = buildBlankRecord(firstDepartment)
-    setEmployeeInfo(blank)
-    setTasks([])
-    const departmentMatch = departmentsData.find((item) => item.name === firstDepartment)
-    setSelectedDepartmentId(departmentMatch?.id ?? null)
-  }, [loading, employeeInfo, departmentOptions, departmentsData])
-
-
   const completionPercentage = useMemo(() => {
     if (tasks.length === 0) return 0;
     const doneTasks = tasks.filter(t => t.status === 'DONE').length;
