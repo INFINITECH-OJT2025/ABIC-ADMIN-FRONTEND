@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\ClearanceChecklistController;
 use App\Http\Controllers\Api\DirectoryController;
+use App\Http\Controllers\Api\HiringController;
 use App\Http\Controllers\Api\OnboardingChecklistController;
 use App\Http\Controllers\Api\DepartmentChecklistTemplateController;
 use App\Http\Controllers\EvaluationController;
@@ -126,4 +127,21 @@ Route::post('/sent-warning-letters', [SentWarningLetterController::class, 'store
 // Warning Letter Email (PDF via SMTP)
 use App\Http\Controllers\Api\WarningLetterMailController;
 Route::post('/warning-letter/send-email', [WarningLetterMailController::class, 'send']);
+
+// Hiring routes
+Route::get('/hiring/interviews', [HiringController::class, 'interviews']);
+Route::post('/hiring/interviews', [HiringController::class, 'storeInterview']);
+Route::put('/hiring/interviews/{id}', [HiringController::class, 'updateInterview']);
+Route::get('/hiring/interviews/final-candidates', [HiringController::class, 'finalCandidates']);
+
+Route::get('/hiring/summaries', [HiringController::class, 'summaries']);
+Route::post('/hiring/summaries', [HiringController::class, 'storeSummary']);
+Route::put('/hiring/summaries/{id}', [HiringController::class, 'updateSummary']);
+
+Route::get('/hiring/job-offers', [HiringController::class, 'jobOffers']);
+Route::post('/hiring/job-offers', [HiringController::class, 'storeJobOffer']);
+Route::put('/hiring/job-offers/{id}', [HiringController::class, 'updateJobOffer']);
+Route::get('/hiring/job-offer-candidates', [HiringController::class, 'jobOfferCandidates']);
+
+Route::get('/hiring/onboarded', [HiringController::class, 'onboarded']);
 

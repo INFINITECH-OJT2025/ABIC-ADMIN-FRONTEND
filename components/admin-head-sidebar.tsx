@@ -120,8 +120,135 @@ export default function AdminHeadSidebar() {
         </div>
       )}
 
-      {/* Navigation Menu */}
+      {/* Navigation Menu - Alphabetically Ordered */}
       <nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar py-2">
+        {/* ACTIVITY LOGS */}
+        <div className="group relative">
+          <Link
+            href="/admin-head"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
+              isCollapsed ? "justify-center" : "",
+            )}
+          >
+            <Activity size={22} className="shrink-0" />
+            {!isCollapsed && (
+              <span className="font-medium whitespace-nowrap">
+                ACTIVITY LOGS
+              </span>
+            )}
+          </Link>
+          {isCollapsed && (
+            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                ACTIVITY LOGS
+              </div>
+              <Link
+                href="/admin-head"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+              >
+                <Activity size={18} />
+                <span>Activity Logs</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* ATTENDANCE with Dropdown */}
+        <div className="group relative">
+          <button
+            onClick={() => setIsAttendanceOpen(!isAttendanceOpen)}
+            className={cn(
+              "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
+              isCollapsed ? "justify-center" : "justify-between",
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <Calendar size={22} className="shrink-0" />
+              {!isCollapsed && (
+                <span className="font-medium whitespace-nowrap">
+                  ATTENDANCE
+                </span>
+              )}
+            </div>
+            {!isCollapsed && (
+              <ChevronDown
+                size={16}
+                className={`transition-transform shrink-0 ${isAttendanceOpen ? "rotate-180" : ""} group-hover:rotate-180`}
+              />
+            )}
+          </button>
+
+          {/* Attendance Dropdown Menu (Hover + Click) */}
+          <div
+            className={`${isCollapsed ? "fixed left-20 top-auto w-56 z-50" : "ml-10 mt-1"} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isAttendanceOpen ? "block" : "hidden"} group-hover:block`}
+          >
+            {isCollapsed && (
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                ATTENDANCE
+              </div>
+            )}
+            <Link
+              href="/admin-head/attendance/leave"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <LogOut size={18} />
+              <span>Leave</span>
+            </Link>
+            <Link
+              href="/admin-head/attendance/leave-credits"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <CalendarDays size={18} />
+              <span>Leave Credits</span>
+            </Link>
+            <Link
+              href="/admin-head/attendance/tardiness"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <Clock size={18} />
+              <span>Tardiness</span>
+            </Link>
+            <Link
+              href="/admin-head/attendance/warning-letter"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <FileText size={18} />
+              <span>Warning Letter</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* DIRECTORY */}
+        <div className="group relative">
+          <Link
+            href="/admin-head/directory"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
+              isCollapsed ? "justify-center" : "",
+            )}
+          >
+            <BookOpen size={22} className="shrink-0" />
+            {!isCollapsed && (
+              <span className="font-medium whitespace-nowrap">DIRECTORY</span>
+            )}
+          </Link>
+          {isCollapsed && (
+            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                DIRECTORY
+              </div>
+              <Link
+                href="/admin-head/directory"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+              >
+                <BookOpen size={18} />
+                <span>Directory</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
         {/* EMPLOYEE with Dropdown */}
         <div className="group relative">
           <button
@@ -181,55 +308,6 @@ export default function AdminHeadSidebar() {
             >
               <CheckSquare size={18} />
               <span>Evaluation</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* HIRING with Dropdown */}
-        <div className="group relative">
-          <button
-            onClick={() => setIsHiringOpen(!isHiringOpen)}
-            className={cn(
-              "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
-              isCollapsed ? "justify-center" : "justify-between",
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <UserPlus size={22} className="shrink-0" />
-              {!isCollapsed && (
-                <span className="font-medium whitespace-nowrap text-xs uppercase">HIRING</span>
-              )}
-            </div>
-            {!isCollapsed && (
-              <ChevronDown
-                size={16}
-                className={`transition-transform shrink-0 ${isHiringOpen ? "rotate-180" : ""} group-hover:rotate-180`}
-              />
-            )}
-          </button>
-
-          {/* Hiring Dropdown Menu (Hover + Click) */}
-          <div
-            className={`${isCollapsed ? "fixed left-20 top-auto w-56 z-50" : "ml-10 mt-1"} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isHiringOpen ? "block" : "hidden"} group-hover:block`}
-          >
-            {isCollapsed && (
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
-                HIRING
-              </div>
-            )}
-            <Link
-              href="/admin-head/hiring"
-              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-            >
-              <FileText size={18} />
-              <span>Hiring Report</span>
-            </Link>
-            <Link
-              href="/admin-head/hiring/applicants"
-              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-            >
-              <Users size={18} />
-              <span>Applicants</span>
             </Link>
           </div>
         </div>
@@ -313,131 +391,53 @@ export default function AdminHeadSidebar() {
           )}
         </div>
 
-        {/* ATTENDANCE with Dropdown */}
+        {/* HIRING with Dropdown */}
         <div className="group relative">
           <button
-            onClick={() => setIsAttendanceOpen(!isAttendanceOpen)}
+            onClick={() => setIsHiringOpen(!isHiringOpen)}
             className={cn(
               "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
               isCollapsed ? "justify-center" : "justify-between",
             )}
           >
             <div className="flex items-center gap-3">
-              <Calendar size={22} className="shrink-0" />
+              <UserPlus size={22} className="shrink-0" />
               {!isCollapsed && (
-                <span className="font-medium whitespace-nowrap">
-                  ATTENDANCE
-                </span>
+                <span className="font-medium whitespace-nowrap">HIRING</span>
               )}
             </div>
             {!isCollapsed && (
               <ChevronDown
                 size={16}
-                className={`transition-transform shrink-0 ${isAttendanceOpen ? "rotate-180" : ""} group-hover:rotate-180`}
+                className={`transition-transform shrink-0 ${isHiringOpen ? "rotate-180" : ""} group-hover:rotate-180`}
               />
             )}
           </button>
 
-          {/* Attendance Dropdown Menu (Hover + Click) */}
+          {/* Hiring Dropdown Menu (Hover + Click) */}
           <div
-            className={`${isCollapsed ? "fixed left-20 top-auto w-56 z-50" : "ml-10 mt-1"} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isAttendanceOpen ? "block" : "hidden"} group-hover:block`}
+            className={`${isCollapsed ? "fixed left-20 top-auto w-56 z-50" : "ml-10 mt-1"} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isHiringOpen ? "block" : "hidden"} group-hover:block`}
           >
             {isCollapsed && (
               <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
-                ATTENDANCE
+                HIRING
               </div>
             )}
             <Link
-              href="/admin-head/attendance/leave"
-              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-            >
-              <LogOut size={18} />
-              <span>Leave</span>
-            </Link>
-            <Link
-              href="/admin-head/attendance/leave-credits"
-              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-            >
-              <CalendarDays size={18} />
-              <span>Leave Credits</span>
-            </Link>
-            <Link
-              href="/admin-head/attendance/tardiness"
-              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-            >
-              <Clock size={18} />
-              <span>Tardiness</span>
-            </Link>
-            <Link
-              href="/admin-head/attendance/warning-letter"
+              href="/admin-head/hiring"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <FileText size={18} />
-              <span>Warning Letter</span>
+              <span>Hiring Report</span>
+            </Link>
+            <Link
+              href="/admin-head/hiring/applicants"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <Users size={18} />
+              <span>Applicants</span>
             </Link>
           </div>
-        </div>
-
-        {/* ACTIVITY LOGS */}
-        <div className="group relative">
-          <Link
-            href="/admin-head"
-            className={cn(
-              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : "",
-            )}
-          >
-            <Activity size={22} className="shrink-0" />
-            {!isCollapsed && (
-              <span className="font-medium whitespace-nowrap">
-                ACTIVITY LOGS
-              </span>
-            )}
-          </Link>
-          {isCollapsed && (
-            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
-                ACTIVITY LOGS
-              </div>
-              <Link
-                href="/admin-head"
-                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-              >
-                <Activity size={18} />
-                <span>Activity Logs</span>
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* DIRECTORY */}
-        <div className="group relative">
-          <Link
-            href="/admin-head/directory"
-            className={cn(
-              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : "",
-            )}
-          >
-            <BookOpen size={22} className="shrink-0" />
-            {!isCollapsed && (
-              <span className="font-medium whitespace-nowrap">DIRECTORY</span>
-            )}
-          </Link>
-          {isCollapsed && (
-            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
-                DIRECTORY
-              </div>
-              <Link
-                href="/admin-head/directory"
-                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-              >
-                <BookOpen size={18} />
-                <span>Directory</span>
-              </Link>
-            </div>
-          )}
         </div>
       </nav>
 
