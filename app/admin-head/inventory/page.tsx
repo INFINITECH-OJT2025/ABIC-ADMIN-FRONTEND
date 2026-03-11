@@ -37,7 +37,7 @@ import { getApiUrl } from '@/lib/api'
 import { ensureOkResponse } from '@/lib/api/error-message'
 import { PageErrorState } from '@/components/state/page-feedback'
 import { toast } from 'sonner'
-import { Boxes, Loader2, RefreshCw, Plus, ArrowDownUp, Search, Building2, AlertTriangle, PackageCheck, ChevronsUpDown, Check } from 'lucide-react'
+import { Boxes, Loader2, RefreshCw, Plus, ArrowDownUp, Search, AlertTriangle, PackageCheck, ChevronsUpDown, Check } from 'lucide-react'
 
 type DepartmentRow = {
   id: number
@@ -328,7 +328,9 @@ export default function InventoryPage() {
 
   const transactionYearOptions = useMemo(() => {
     const years = new Set<number>()
-    years.add(currentYear)
+    for (let year = currentYear; year >= currentYear - 10; year -= 1) {
+      years.add(year)
+    }
     transactions.forEach((row) => {
       const rawDate = String(row.transaction_at || '').trim()
       if (!rawDate) return
@@ -338,7 +340,7 @@ export default function InventoryPage() {
       if (parsedYear <= currentYear) years.add(parsedYear)
     })
     if (transactionYearFilter <= currentYear) years.add(transactionYearFilter)
-    return Array.from(years).sort((a, b) => a - b)
+    return Array.from(years).sort((a, b) => b - a)
   }, [currentYear, transactionYearFilter, transactions])
 
   const adminDepartment = useMemo(() => {
@@ -418,7 +420,9 @@ export default function InventoryPage() {
           return transactionDateFilter ? localDate === transactionDateFilter : true
         }
         if (transactionDateMode === 'month') {
-          return transactionMonthFilter === 'all' ? true : monthValue === transactionMonthFilter
+          const matchesMonth = transactionMonthFilter === 'all' ? true : monthValue === transactionMonthFilter
+          const matchesYear = Number(yearValue) === transactionYearFilter
+          return matchesMonth && matchesYear
         }
         return Number(yearValue) === transactionYearFilter
       })()
@@ -574,19 +578,46 @@ export default function InventoryPage() {
 
   const stats = useMemo(() => {
     const totalItems = items.length
-    const totalStock = items.reduce((sum, item) => sum + Number(item.current_balance || 0), 0)
-    const lowStock = items.filter((item) => Number(item.current_balance || 0) <= 10).length
-    const coveredDepartments = new Set(items.map((item) => item.department_id)).size
-    const latestTimestamp = items.reduce<number>((max, row) => {
-      const parsed = new Date(String(row.last_updated || row.updated_at || '')).getTime()
-      if (Number.isNaN(parsed)) return max
-      return parsed > max ? parsed : max
-    }, NaN)
-    const latestUpdated = Number.isNaN(latestTimestamp)
-      ? '-'
-      : new Date(latestTimestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-    return { totalItems, totalStock, lowStock, coveredDepartments, latestUpdated }
+    const lowStock = items.filter((item) => {
+      const stock = Number(item.current_balance || 0)
+      return stock >= 1 && stock <= 10
+    }).length
+    return { totalItems, lowStock }
   }, [items])
+
+  const currentMonthValue = useMemo(() => todayIsoDate.split('-')[1] || '01', [todayIsoDate])
+  const currentMonthYearLabel = useMemo(() => {
+    const monthIndex = Math.max(0, Number(currentMonthValue) - 1)
+    const parsed = new Date(transactionYearFilter, monthIndex, 1)
+    if (Number.isNaN(parsed.getTime())) return `${transactionYearFilter}`
+    return parsed.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  }, [currentMonthValue, transactionYearFilter])
+
+  const outThisMonth = useMemo(() => {
+    const selectedYear = String(transactionYearFilter)
+    return transactions.reduce((sum, row) => {
+      const rawDate = String(row.transaction_at || '').trim()
+      if (!rawDate) return sum
+      const parsed = new Date(rawDate)
+      if (Number.isNaN(parsed.getTime())) return sum
+      const [yearValue, monthValue] = toLocalIsoDate(parsed).split('-')
+      if (yearValue !== selectedYear || monthValue !== currentMonthValue) return sum
+      return sum + Number(row.quantity_out || 0)
+    }, 0)
+  }, [currentMonthValue, transactionYearFilter, transactions])
+
+  const noStockItemsCount = useMemo(
+    () => items.filter((item) => Number(item.current_balance || 0) === 0).length,
+    [items]
+  )
+  const noStockPercentage = useMemo(
+    () => (stats.totalItems > 0 ? (noStockItemsCount / stats.totalItems) * 100 : 0),
+    [noStockItemsCount, stats.totalItems]
+  )
+  const lowStockPercentage = useMemo(
+    () => (stats.totalItems > 0 ? (stats.lowStock / stats.totalItems) * 100 : 0),
+    [stats.lowStock, stats.totalItems]
+  )
 
   const loadItems = async (year: number) => {
     try {
@@ -969,31 +1000,74 @@ export default function InventoryPage() {
 
       <main className="w-full max-w-[1700px] mx-auto px-4 md:px-8 py-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <Card className="border border-slate-200 rounded-sm p-4 shadow-sm">
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Inventory Items</p>
-            {loadingItems ? <Skeleton className="h-9 w-20 mt-2" /> : <p className="text-3xl font-black text-slate-900 mt-1">{stats.totalItems}</p>}
-          </Card>
-          <Card className="border border-slate-200 rounded-sm p-4 shadow-sm">
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Total Stock</p>
-            {loadingItems ? <Skeleton className="h-9 w-20 mt-2" /> : <p className="text-3xl font-black text-slate-900 mt-1">{stats.totalStock}</p>}
-          </Card>
-          <Card className="border border-slate-200 rounded-sm p-4 shadow-sm">
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Low Stock (&lt;=10)</p>
+          <Card className="border border-slate-200 rounded-sm p-4 shadow-sm bg-white">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Inventory Items</p>
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-700">
+                <Boxes className="h-4 w-4" />
+              </span>
+            </div>
             {loadingItems ? (
               <Skeleton className="h-9 w-20 mt-2" />
             ) : (
-              <p className={cn('text-3xl font-black mt-1', stats.lowStock > 0 ? 'text-rose-700' : 'text-emerald-700')}>{stats.lowStock}</p>
+              <>
+                <p className="text-3xl font-black text-slate-900 mt-1">{stats.totalItems}</p>
+                <p className="text-xs font-semibold text-slate-500 mt-1">Tracked office supply items</p>
+              </>
             )}
           </Card>
-          <Card className="border border-slate-200 rounded-sm p-4 shadow-sm">
-            <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Departments Covered</p>
+          <Card className="border border-rose-200 rounded-sm p-4 shadow-sm bg-rose-50/50">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[11px] font-black uppercase tracking-wider text-rose-700">No Stock Items</p>
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-rose-100 text-rose-700">
+                <AlertTriangle className="h-4 w-4" />
+              </span>
+            </div>
             {loadingItems ? (
               <Skeleton className="h-9 w-20 mt-2" />
             ) : (
-              <p className="text-3xl font-black text-slate-900 mt-1 inline-flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-slate-500" />
-                {stats.coveredDepartments}
-              </p>
+              <>
+                <p className="text-3xl font-black text-rose-700 mt-1">{noStockItemsCount}</p>
+                <p className="text-xs font-semibold text-rose-700/90 mt-1">Items with current balance of 0</p>
+                <div className="mt-2 h-1.5 rounded-full bg-rose-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-rose-500 transition-[width] duration-500" style={{ width: `${Math.min(noStockPercentage, 100)}%` }} />
+                </div>
+              </>
+            )}
+          </Card>
+          <Card className="border border-amber-200 rounded-sm p-4 shadow-sm bg-amber-50/50">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[11px] font-black uppercase tracking-wider text-amber-700">Low Stock (1-10)</p>
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+                <PackageCheck className="h-4 w-4" />
+              </span>
+            </div>
+            {loadingItems ? (
+              <Skeleton className="h-9 w-20 mt-2" />
+            ) : (
+              <>
+                <p className={cn('text-3xl font-black mt-1', stats.lowStock > 0 ? 'text-amber-700' : 'text-emerald-700')}>{stats.lowStock}</p>
+                <p className="text-xs font-semibold text-amber-700/90 mt-1">Items with balance from 1 to 10</p>
+                <div className="mt-2 h-1.5 rounded-full bg-amber-100 overflow-hidden">
+                  <div className="h-full rounded-full bg-amber-500 transition-[width] duration-500" style={{ width: `${Math.min(lowStockPercentage, 100)}%` }} />
+                </div>
+              </>
+            )}
+          </Card>
+          <Card className="border border-sky-200 rounded-sm p-4 shadow-sm bg-sky-50/50">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-[11px] font-black uppercase tracking-wider text-sky-700">Out This Month</p>
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700">
+                <ArrowDownUp className="h-4 w-4" />
+              </span>
+            </div>
+            {loadingTransactions ? (
+              <Skeleton className="h-9 w-20 mt-2" />
+            ) : (
+              <>
+                <p className="text-3xl font-black text-sky-700 mt-1">{outThisMonth}</p>
+                <p className="text-xs font-semibold text-sky-700/90 mt-1">Quantity out for {currentMonthYearLabel}</p>
+              </>
             )}
           </Card>
         </div>
@@ -1435,19 +1509,31 @@ export default function InventoryPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedFilteredItems.map((item) => (
-                    <TableRow key={item.id} className="border-b border-slate-100 hover:bg-slate-50/60 animate-in fade-in slide-in-from-bottom-1 duration-300">
-                      <TableCell className="font-black text-slate-700">{item.item_code}</TableCell>
-                      <TableCell className="font-semibold text-slate-700">{item.item_name}</TableCell>
-                      <TableCell>{item.category}</TableCell>
-                      <TableCell className="text-right">
-                        <Badge className={cn('rounded-sm border', getStockBadgeTone(Number(item.current_balance || 0)))}>
-                          {item.current_balance}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(item.last_updated)}</TableCell>
-                    </TableRow>
-                  ))
+                  paginatedFilteredItems.map((item) => {
+                    const currentStock = Number(item.current_balance || 0)
+                    const rowToneClass = currentStock === 0
+                      ? 'bg-rose-50/60 border-rose-100 hover:bg-rose-100/60'
+                      : currentStock >= 1 && currentStock <= 10
+                        ? 'bg-amber-50/70 border-amber-100 hover:bg-amber-100/70'
+                        : 'border-slate-100 hover:bg-slate-50/60'
+
+                    return (
+                      <TableRow
+                        key={item.id}
+                        className={cn('border-b animate-in fade-in slide-in-from-bottom-1 duration-300', rowToneClass)}
+                      >
+                        <TableCell className="font-black text-slate-700">{item.item_code}</TableCell>
+                        <TableCell className="font-semibold text-slate-700">{item.item_name}</TableCell>
+                        <TableCell>{item.category}</TableCell>
+                        <TableCell className="text-right">
+                          <Badge className={cn('rounded-sm border', getStockBadgeTone(currentStock))}>
+                            {item.current_balance}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{formatDate(item.last_updated)}</TableCell>
+                      </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>
@@ -1559,7 +1645,7 @@ export default function InventoryPage() {
                 </Select>
               ) : null}
 
-              {transactionDateMode === 'year' ? (
+              {transactionDateMode !== 'date' ? (
                 <Select
                   value={String(transactionYearFilter)}
                   onValueChange={(value) => setTransactionYearFilter(Math.min(Number(value), currentYear))}
@@ -1655,25 +1741,29 @@ export default function InventoryPage() {
                       className="rounded-md border border-slate-200 bg-slate-50/70 p-3 min-h-[112px] animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
                     >
                       {hoveredTopItemKey ? (
-                        <>
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">
+                        <div key={`top-item-hover-content-${hoveredTopItemKey}`} className="animate-in fade-in-0 zoom-in-95 duration-200">
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 animate-in fade-in-0 slide-in-from-top-1 duration-200">
                             {topItemsByQuantityOut.find((row) => row.key === hoveredTopItemKey)?.label || 'Item'} by Department
                           </p>
                           <div className="mt-2 space-y-1.5">
                             {(topItemDepartmentBreakdown[hoveredTopItemKey] ?? []).length === 0 ? (
-                              <p className="text-xs font-semibold text-slate-500">No department breakdown available.</p>
+                              <p className="text-xs font-semibold text-slate-500 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">No department breakdown available.</p>
                             ) : (
-                              (topItemDepartmentBreakdown[hoveredTopItemKey] ?? []).map((entry) => (
-                                <div key={`top-item-dept-${hoveredTopItemKey}-${entry.department}`} className="flex items-center justify-between gap-2 text-xs">
+                              (topItemDepartmentBreakdown[hoveredTopItemKey] ?? []).map((entry, entryIndex) => (
+                                <div
+                                  key={`top-item-dept-${hoveredTopItemKey}-${entry.department}`}
+                                  className="flex items-center justify-between gap-2 text-xs animate-in fade-in-0 slide-in-from-left-2 duration-300"
+                                  style={{ animationDelay: `${Math.min(entryIndex * 45, 220)}ms` }}
+                                >
                                   <span className="truncate text-slate-600">{entry.department}</span>
                                   <span className="font-semibold text-rose-700">{entry.quantityOut}</span>
                                 </div>
                               ))
                             )}
                           </div>
-                        </>
+                        </div>
                       ) : (
-                        <p className="text-xs font-semibold text-slate-500">Hover an item bar to see which departments contributed to its quantity out.</p>
+                        <p className="text-xs font-semibold text-slate-500 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">Hover an item bar to see which departments contributed to its quantity out.</p>
                       )}
                     </div>
                   </>
@@ -1725,25 +1815,29 @@ export default function InventoryPage() {
                       className="rounded-md border border-slate-200 bg-slate-50/70 p-3 min-h-[112px] animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
                     >
                       {hoveredDepartmentLabel ? (
-                        <>
-                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">
+                        <div key={`department-hover-content-${hoveredDepartmentLabel}`} className="animate-in fade-in-0 zoom-in-95 duration-200">
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600 animate-in fade-in-0 slide-in-from-top-1 duration-200">
                             {hoveredDepartmentLabel} Top Items (Out)
                           </p>
                           <div className="mt-2 space-y-1.5">
                             {(departmentItemBreakdown[hoveredDepartmentLabel] ?? []).length === 0 ? (
-                              <p className="text-xs font-semibold text-slate-500">No item breakdown available.</p>
+                              <p className="text-xs font-semibold text-slate-500 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">No item breakdown available.</p>
                             ) : (
-                              (departmentItemBreakdown[hoveredDepartmentLabel] ?? []).map((entry) => (
-                                <div key={`department-item-out-${hoveredDepartmentLabel}-${entry.itemLabel}`} className="flex items-center justify-between gap-2 text-xs">
+                              (departmentItemBreakdown[hoveredDepartmentLabel] ?? []).map((entry, entryIndex) => (
+                                <div
+                                  key={`department-item-out-${hoveredDepartmentLabel}-${entry.itemLabel}`}
+                                  className="flex items-center justify-between gap-2 text-xs animate-in fade-in-0 slide-in-from-left-2 duration-300"
+                                  style={{ animationDelay: `${Math.min(entryIndex * 45, 220)}ms` }}
+                                >
                                   <span className="truncate text-slate-600">{entry.itemLabel}</span>
                                   <span className="font-semibold text-rose-700">{entry.quantityOut}</span>
                                 </div>
                               ))
                             )}
                           </div>
-                        </>
+                        </div>
                       ) : (
-                        <p className="text-xs font-semibold text-slate-500">Hover a department out bar to see which items drove its quantity out.</p>
+                        <p className="text-xs font-semibold text-slate-500 animate-in fade-in-0 slide-in-from-bottom-1 duration-200">Hover a department out bar to see which items drove its quantity out.</p>
                       )}
                     </div>
                   </>
@@ -1855,7 +1949,7 @@ export default function InventoryPage() {
           <Card className="border border-rose-200 bg-rose-50/70 rounded-sm px-4 py-3">
             <p className="text-[12px] font-bold text-rose-700 inline-flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
-              {stats.lowStock} item{stats.lowStock > 1 ? 's are' : ' is'} in low stock (10 or below). Consider restocking soon.
+              {stats.lowStock} item{stats.lowStock > 1 ? 's are' : ' is'} in low stock (1 to 10). Consider restocking soon.
             </p>
           </Card>
         ) : (
