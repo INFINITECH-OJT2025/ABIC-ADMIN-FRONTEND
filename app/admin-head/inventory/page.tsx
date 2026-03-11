@@ -25,6 +25,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Table,
   TableBody,
   TableCell,
@@ -103,6 +111,11 @@ type TransactionDraft = {
   transaction_date: string
   issued_log: string
   requested_by_employee_id: string
+}
+type CreateItemConfirmDraft = {
+  item_name: string
+  category: string
+  opening_balance: number
 }
 type MovementType = 'in' | 'out'
 type TransactionDateMode = 'date' | 'month' | 'year'
@@ -194,6 +207,52 @@ const blockNonIntegerKey = (event: React.KeyboardEvent<HTMLInputElement>) => {
   }
 }
 
+const useCountUp = (
+  target: number,
+  enabled: boolean,
+  triggerKey: number,
+  duration = 900,
+  delay = 0
+): number => {
+  const [displayValue, setDisplayValue] = useState(0)
+
+  useEffect(() => {
+    if (!enabled) {
+      setDisplayValue(target)
+      return
+    }
+
+    let rafId = 0
+    let startTime: number | null = null
+    setDisplayValue(0)
+
+    const step = (timestamp: number) => {
+      if (startTime === null) startTime = timestamp
+      const elapsed = timestamp - startTime
+      const progress = Math.min(1, elapsed / duration)
+      const easedProgress = 1 - Math.pow(1 - progress, 3)
+      const nextValue = Math.round(target * easedProgress)
+      setDisplayValue(nextValue)
+      if (progress < 1) {
+        rafId = window.requestAnimationFrame(step)
+      } else {
+        setDisplayValue(target)
+      }
+    }
+
+    const timer = window.setTimeout(() => {
+      rafId = window.requestAnimationFrame(step)
+    }, delay)
+
+    return () => {
+      window.clearTimeout(timer)
+      window.cancelAnimationFrame(rafId)
+    }
+  }, [delay, duration, enabled, target, triggerKey])
+
+  return displayValue
+}
+
 export default function InventoryPage() {
   const currentYear = new Date().getFullYear()
   const todayIsoDate = getCurrentIsoDate()
@@ -214,6 +273,8 @@ export default function InventoryPage() {
   const [loadingTransactions, setLoadingTransactions] = useState(false)
   const [savingItem, setSavingItem] = useState(false)
   const [savingTransaction, setSavingTransaction] = useState(false)
+  const [createItemConfirmOpen, setCreateItemConfirmOpen] = useState(false)
+  const [createItemConfirmDraft, setCreateItemConfirmDraft] = useState<CreateItemConfirmDraft | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [stockFilter, setStockFilter] = useState<'all' | 'no-stock' | 'low-stock' | 'high-stock'>('all')
@@ -230,6 +291,9 @@ export default function InventoryPage() {
   const [employeePickerOpen, setEmployeePickerOpen] = useState(false)
   const [visualizationAnimated, setVisualizationAnimated] = useState(false)
   const [visualizationTopLimit, setVisualizationTopLimit] = useState<VisualizationTopLimit>('5')
+  const [itemStatsAnimationKey, setItemStatsAnimationKey] = useState(0)
+  const [outStatsAnimationKey, setOutStatsAnimationKey] = useState(0)
+  const [statsVisualsAnimated, setStatsVisualsAnimated] = useState(false)
   const [hoveredTopItemKey, setHoveredTopItemKey] = useState<string | null>(null)
   const [hoveredDepartmentLabel, setHoveredDepartmentLabel] = useState<string | null>(null)
 
@@ -618,6 +682,10 @@ export default function InventoryPage() {
     () => (stats.totalItems > 0 ? (stats.lowStock / stats.totalItems) * 100 : 0),
     [stats.lowStock, stats.totalItems]
   )
+  const animatedTotalItems = useCountUp(stats.totalItems, !loadingItems, itemStatsAnimationKey, 900, 0)
+  const animatedNoStockItems = useCountUp(noStockItemsCount, !loadingItems, itemStatsAnimationKey, 900, 80)
+  const animatedLowStock = useCountUp(stats.lowStock, !loadingItems, itemStatsAnimationKey, 900, 160)
+  const animatedOutThisMonth = useCountUp(outThisMonth, !loadingTransactions, outStatsAnimationKey, 1000, 120)
 
   const loadItems = async (year: number) => {
     try {
@@ -762,6 +830,24 @@ export default function InventoryPage() {
   }, [transactionsTotalPages])
 
   useEffect(() => {
+    if (loadingItems) return
+    setItemStatsAnimationKey((prev) => prev + 1)
+  }, [loadingItems, noStockItemsCount, stats.lowStock, stats.totalItems])
+
+  useEffect(() => {
+    if (loadingTransactions) return
+    setOutStatsAnimationKey((prev) => prev + 1)
+  }, [loadingTransactions, outThisMonth])
+
+  useEffect(() => {
+    setStatsVisualsAnimated(false)
+    const timer = window.setTimeout(() => {
+      setStatsVisualsAnimated(true)
+    }, 40)
+    return () => window.clearTimeout(timer)
+  }, [itemStatsAnimationKey, outStatsAnimationKey])
+
+  useEffect(() => {
     setVisualizationAnimated(false)
     setHoveredTopItemKey(null)
     setHoveredDepartmentLabel(null)
@@ -800,21 +886,8 @@ export default function InventoryPage() {
     }))
   }
 
-  const createItem = async () => {
-    if (!canEditItemSetup) {
-      toast.warning('Edit Restricted', {
-        description: 'Item setup can only be edited for past or present years.',
-      })
-      return
-    }
-
-    if (isDuplicateItemName) {
-      toast.warning('Duplicate Item', {
-        description: 'An inventory item with the same name already exists.',
-      })
-      return
-    }
-
+  const executeCreateItem = async () => {
+    if (!createItemConfirmDraft) return
     try {
       setSavingItem(true)
       if (!adminDepartment) {
@@ -824,10 +897,10 @@ export default function InventoryPage() {
         return
       }
       const payload = {
-        item_name: itemDraft.item_name.trim(),
-        category: itemDraft.category.trim(),
+        item_name: createItemConfirmDraft.item_name,
+        category: createItemConfirmDraft.category,
         department_id: Number(adminDepartment.id),
-        opening_balance: Number(itemDraft.opening_balance || 0),
+        opening_balance: createItemConfirmDraft.opening_balance,
       }
 
       const response = await fetch(`${getApiUrl()}/api/office-supply/items`, {
@@ -845,6 +918,8 @@ export default function InventoryPage() {
         ...initialItemDraft,
         department_id: String(adminDepartment.id),
       })
+      setCreateItemConfirmOpen(false)
+      setCreateItemConfirmDraft(null)
       await loadItems(selectedYear)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create inventory item.'
@@ -852,6 +927,40 @@ export default function InventoryPage() {
     } finally {
       setSavingItem(false)
     }
+  }
+
+  const createItem = async () => {
+    if (!canEditItemSetup) {
+      toast.warning('Edit Restricted', {
+        description: 'Item setup can only be edited for past or present years.',
+      })
+      return
+    }
+
+    if (isDuplicateItemName) {
+      toast.warning('Duplicate Item', {
+        description: 'An inventory item with the same name already exists.',
+      })
+      return
+    }
+
+    const itemName = itemDraft.item_name.trim()
+    const category = itemDraft.category.trim()
+    const openingBalance = Number(itemDraft.opening_balance || 0)
+
+    if (!itemName || !category) {
+      toast.warning('Missing Item Details', {
+        description: 'Please provide both Item Name and Category before creating the item.',
+      })
+      return
+    }
+
+    setCreateItemConfirmDraft({
+      item_name: itemName,
+      category,
+      opening_balance: openingBalance,
+    })
+    setCreateItemConfirmOpen(true)
   }
 
   const createTransaction = async () => {
@@ -1000,7 +1109,13 @@ export default function InventoryPage() {
 
       <main className="w-full max-w-[1700px] mx-auto px-4 md:px-8 py-8 space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <Card className="border border-slate-200 rounded-sm p-4 shadow-sm bg-white">
+          <Card
+            className={cn(
+              'border border-slate-200 rounded-sm p-4 shadow-sm bg-white transition-all duration-500',
+              statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+            )}
+            style={{ transitionDelay: '0ms' }}
+          >
             <div className="flex items-start justify-between gap-3">
               <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Inventory Items</p>
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-700">
@@ -1011,12 +1126,18 @@ export default function InventoryPage() {
               <Skeleton className="h-9 w-20 mt-2" />
             ) : (
               <>
-                <p className="text-3xl font-black text-slate-900 mt-1">{stats.totalItems}</p>
+                <p className="text-3xl font-black text-slate-900 mt-1 tabular-nums">{animatedTotalItems}</p>
                 <p className="text-xs font-semibold text-slate-500 mt-1">Tracked office supply items</p>
               </>
             )}
           </Card>
-          <Card className="border border-rose-200 rounded-sm p-4 shadow-sm bg-rose-50/50">
+          <Card
+            className={cn(
+              'border border-rose-200 rounded-sm p-4 shadow-sm bg-rose-50/50 transition-all duration-500',
+              statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+            )}
+            style={{ transitionDelay: '60ms' }}
+          >
             <div className="flex items-start justify-between gap-3">
               <p className="text-[11px] font-black uppercase tracking-wider text-rose-700">No Stock Items</p>
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-rose-100 text-rose-700">
@@ -1027,15 +1148,24 @@ export default function InventoryPage() {
               <Skeleton className="h-9 w-20 mt-2" />
             ) : (
               <>
-                <p className="text-3xl font-black text-rose-700 mt-1">{noStockItemsCount}</p>
+                <p className="text-3xl font-black text-rose-700 mt-1 tabular-nums">{animatedNoStockItems}</p>
                 <p className="text-xs font-semibold text-rose-700/90 mt-1">Items with current balance of 0</p>
                 <div className="mt-2 h-1.5 rounded-full bg-rose-100 overflow-hidden">
-                  <div className="h-full rounded-full bg-rose-500 transition-[width] duration-500" style={{ width: `${Math.min(noStockPercentage, 100)}%` }} />
+                  <div
+                    className="h-full rounded-full bg-rose-500 transition-[width] duration-700"
+                    style={{ width: statsVisualsAnimated ? `${Math.min(noStockPercentage, 100)}%` : '0%' }}
+                  />
                 </div>
               </>
             )}
           </Card>
-          <Card className="border border-amber-200 rounded-sm p-4 shadow-sm bg-amber-50/50">
+          <Card
+            className={cn(
+              'border border-amber-200 rounded-sm p-4 shadow-sm bg-amber-50/50 transition-all duration-500',
+              statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+            )}
+            style={{ transitionDelay: '120ms' }}
+          >
             <div className="flex items-start justify-between gap-3">
               <p className="text-[11px] font-black uppercase tracking-wider text-amber-700">Low Stock (1-10)</p>
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-amber-700">
@@ -1046,15 +1176,24 @@ export default function InventoryPage() {
               <Skeleton className="h-9 w-20 mt-2" />
             ) : (
               <>
-                <p className={cn('text-3xl font-black mt-1', stats.lowStock > 0 ? 'text-amber-700' : 'text-emerald-700')}>{stats.lowStock}</p>
+                <p className={cn('text-3xl font-black mt-1 tabular-nums', stats.lowStock > 0 ? 'text-amber-700' : 'text-emerald-700')}>{animatedLowStock}</p>
                 <p className="text-xs font-semibold text-amber-700/90 mt-1">Items with balance from 1 to 10</p>
                 <div className="mt-2 h-1.5 rounded-full bg-amber-100 overflow-hidden">
-                  <div className="h-full rounded-full bg-amber-500 transition-[width] duration-500" style={{ width: `${Math.min(lowStockPercentage, 100)}%` }} />
+                  <div
+                    className="h-full rounded-full bg-amber-500 transition-[width] duration-700"
+                    style={{ width: statsVisualsAnimated ? `${Math.min(lowStockPercentage, 100)}%` : '0%' }}
+                  />
                 </div>
               </>
             )}
           </Card>
-          <Card className="border border-sky-200 rounded-sm p-4 shadow-sm bg-sky-50/50">
+          <Card
+            className={cn(
+              'border border-sky-200 rounded-sm p-4 shadow-sm bg-sky-50/50 transition-all duration-500',
+              statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+            )}
+            style={{ transitionDelay: '180ms' }}
+          >
             <div className="flex items-start justify-between gap-3">
               <p className="text-[11px] font-black uppercase tracking-wider text-sky-700">Out This Month</p>
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-sky-700">
@@ -1065,15 +1204,30 @@ export default function InventoryPage() {
               <Skeleton className="h-9 w-20 mt-2" />
             ) : (
               <>
-                <p className="text-3xl font-black text-sky-700 mt-1">{outThisMonth}</p>
-                <p className="text-xs font-semibold text-sky-700/90 mt-1">Quantity out for {currentMonthYearLabel}</p>
+                <p className="text-3xl font-black text-sky-700 mt-1 tabular-nums">{animatedOutThisMonth}</p>
+                <p className="text-xs font-semibold text-sky-700/90 mt-1 inline-flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-500 animate-pulse" />
+                  Quantity out for {currentMonthYearLabel}
+                </p>
               </>
             )}
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <Card className="border border-slate-200 rounded-sm shadow-sm overflow-hidden h-full flex flex-col">
+        <div
+          className={cn(
+            'grid grid-cols-1 xl:grid-cols-2 gap-6 transition-all duration-500',
+            statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          )}
+          style={{ transitionDelay: '220ms' }}
+        >
+        <Card
+          className={cn(
+            'border border-slate-200 rounded-sm shadow-sm overflow-hidden h-full flex flex-col transition-all duration-500',
+            statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          )}
+          style={{ transitionDelay: '260ms' }}
+        >
           <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-white to-rose-50/40">
             <p className="text-xs font-black uppercase tracking-[0.2em] text-[#A4163A]">Item Setup</p>
             <h2 className="text-lg font-black text-slate-900 mt-1">Create New Inventory Item</h2>
@@ -1168,7 +1322,13 @@ export default function InventoryPage() {
           </div>
         </Card>
 
-        <Card className="border border-slate-200 rounded-sm shadow-sm overflow-hidden h-full flex flex-col">
+        <Card
+          className={cn(
+            'border border-slate-200 rounded-sm shadow-sm overflow-hidden h-full flex flex-col transition-all duration-500',
+            statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          )}
+          style={{ transitionDelay: '320ms' }}
+        >
           <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-white to-rose-50/40">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
@@ -1438,7 +1598,13 @@ export default function InventoryPage() {
         </Card>
       </div>
 
-        <Card className="border border-slate-200 rounded-sm shadow-sm overflow-hidden">
+        <Card
+          className={cn(
+            'border border-slate-200 rounded-sm shadow-sm overflow-hidden transition-all duration-500',
+            statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          )}
+          style={{ transitionDelay: '380ms' }}
+        >
           <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/70 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
             <div>
               <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#A4163A]">Inventory Register</p>
@@ -1573,7 +1739,13 @@ export default function InventoryPage() {
           ) : null}
         </Card>
 
-        <Card className="border border-slate-200 rounded-sm shadow-sm overflow-hidden">
+        <Card
+          className={cn(
+            'border border-slate-200 rounded-sm shadow-sm overflow-hidden transition-all duration-500',
+            statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+          )}
+          style={{ transitionDelay: '440ms' }}
+        >
           <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/70 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -1946,20 +2118,100 @@ export default function InventoryPage() {
         </Card>
 
         {stats.lowStock > 0 ? (
-          <Card className="border border-rose-200 bg-rose-50/70 rounded-sm px-4 py-3">
+          <Card
+            className={cn(
+              'border border-rose-200 bg-rose-50/70 rounded-sm px-4 py-3 transition-all duration-500',
+              statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+            )}
+            style={{ transitionDelay: '520ms' }}
+          >
             <p className="text-[12px] font-bold text-rose-700 inline-flex items-center gap-2">
               <AlertTriangle className="h-4 w-4" />
               {stats.lowStock} item{stats.lowStock > 1 ? 's are' : ' is'} in low stock (1 to 10). Consider restocking soon.
             </p>
           </Card>
         ) : (
-          <Card className="border border-emerald-200 bg-emerald-50/70 rounded-sm px-4 py-3">
+          <Card
+            className={cn(
+              'border border-emerald-200 bg-emerald-50/70 rounded-sm px-4 py-3 transition-all duration-500',
+              statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+            )}
+            style={{ transitionDelay: '520ms' }}
+          >
             <p className="text-[12px] font-bold text-emerald-700 inline-flex items-center gap-2">
               <PackageCheck className="h-4 w-4" />
               All tracked inventory items are above low-stock threshold.
             </p>
           </Card>
         )}
+
+        <Dialog
+          open={createItemConfirmOpen}
+          onOpenChange={(open) => {
+            if (savingItem) return
+            setCreateItemConfirmOpen(open)
+            if (!open) setCreateItemConfirmDraft(null)
+          }}
+        >
+          <DialogContent className="bg-white border-2 border-[#FFE5EC] rounded-2xl sm:max-w-md p-0 overflow-hidden">
+            <div className="px-6 pt-6 pb-2">
+              <DialogHeader className="flex flex-col items-center gap-4 text-center">
+                <div className="p-4 bg-rose-50 rounded-full border border-rose-100">
+                  <Plus className="w-7 h-7 text-[#A4163A]" />
+                </div>
+                <div className="space-y-1">
+                  <DialogTitle className="text-2xl font-bold text-[#4A081A]">Confirm Add Item</DialogTitle>
+                  <DialogDescription className="text-stone-500 font-medium">
+                    Review the details below before adding this inventory item.
+                  </DialogDescription>
+                </div>
+              </DialogHeader>
+              <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50/50 p-4 space-y-2 text-left">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Item</span>
+                  <span className="text-sm font-bold text-slate-800">{createItemConfirmDraft?.item_name || '-'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Category</span>
+                  <span className="text-sm font-bold text-slate-800">{createItemConfirmDraft?.category || '-'}</span>
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Beginning Balance</span>
+                  <span className="text-sm font-bold text-[#A4163A]">{createItemConfirmDraft?.opening_balance ?? 0}</span>
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="px-6 pb-6 flex flex-col sm:flex-row gap-3 mt-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setCreateItemConfirmOpen(false)
+                  setCreateItemConfirmDraft(null)
+                }}
+                disabled={savingItem}
+                className="flex-1 border-2 border-stone-100 text-stone-600 hover:bg-stone-50 font-bold h-12 rounded-xl"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => void executeCreateItem()}
+                disabled={savingItem || !createItemConfirmDraft}
+                className="flex-1 bg-gradient-to-r from-[#4A081A] to-[#800020] hover:from-[#630C22] hover:to-[#A0153E] text-white font-bold h-12 rounded-xl shadow-md transition-all active:scale-95"
+              >
+                {savingItem ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  'Confirm Add'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </div>
   )
