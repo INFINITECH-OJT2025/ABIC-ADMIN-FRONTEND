@@ -106,6 +106,7 @@ type TransactionDraft = {
 }
 type MovementType = 'in' | 'out'
 type TransactionDateMode = 'date' | 'month' | 'year'
+type VisualizationTopLimit = '5' | '8' | '10'
 
 const initialItemDraft: ItemDraft = {
   item_name: '',
@@ -227,6 +228,10 @@ export default function InventoryPage() {
   const [transactionsPage, setTransactionsPage] = useState(1)
   const [itemPickerOpen, setItemPickerOpen] = useState(false)
   const [employeePickerOpen, setEmployeePickerOpen] = useState(false)
+  const [visualizationAnimated, setVisualizationAnimated] = useState(false)
+  const [visualizationTopLimit, setVisualizationTopLimit] = useState<VisualizationTopLimit>('5')
+  const [hoveredTopItemKey, setHoveredTopItemKey] = useState<string | null>(null)
+  const [hoveredDepartmentLabel, setHoveredDepartmentLabel] = useState<string | null>(null)
 
   const adminHeadEmployee = useMemo(() => {
     return employees.find((employee) => String(employee.position || '').trim().toLowerCase() === 'admin head') ?? null
@@ -438,6 +443,125 @@ export default function InventoryPage() {
     transactionDepartmentFilter,
   ])
 
+  const visualizationTopCount = Number(visualizationTopLimit)
+
+  const topItemsByQuantityOut = useMemo(() => {
+    const totals = new Map<string, { key: string; label: string; quantityOut: number }>()
+    filteredTransactions.forEach((row) => {
+      const itemCode = String(row.item_code || '').trim()
+      const itemName = String(row.item_name || '').trim()
+      const key = `${itemCode}::${itemName}`.trim()
+      if (!key) return
+      const current = totals.get(key) ?? {
+        key,
+        label: itemCode && itemName ? `${itemCode} - ${itemName}` : itemCode || itemName || 'Unknown Item',
+        quantityOut: 0,
+      }
+      current.quantityOut += Number(row.quantity_out || 0)
+      totals.set(key, current)
+    })
+    return Array.from(totals.values())
+      .filter((row) => row.quantityOut > 0)
+      .sort((a, b) => b.quantityOut - a.quantityOut)
+      .slice(0, visualizationTopCount)
+  }, [filteredTransactions, visualizationTopCount])
+
+  const topItemsByQuantityOutMax = useMemo(
+    () => Math.max(1, ...topItemsByQuantityOut.map((row) => row.quantityOut)),
+    [topItemsByQuantityOut]
+  )
+
+  const topItemDepartmentBreakdown = useMemo(() => {
+    const breakdownByItem = new Map<string, Map<string, number>>()
+    filteredTransactions.forEach((row) => {
+      const itemCode = String(row.item_code || '').trim()
+      const itemName = String(row.item_name || '').trim()
+      const itemKey = `${itemCode}::${itemName}`.trim()
+      const quantityOut = Number(row.quantity_out || 0)
+      if (!itemKey || quantityOut <= 0) return
+
+      const departmentLabel = String(row.department_name || '').trim() || 'Unassigned'
+      const itemBreakdown = breakdownByItem.get(itemKey) ?? new Map<string, number>()
+      itemBreakdown.set(departmentLabel, (itemBreakdown.get(departmentLabel) ?? 0) + quantityOut)
+      breakdownByItem.set(itemKey, itemBreakdown)
+    })
+
+    return topItemsByQuantityOut.reduce((acc, row) => {
+      const entries = Array.from((breakdownByItem.get(row.key) ?? new Map<string, number>()).entries())
+        .map(([department, quantityOut]) => ({ department, quantityOut }))
+        .sort((a, b) => b.quantityOut - a.quantityOut)
+      acc[row.key] = entries
+      return acc
+    }, {} as Record<string, Array<{ department: string; quantityOut: number }>>)
+  }, [filteredTransactions, topItemsByQuantityOut])
+
+  const departmentOutData = useMemo(() => {
+    const totals = new Map<string, { label: string; quantityOut: number }>()
+    filteredTransactions.forEach((row) => {
+      const label = String(row.department_name || '').trim() || 'Unassigned'
+      const current = totals.get(label) ?? { label, quantityOut: 0 }
+      current.quantityOut += Number(row.quantity_out || 0)
+      totals.set(label, current)
+    })
+    return Array.from(totals.values())
+      .filter((row) => row.quantityOut > 0)
+      .sort((a, b) => b.quantityOut - a.quantityOut)
+      .slice(0, visualizationTopCount)
+  }, [filteredTransactions, visualizationTopCount])
+
+  const departmentOutMax = useMemo(
+    () => Math.max(1, ...departmentOutData.map((row) => row.quantityOut)),
+    [departmentOutData]
+  )
+
+  const departmentItemBreakdown = useMemo(() => {
+    const breakdownByDepartment = new Map<string, Map<string, number>>()
+    filteredTransactions.forEach((row) => {
+      const departmentLabel = String(row.department_name || '').trim() || 'Unassigned'
+      const itemCode = String(row.item_code || '').trim()
+      const itemName = String(row.item_name || '').trim()
+      const itemLabel = itemCode && itemName ? `${itemCode} - ${itemName}` : itemCode || itemName || 'Unknown Item'
+      const quantityOut = Number(row.quantity_out || 0)
+      if (quantityOut <= 0) return
+
+      const departmentBreakdown = breakdownByDepartment.get(departmentLabel) ?? new Map<string, number>()
+      departmentBreakdown.set(itemLabel, (departmentBreakdown.get(itemLabel) ?? 0) + quantityOut)
+      breakdownByDepartment.set(departmentLabel, departmentBreakdown)
+    })
+
+    return departmentOutData.reduce((acc, row) => {
+      const entries = Array.from((breakdownByDepartment.get(row.label) ?? new Map<string, number>()).entries())
+        .map(([itemLabel, quantityOut]) => ({ itemLabel, quantityOut }))
+        .sort((a, b) => b.quantityOut - a.quantityOut)
+      acc[row.label] = entries
+      return acc
+    }, {} as Record<string, Array<{ itemLabel: string; quantityOut: number }>>)
+  }, [filteredTransactions, departmentOutData])
+
+  const visualizationAnimationKey = useMemo(() => {
+    return [
+      transactionDateMode,
+      transactionDateFilter || 'all-dates',
+      transactionMonthFilter,
+      String(transactionYearFilter),
+      transactionTypeFilter,
+      transactionDepartmentFilter,
+      visualizationTopLimit,
+      topItemsByQuantityOut.map((row) => `${row.key}:${row.quantityOut}`).join('|'),
+      departmentOutData.map((row) => `${row.label}:${row.quantityOut}`).join('|'),
+    ].join('::')
+  }, [
+    transactionDateMode,
+    transactionDateFilter,
+    transactionMonthFilter,
+    transactionYearFilter,
+    transactionTypeFilter,
+    transactionDepartmentFilter,
+    visualizationTopLimit,
+    topItemsByQuantityOut,
+    departmentOutData,
+  ])
+
   const transactionsTotalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredTransactions.length / TRANSACTIONS_PAGE_SIZE)),
     [filteredTransactions.length]
@@ -605,6 +729,16 @@ export default function InventoryPage() {
   useEffect(() => {
     setTransactionsPage((prev) => Math.min(prev, transactionsTotalPages))
   }, [transactionsTotalPages])
+
+  useEffect(() => {
+    setVisualizationAnimated(false)
+    setHoveredTopItemKey(null)
+    setHoveredDepartmentLabel(null)
+    const timer = window.setTimeout(() => {
+      setVisualizationAnimated(true)
+    }, 60)
+    return () => window.clearTimeout(timer)
+  }, [visualizationAnimationKey])
 
   useEffect(() => {
     if (!adminDepartment) return
@@ -1087,7 +1221,10 @@ export default function InventoryPage() {
                   </Badge>
                 </div>
               ) : null}
-              <div className="space-y-1.5">
+              <div
+                key={`quantity-field-${movementType || 'none'}`}
+                className="space-y-1.5 animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
+              >
                 <Label className="text-xs font-black uppercase tracking-wider text-slate-500">
                   {movementType === 'out' ? 'Quantity Out' : movementType === 'in' ? 'Quantity In' : 'Quantity'}
                 </Label>
@@ -1120,8 +1257,14 @@ export default function InventoryPage() {
 
               <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-4">
                 <p className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-500">Request Details</p>
-                {movementType === 'out' ? (
-                  <>
+                <div
+                  aria-hidden={movementType !== 'out'}
+                  className={cn(
+                    'grid overflow-hidden transition-all duration-300 ease-out',
+                    movementType === 'out' ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                  )}
+                >
+                  <div className={cn('min-h-0 space-y-4 pb-1', movementType === 'out' ? '' : 'pointer-events-none')}>
                     <div className="space-y-1.5">
                       <Label className="text-xs font-black uppercase tracking-wider text-slate-500">Requested By</Label>
                       <Popover open={employeePickerOpen} onOpenChange={setEmployeePickerOpen}>
@@ -1200,8 +1343,8 @@ export default function InventoryPage() {
                         )}
                       </div>
                     </div>
-                  </>
-                ) : null}
+                  </div>
+                </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-black uppercase tracking-wider text-slate-500">Transaction Date</Label>
                   <Input type="text" value={formatDateMmDdYyyy(transactionDraft.transaction_date)} className="rounded-sm h-10 bg-slate-50" readOnly disabled />
@@ -1457,6 +1600,155 @@ export default function InventoryPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div
+              key={visualizationAnimationKey}
+              className="grid grid-cols-1 xl:grid-cols-2 gap-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300"
+            >
+              <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Top Items by Quantity Out</p>
+                  <Select value={visualizationTopLimit} onValueChange={(value) => setVisualizationTopLimit(value as VisualizationTopLimit)}>
+                    <SelectTrigger className="h-8 w-[88px] rounded-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">Top 5</SelectItem>
+                      <SelectItem value="8">Top 8</SelectItem>
+                      <SelectItem value="10">Top 10</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {topItemsByQuantityOut.length === 0 ? (
+                  <p className="text-sm font-semibold text-slate-500">No outgoing item movement yet.</p>
+                ) : (
+                  <>
+                    <div className="space-y-2.5">
+                      {topItemsByQuantityOut.map((row, index) => (
+                        <div
+                          key={`top-item-out-${row.key}`}
+                          className={cn(
+                            'w-full rounded-md px-2 py-1.5 text-left space-y-1 transition-colors',
+                            hoveredTopItemKey === row.key ? 'bg-rose-50/70' : 'hover:bg-slate-50'
+                          )}
+                          onMouseEnter={() => setHoveredTopItemKey(row.key)}
+                          onMouseLeave={() => setHoveredTopItemKey((prev) => (prev === row.key ? null : prev))}
+                        >
+                          <div className="flex items-center justify-between gap-2 text-[11px] font-semibold">
+                            <span className="truncate text-slate-700">{row.label}</span>
+                            <span className="text-rose-700">{row.quantityOut}</span>
+                          </div>
+                          <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-rose-500 transition-[width] duration-700 ease-out"
+                              style={{
+                                width: visualizationAnimated ? `${(row.quantityOut / topItemsByQuantityOutMax) * 100}%` : '0%',
+                                transitionDelay: `${Math.min(index * 50, 250)}ms`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div
+                      key={`top-item-breakdown-${hoveredTopItemKey || 'none'}`}
+                      className="rounded-md border border-slate-200 bg-slate-50/70 p-3 min-h-[112px] animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
+                    >
+                      {hoveredTopItemKey ? (
+                        <>
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">
+                            {topItemsByQuantityOut.find((row) => row.key === hoveredTopItemKey)?.label || 'Item'} by Department
+                          </p>
+                          <div className="mt-2 space-y-1.5">
+                            {(topItemDepartmentBreakdown[hoveredTopItemKey] ?? []).length === 0 ? (
+                              <p className="text-xs font-semibold text-slate-500">No department breakdown available.</p>
+                            ) : (
+                              (topItemDepartmentBreakdown[hoveredTopItemKey] ?? []).map((entry) => (
+                                <div key={`top-item-dept-${hoveredTopItemKey}-${entry.department}`} className="flex items-center justify-between gap-2 text-xs">
+                                  <span className="truncate text-slate-600">{entry.department}</span>
+                                  <span className="font-semibold text-rose-700">{entry.quantityOut}</span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-xs font-semibold text-slate-500">Hover an item bar to see which departments contributed to its quantity out.</p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white p-4 space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-600">Department Usage (Quantity Out)</p>
+                </div>
+                {departmentOutData.length === 0 ? (
+                  <p className="text-sm font-semibold text-slate-500">No outgoing department movement yet.</p>
+                ) : (
+                  <>
+                    <div className="space-y-3">
+                      {departmentOutData.map((row, index) => {
+                        const outWidth = (row.quantityOut / departmentOutMax) * 100
+                        return (
+                          <div
+                            key={`department-usage-row-${row.label}`}
+                            className={cn(
+                              'w-full text-left space-y-1.5 rounded-md px-2 py-1 transition-colors',
+                              hoveredDepartmentLabel === row.label ? 'bg-rose-50/70' : 'hover:bg-slate-50'
+                            )}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[11px] font-semibold text-slate-700 truncate">{row.label}</p>
+                              <span className="text-[11px] font-semibold text-rose-700">{row.quantityOut}</span>
+                            </div>
+                            <div
+                              className="h-2 rounded-full bg-slate-100 overflow-hidden"
+                              onMouseEnter={() => setHoveredDepartmentLabel(row.label)}
+                              onMouseLeave={() => setHoveredDepartmentLabel((prev) => (prev === row.label ? null : prev))}
+                            >
+                              <div
+                                className="h-full rounded-full bg-rose-500 transition-[width] duration-700 ease-out"
+                                style={{
+                                  width: visualizationAnimated ? `${outWidth}%` : '0%',
+                                  transitionDelay: `${Math.min(index * 50 + 80, 360)}ms`,
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div
+                      key={`department-breakdown-${hoveredDepartmentLabel || 'none'}`}
+                      className="rounded-md border border-slate-200 bg-slate-50/70 p-3 min-h-[112px] animate-in fade-in-0 slide-in-from-bottom-1 duration-200"
+                    >
+                      {hoveredDepartmentLabel ? (
+                        <>
+                          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-600">
+                            {hoveredDepartmentLabel} Top Items (Out)
+                          </p>
+                          <div className="mt-2 space-y-1.5">
+                            {(departmentItemBreakdown[hoveredDepartmentLabel] ?? []).length === 0 ? (
+                              <p className="text-xs font-semibold text-slate-500">No item breakdown available.</p>
+                            ) : (
+                              (departmentItemBreakdown[hoveredDepartmentLabel] ?? []).map((entry) => (
+                                <div key={`department-item-out-${hoveredDepartmentLabel}-${entry.itemLabel}`} className="flex items-center justify-between gap-2 text-xs">
+                                  <span className="truncate text-slate-600">{entry.itemLabel}</span>
+                                  <span className="font-semibold text-rose-700">{entry.quantityOut}</span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        <p className="text-xs font-semibold text-slate-500">Hover a department out bar to see which items drove its quantity out.</p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto">
