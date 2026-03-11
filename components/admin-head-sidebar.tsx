@@ -43,6 +43,7 @@ export default function AdminHeadSidebar() {
   const [isEmployeeOpen, setIsEmployeeOpen] = useState(false);
   const [isAttendanceOpen, setIsAttendanceOpen] = useState(false);
   const [isFormsOpen, setIsFormsOpen] = useState(false);
+  const [isHiringOpen, setIsHiringOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const router = useRouter();
@@ -180,6 +181,55 @@ export default function AdminHeadSidebar() {
             >
               <CheckSquare size={18} />
               <span>Evaluation</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* HIRING with Dropdown */}
+        <div className="group relative">
+          <button
+            onClick={() => setIsHiringOpen(!isHiringOpen)}
+            className={cn(
+              "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
+              isCollapsed ? "justify-center" : "justify-between",
+            )}
+          >
+            <div className="flex items-center gap-3">
+              <UserPlus size={22} className="shrink-0" />
+              {!isCollapsed && (
+                <span className="font-medium whitespace-nowrap text-xs uppercase">HIRING</span>
+              )}
+            </div>
+            {!isCollapsed && (
+              <ChevronDown
+                size={16}
+                className={`transition-transform shrink-0 ${isHiringOpen ? "rotate-180" : ""} group-hover:rotate-180`}
+              />
+            )}
+          </button>
+
+          {/* Hiring Dropdown Menu (Hover + Click) */}
+          <div
+            className={`${isCollapsed ? "fixed left-20 top-auto w-56 z-50" : "ml-10 mt-1"} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isHiringOpen ? "block" : "hidden"} group-hover:block`}
+          >
+            {isCollapsed && (
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                HIRING
+              </div>
+            )}
+            <Link
+              href="/admin-head/hiring"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <FileText size={18} />
+              <span>Hiring Report</span>
+            </Link>
+            <Link
+              href="/admin-head/hiring/applicants"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <Users size={18} />
+              <span>Applicants</span>
             </Link>
           </div>
         </div>
