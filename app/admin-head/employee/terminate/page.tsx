@@ -82,11 +82,69 @@ interface TerminationFormData {
 
 export default function TerminatePage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+    <Suspense fallback={<TerminateSkeleton />}>
       <TerminatePageContent />
     </Suspense>
   )
 }
+
+const TerminateSkeleton = () => (
+  <div className="flex-1 flex flex-col animate-pulse">
+    {/* White Header Skeleton */}
+    <div className="bg-white border-b border-slate-200 shadow-sm mb-6 overflow-hidden">
+      <div className="w-full px-4 md:px-8 py-6">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div className="space-y-3">
+            <Skeleton className="h-8 w-64 bg-slate-200 rounded-lg" />
+            <Skeleton className="h-4 w-96 bg-slate-100 rounded-lg" />
+          </div>
+          <Skeleton className="h-10 w-48 bg-slate-100 rounded-xl" />
+        </div>
+      </div>
+      <div className="border-t border-slate-100 bg-slate-50/50 px-4 md:px-8 py-3 flex gap-4">
+        {[1, 2].map((i) => (
+          <Skeleton key={i} className="h-8 w-32 bg-slate-100 rounded-lg" />
+        ))}
+      </div>
+    </div>
+
+    {/* Content Skeleton */}
+    <div className="px-4 md:px-8 pb-12 space-y-8">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-6 border-b border-slate-100 flex justify-between items-center">
+          <Skeleton className="h-6 w-48 bg-slate-200" />
+          <div className="flex gap-3">
+            <Skeleton className="h-10 w-64 rounded-lg bg-slate-100" />
+            <Skeleton className="h-10 w-32 rounded-lg bg-slate-100" />
+          </div>
+        </div>
+        <div className="p-4 space-y-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="flex gap-4 items-center">
+              <Skeleton className="h-12 w-12 rounded-full bg-slate-200" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-full bg-slate-100" />
+                <Skeleton className="h-3 w-2/3 bg-slate-50" />
+              </div>
+              <Skeleton className="h-8 w-24 rounded-lg bg-slate-100" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="p-6 border-b border-slate-100">
+          <Skeleton className="h-6 w-40 bg-slate-200" />
+        </div>
+        <div className="p-4 space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-xl bg-slate-50" />
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 function TerminatePageContent() {
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -468,7 +526,7 @@ function TerminatePageContent() {
     title: string
     description: string
     onConfirm: () => void
-    variant: "default" | "destructive" | "success" | "warning"
+    variant?: "destructive" | "warning" | "success" | "default";
     confirmText?: string
   }>({
     isOpen: false,
@@ -984,7 +1042,11 @@ function TerminatePageContent() {
   }
 
   return (
-    <div className="min-h-screen pb-12 bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-red-50 text-stone-900 font-sans flex flex-col">
+      {loading ? (
+        <TerminateSkeleton />
+      ) : (
+        <>
       {/* ----- GLOBAL LOADING OVERLAY (For Actions Only) ----- */}
       {(submitting || rehireLoading !== null || isActionLoading) && (
         <div className="fixed inset-0 z-[100] bg-white/40 backdrop-blur-md flex items-center justify-center animate-in fade-in duration-500">
@@ -1639,12 +1701,6 @@ function TerminatePageContent() {
             <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
               <p>Unable to load resigned history.</p>
             </div>
-          ) : loading ? (
-            <div className="p-8 md:p-10 space-y-4 animate-pulse">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full rounded-xl" />
-              ))}
-            </div>
           ) : (
             <>
               <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex items-center justify-between">
@@ -2061,6 +2117,8 @@ function TerminatePageContent() {
         confirmText={confirmModal.confirmText}
         isLoading={submitting || rehireLoading !== null}
       />
-    </div>
+    </>
+  )}
+</div>
   )
 }

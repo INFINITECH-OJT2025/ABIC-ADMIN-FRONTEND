@@ -1371,6 +1371,8 @@ export default function AttendanceDashboard() {
     months[new Date().getMonth()],
   );
   const [yearsList, setYearsList] = useState<number[]>(availableYears);
+  const [sortOrder, setSortOrder] = useState<"Recent" | "Oldest">("Oldest");
+
 
   // State for all entries (Master Record)
   const [allEntries, setAllEntries] = useState<LateEntry[]>([]);
@@ -1564,6 +1566,37 @@ export default function AttendanceDashboard() {
     return searchTerms.every((term) => isFuzzyMatch(term, empName));
   });
 
+  // Apply sorting based on sortOrder
+  const sortedFirstEntries = [...filteredFirstEntries].sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    const timeA = parseTimeToMinutes(a.actual_in || a.actualIn || "");
+    const timeB = parseTimeToMinutes(b.actual_in || b.actualIn || "");
+
+    if (sortOrder === "Recent") {
+      if (dateA !== dateB) return dateB - dateA;
+      return timeB - timeA;
+    } else {
+      if (dateA !== dateB) return dateA - dateB;
+      return timeA - timeB;
+    }
+  });
+
+  const sortedSecondEntries = [...filteredSecondEntries].sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    const timeA = parseTimeToMinutes(a.actual_in || a.actualIn || "");
+    const timeB = parseTimeToMinutes(b.actual_in || b.actualIn || "");
+
+    if (sortOrder === "Recent") {
+      if (dateA !== dateB) return dateB - dateA;
+      return timeB - timeA;
+    } else {
+      if (dateA !== dateB) return dateA - dateB;
+      return timeA - timeB;
+    }
+  });
+
   // Pagination states for each table removed per user request
 
   // New Year confirmation state
@@ -1593,6 +1626,31 @@ export default function AttendanceDashboard() {
     } catch (error) {
       console.error("Undo error:", error);
       toast.error("Failed to undo year addition");
+    }
+  };
+
+  // Handler to delete a late entry (for undo)
+  const handleDeleteEntry = async (id: string | number) => {
+    try {
+      const res = await fetch(
+        `${getApiUrl()}/api/admin-head/attendance/tardiness/${id}`,
+        {
+          method: "DELETE",
+        },
+      );
+      const data = await res.json();
+      if (data.success) {
+        setAllEntries((prev) => {
+          const updated = prev.filter((entry) => String(entry.id) !== String(id));
+          return recalculateWarnings(updated, leaves);
+        });
+        toast.success("Entry removed successfully");
+      } else {
+        toast.error(data.message || "Failed to remove entry");
+      }
+    } catch (error) {
+      console.error("Delete error:", error);
+      toast.error("Failed to remove entry. Please try again.");
     }
   };
 
@@ -1887,7 +1945,12 @@ export default function AttendanceDashboard() {
 
       const data = await response.json();
       if (data.success) {
-        toast.success("Entry saved successfully");
+        toast.success("Entry saved successfully", {
+          action: {
+            label: "Undo",
+            onClick: () => handleDeleteEntry(data.data.id),
+          },
+        });
         // Refresh entries with corrected mapping
         const entRes = await fetch(
           `${getApiUrl()}/api/admin-head/attendance/tardiness?month=${selectedMonth}&year=${selectedYear}`,
@@ -2168,6 +2231,55 @@ export default function AttendanceDashboard() {
                   </DropdownMenu>
                 </div>
 
+                {/* Sort Order Selection */}
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-white/70 uppercase tracking-wider">
+                    Sort
+                  </span>
+
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[120px] justify-between shadow-sm font-bold inline-flex items-center whitespace-nowrap rounded-lg cursor-pointer group border-2">
+                        {sortOrder}{" "}
+                        <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent
+                      className="w-32 bg-white border-stone-200 shadow-xl rounded-xl p-1.5"
+                      align="start"
+                    >
+                      <DropdownMenuItem
+                        onClick={() => setSortOrder("Recent")}
+                        className={cn(
+                          "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
+                          sortOrder === "Recent"
+                            ? "bg-red-50 text-red-900 font-semibold"
+                            : "text-stone-600 hover:bg-stone-50",
+                        )}
+                      >
+                        Recent
+                        {sortOrder === "Recent" && (
+                          <Check className="w-4 h-4 text-red-600" />
+                        )}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => setSortOrder("Oldest")}
+                        className={cn(
+                          "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
+                          sortOrder === "Oldest"
+                            ? "bg-red-50 text-red-900 font-semibold"
+                            : "text-stone-600 hover:bg-stone-50",
+                        )}
+                      >
+                        Oldest
+                        {sortOrder === "Oldest" && (
+                          <Check className="w-4 h-4 text-red-600" />
+                        )}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
                 {/* Global Search Input */}
                 <div className="flex items-center gap-3 flex-1 min-w-[200px] max-w-[400px]">
                   <span className="text-sm font-bold text-white/70 uppercase tracking-wider hidden 2xl:block">
@@ -2299,7 +2411,7 @@ export default function AttendanceDashboard() {
             {(showCutoff === "first" || showCutoff === "both") && (
               <CutoffTable
                 title={`${selectedMonth} ${selectedYear} – 1-15`}
-                entries={filteredFirstEntries}
+                entries={sortedFirstEntries}
                 onUpdateTime={updateFirstCutoffTime}
                 onSummaryClick={() =>
                   handleSummaryClick(
@@ -2307,14 +2419,14 @@ export default function AttendanceDashboard() {
                     firstCutoffEntries,
                   )
                 }
-                totalRecords={filteredFirstEntries.length}
+                totalRecords={sortedFirstEntries.length}
               />
             )}
 
             {(showCutoff === "second" || showCutoff === "both") && (
               <CutoffTable
                 title={`${selectedMonth} ${selectedYear} – ${selectedMonth === "February" ? "16-28/29" : "16-30/31"}`}
-                entries={filteredSecondEntries}
+                entries={sortedSecondEntries}
                 onUpdateTime={updateSecondCutoffTime}
                 onSummaryClick={() =>
                   handleSummaryClick(
@@ -2322,7 +2434,7 @@ export default function AttendanceDashboard() {
                     secondCutoffEntries,
                   )
                 }
-                totalRecords={filteredSecondEntries.length}
+                totalRecords={sortedSecondEntries.length}
               />
             )}
           </>

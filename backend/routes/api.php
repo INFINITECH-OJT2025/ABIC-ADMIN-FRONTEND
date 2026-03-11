@@ -107,6 +107,8 @@ Route::get('/admin-head/attendance/tardiness', [TardinessEntryController::class,
 Route::post('/admin-head/attendance/tardiness', [TardinessEntryController::class, 'store']);
 Route::patch('/admin-head/attendance/tardiness/{id}', [TardinessEntryController::class, 'update']);
 Route::get('/admin-head/attendance/tardiness/years', [TardinessEntryController::class, 'years']);
+Route::delete('/admin-head/attendance/tardiness/{id}', [TardinessEntryController::class, 'destroy']);
+
 
 // Leave Routes
 use App\Http\Controllers\Api\LeaveController;
