@@ -7,6 +7,7 @@ import {
   Badge,
   Input
 } from '@/components/ui'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Select,
   SelectContent,
@@ -112,6 +113,41 @@ const EMPTY_SCORES: Record<CriteriaId, string> = {
   grooming: '',
   communication: ''
 }
+
+const EvaluationFormSkeleton = () => (
+  <div className="min-h-screen bg-slate-50 py-10 px-4 animate-pulse">
+    <div className="max-w-[850px] mx-auto mb-4 flex justify-between">
+      <Skeleton className="h-10 w-24 bg-white border border-slate-200 shadow-sm" />
+      <div className="flex gap-2">
+        <Skeleton className="h-10 w-32 bg-white border border-slate-200 shadow-sm" />
+        <Skeleton className="h-10 w-32 bg-white border border-slate-200 shadow-sm" />
+        <Skeleton className="h-10 w-40 bg-white border border-slate-200 shadow-sm" />
+      </div>
+    </div>
+    <div className="max-w-[850px] mx-auto bg-white shadow-sm p-[60px] border border-slate-200 space-y-10">
+      <div className="text-center space-y-4">
+        <Skeleton className="h-8 w-80 mx-auto bg-slate-200" />
+        <Skeleton className="h-8 w-64 mx-auto bg-slate-100" />
+      </div>
+      <div className="space-y-4 pt-6 border-t border-slate-100">
+        <Skeleton className="h-6 w-full bg-slate-50" />
+        <Skeleton className="h-6 w-full bg-slate-50" />
+        <Skeleton className="h-6 w-full bg-slate-50" />
+      </div>
+      <div className="space-y-8">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex gap-4 items-start pt-4 border-t border-slate-100">
+            <div className="flex-1 space-y-3">
+              <Skeleton className="h-5 w-48 bg-slate-200" />
+              <Skeleton className="h-4 w-full bg-slate-50" />
+            </div>
+            <Skeleton className="h-10 w-24 bg-slate-100 rounded-lg" />
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)
 
 function EvaluateEmployeeForm() {
   const router = useRouter()
@@ -546,7 +582,7 @@ function EvaluateEmployeeForm() {
   }
 
   if (loading) {
-    return <div className="min-h-screen bg-white flex items-center justify-center">Loading...</div>
+    return <EvaluationFormSkeleton />
   }
 
   const firstEvaluationDate = selectedEmployee
@@ -1121,7 +1157,7 @@ function EvaluateEmployeeForm() {
 
 export default function EvaluateEmployeePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-200 py-10 px-4 font-serif flex items-center justify-center">Loading evaluation form...</div>}>
+    <Suspense fallback={<EvaluationFormSkeleton />}>
       <EvaluateEmployeeForm />
     </Suspense>
   )

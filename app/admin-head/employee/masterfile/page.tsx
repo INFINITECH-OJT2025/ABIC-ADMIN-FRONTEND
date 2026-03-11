@@ -17,7 +17,7 @@ import {
   Search,
   Plus,
   Users,
-  ChevronDown,
+  ChevronLeft,
   Check,
   Edit2,
   Save,
@@ -118,6 +118,151 @@ const statusLabels = {
   termination_pending: "Pending Termination",
   resignation_pending: "Pending Resignation",
 };
+
+const DetailSkeleton = () => (
+  <div className="w-full flex-1 flex flex-col animate-pulse">
+    {/* White Header Skeleton */}
+    <div className="bg-white border-b border-slate-200 shadow-sm h-48 w-full px-8 py-6 flex flex-col justify-center mb-6">
+      <Skeleton className="h-10 w-80 bg-slate-200 mb-3" />
+      <Skeleton className="h-4 w-96 bg-slate-100 mb-6" />
+      <div className="flex gap-4">
+        <Skeleton className="h-12 w-32 bg-slate-100 rounded-lg" />
+        <Skeleton className="h-12 w-40 bg-slate-100 rounded-lg" />
+        <Skeleton className="h-12 w-40 bg-slate-100 rounded-lg" />
+      </div>
+    </div>
+    
+    <div className="max-w-7xl mx-auto w-full px-8 space-y-8 animate-pulse">
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-slate-200">
+        <div className="bg-slate-50/50 p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="flex items-center gap-5">
+            <Skeleton className="w-20 h-20 rounded-full bg-slate-200" />
+            <div className="space-y-3">
+              <Skeleton className="h-8 w-64 bg-slate-200" />
+              <div className="flex gap-2">
+                <Skeleton className="h-4 w-32 bg-slate-100" />
+                <Skeleton className="h-4 w-20 bg-slate-100" />
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <Skeleton className="h-3 w-20 bg-slate-100" />
+            <Skeleton className="h-5 w-16 bg-slate-200" />
+          </div>
+        </div>
+        <div className="p-8 md:p-10 space-y-12">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="space-y-6">
+              <Skeleton className="h-6 w-48 bg-slate-200" />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3, 4, 5, 6].map((j) => (
+                  <div key={j} className="space-y-2">
+                    <Skeleton className="h-3 w-24 bg-slate-100" />
+                    <Skeleton className="h-5 w-full bg-slate-100" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="bg-slate-50 px-8 py-6 border-t border-slate-200 flex justify-end gap-3">
+          <Skeleton className="h-12 w-32 bg-slate-100 rounded-xl" />
+          <Skeleton className="h-12 w-48 bg-slate-100 rounded-xl" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const MasterfileSkeleton = () => (
+  <div className="flex-1 flex flex-col animate-pulse">
+    {/* White Header Skeleton */}
+    <div className="bg-white border-b border-slate-200 shadow-sm mb-6 overflow-hidden">
+      <div className="w-full px-4 md:px-8 py-6">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-64 bg-slate-200" />
+            <div className="flex gap-4">
+              <Skeleton className="h-4 w-40 bg-slate-100" />
+              <Skeleton className="h-4 w-24 bg-slate-100" />
+            </div>
+          </div>
+        </div>
+      </div>
+      {/* Secondary Toolbar Skeleton */}
+      <div className="border-t border-slate-100 bg-slate-50/50">
+        <div className="w-full px-4 md:px-8 py-3">
+          <div className="flex flex-wrap items-center gap-8">
+            <div className="flex items-center bg-white p-1 rounded-lg border border-slate-200 gap-2">
+              <Skeleton className="h-8 w-20 bg-slate-100 rounded-md" />
+              <Skeleton className="h-8 w-32 bg-slate-50 rounded-md" />
+              <Skeleton className="h-8 w-32 bg-slate-50 rounded-md" />
+              <Skeleton className="h-8 w-32 bg-slate-50 rounded-md" />
+            </div>
+            <div className="flex flex-1 gap-3">
+              <Skeleton className="h-10 flex-1 bg-slate-100 rounded-lg max-w-[350px]" />
+              <Skeleton className="h-10 w-44 bg-slate-100 rounded-lg" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Content Skeleton */}
+    <div className="px-3 md:px-6 lg:px-8 pb-8 md:pb-12 space-y-12">
+      <div className="bg-white rounded-lg p-4 md:p-6 border border-slate-200 mb-8 md:mb-12">
+        <div className="flex items-center gap-3 mb-6">
+          <Skeleton className="h-6 w-1.5 rounded-full bg-slate-300" />
+          <Skeleton className="h-6 w-40 bg-slate-200" />
+          <Skeleton className="h-6 w-12 rounded-full bg-slate-100" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {Array(4)
+            .fill(0)
+            .map((_, i) => (
+              <div
+                key={i}
+                className="bg-white border border-slate-100 rounded-xl p-5 space-y-4 shadow-sm"
+              >
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-14 w-14 rounded-full bg-slate-200" />
+                  <div className="space-y-2 flex-1">
+                    <Skeleton className="h-3 w-20 bg-slate-100" />
+                    <Skeleton className="h-5 w-32 bg-slate-200" />
+                  </div>
+                </div>
+                <div className="pt-3 border-t border-slate-50 flex justify-between items-center">
+                  <Skeleton className="h-5 w-20 rounded-full bg-slate-100" />
+                  <Skeleton className="h-6 w-6 rounded-full bg-slate-200" />
+                </div>
+              </div>
+            ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-10 w-64 rounded-xl bg-slate-200" />
+        <Skeleton className="h-10 w-48 rounded-xl bg-slate-200" />
+      </div>
+      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
+        <div className="bg-slate-50 border-b border-slate-100 p-4 flex gap-4">
+          {Array(5)
+            .fill(0)
+            .map((_, i) => (
+              <Skeleton key={i} className="h-4 flex-1 bg-slate-200" />
+            ))}
+        </div>
+        <div className="p-4 space-y-4">
+          {Array(5)
+            .fill(0)
+            .map((_, i) => (
+              <Skeleton key={i} className="h-12 w-full rounded-lg bg-slate-100" />
+            ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 export default function MasterfilePage() {
   const router = useRouter();
@@ -1150,47 +1295,7 @@ export default function MasterfilePage() {
     </div>
   );
 
-  const DetailSkeleton = () => (
-    <div className="max-w-5xl mx-auto space-y-8 animate-pulse">
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-slate-200">
-        <div className="bg-slate-50/50 p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="flex items-center gap-5">
-            <Skeleton className="w-20 h-20 rounded-full" />
-            <div className="space-y-3">
-              <Skeleton className="h-8 w-64" />
-              <div className="flex gap-2">
-                <Skeleton className="h-4 w-32" />
-                <Skeleton className="h-4 w-20" />
-              </div>
-            </div>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            <Skeleton className="h-3 w-20" />
-            <Skeleton className="h-5 w-16" />
-          </div>
-        </div>
-        <div className="p-8 md:p-10 space-y-12">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="space-y-6">
-              <Skeleton className="h-6 w-48" />
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[1, 2, 3, 4, 5, 6].map((j) => (
-                  <div key={j} className="space-y-2">
-                    <Skeleton className="h-3 w-24" />
-                    <Skeleton className="h-5 w-full" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="bg-slate-50 px-8 py-6 border-t border-slate-200 flex justify-end gap-3">
-          <Skeleton className="h-12 w-32 rounded-xl" />
-          <Skeleton className="h-12 w-48 rounded-xl" />
-        </div>
-      </div>
-    </div>
-  );
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-red-50 text-stone-900 font-sans flex flex-col">
@@ -1215,7 +1320,9 @@ export default function MasterfilePage() {
         </div>
       )}
 
-      {viewMode === "list" ? (
+      {loading ? (
+        <MasterfileSkeleton />
+      ) : viewMode === "list" ? (
         <div className="flex-1 flex flex-col">
           {/* ----- INTEGRATED HEADER & TOOLBAR ----- */}
           <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6">
@@ -1402,66 +1509,7 @@ export default function MasterfilePage() {
                   Retry Connection
                 </Button>
               </div>
-            ) : loading ? (
-              <div className="space-y-12">
-                {/* Pending Skeletons */}
-                <div className="bg-orange-50/50 rounded-lg p-4 md:p-6 border border-orange-200 mb-8 md:mb-12">
-                  <div className="flex items-center gap-3 mb-6">
-                    <Skeleton className="h-6 w-1.5 rounded-full" />
-                    <Skeleton className="h-6 w-40" />
-                    <Skeleton className="h-6 w-12 rounded-full" />
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {Array(4)
-                      .fill(0)
-                      .map((_, i) => (
-                        <div
-                          key={i}
-                          className="bg-white border border-slate-100 rounded-xl p-5 space-y-4"
-                        >
-                          <div className="flex items-center gap-4">
-                            <Skeleton className="h-14 w-14 rounded-full" />
-                            <div className="space-y-2 flex-1">
-                              <Skeleton className="h-3 w-20" />
-                              <Skeleton className="h-5 w-32" />
-                            </div>
-                          </div>
-                          <div className="pt-3 border-t border-slate-50 flex justify-between items-center">
-                            <Skeleton className="h-5 w-20 rounded-full" />
-                            <Skeleton className="h-6 w-6 rounded-full" />
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <Skeleton className="h-10 w-64 rounded-xl" />
-                  <Skeleton className="h-10 w-48 rounded-xl" />
-                </div>
-                <div className="border border-slate-100 rounded-lg overflow-hidden">
-                  <div className="bg-slate-50/50 p-4 border-b border-slate-100 flex gap-4">
-                    {Array(5)
-                      .fill(0)
-                      .map((_, i) => (
-                        <Skeleton key={i} className="h-4 flex-1" />
-                      ))}
-                  </div>
-                  <div className="p-4 space-y-4">
-                    {Array(5)
-                      .fill(0)
-                      .map((_, i) => (
-                        <div key={i} className="flex gap-4 items-center">
-                          <Skeleton className="h-12 w-12 rounded-full" />
-                          <Skeleton className="h-4 flex-1" />
-                          <Skeleton className="h-4 flex-1" />
-                          <Skeleton className="h-4 w-24" />
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              </div>
-            ) : employees.length === 0 && !loading ? (
+            ) : employees.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-24 text-slate-400">
                 <p>No employees found.</p>
               </div>
@@ -1770,9 +1818,9 @@ export default function MasterfilePage() {
                       <button
                         onClick={() => setViewMode("list")}
                         disabled={isDetailLoading}
-                        className="border-2 border-white/40 text-white hover:bg-white/20 hover:border-white/60 bg-transparent backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                        className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                       >
-                        <ChevronUp className="w-4 h-4 rotate-90" />
+                        <ChevronLeft className="w-4 h-4" />
                         <span>BACK TO LIST</span>
                       </button>
                     </div>

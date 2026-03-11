@@ -10,6 +10,8 @@ import { Building2, GitBranch, Plus, ShieldCheck, Users, Clock, X, Save, Edit2, 
 import { getApiUrl } from "@/lib/api"
 import { toast } from "sonner"
 
+import { Skeleton } from "@/components/ui/skeleton"
+
 type Office = {
   id: string
   name: string
@@ -148,6 +150,41 @@ function HierarchyBranch({
     </div>
   )
 }
+
+const HierarchySkeleton = () => (
+  <div className="min-h-screen bg-slate-50 animate-pulse">
+    {/* White Header Skeleton */}
+    <div className="bg-white border-b border-slate-200 shadow-sm h-48 w-full px-8 py-6 flex flex-col justify-center">
+      <Skeleton className="h-10 w-80 bg-slate-200 mb-3" />
+      <Skeleton className="h-4 w-[500px] bg-slate-100 mb-6" />
+      <div className="flex gap-4">
+        <Skeleton className="h-10 w-40 bg-slate-100 rounded-lg" />
+        <Skeleton className="h-10 w-40 bg-slate-100 rounded-lg" />
+        <Skeleton className="h-10 w-60 bg-slate-100 rounded-lg" />
+      </div>
+    </div>
+    <div className="p-8 grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="xl:col-span-1 space-y-6">
+        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 space-y-4">
+          <Skeleton className="h-8 w-40 bg-slate-100" />
+          <Skeleton className="h-12 w-full bg-slate-50" />
+          <Skeleton className="h-12 w-full bg-slate-50" />
+          <Skeleton className="h-10 w-full bg-slate-100" />
+        </div>
+      </div>
+      <div className="xl:col-span-2 space-y-6">
+        <div className="bg-white border border-slate-200 shadow-sm rounded-xl p-6 min-h-[600px] flex flex-col items-center pt-20">
+          <Skeleton className="h-16 w-60 rounded-full bg-slate-100 mb-10" />
+          <div className="flex gap-20">
+            <Skeleton className="h-12 w-40 rounded-xl bg-slate-50" />
+            <Skeleton className="h-12 w-40 rounded-xl bg-slate-50" />
+            <Skeleton className="h-12 w-40 rounded-xl bg-slate-50" />
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)
 
 export default function AdminHeadHierarchyPage() {
   const [departments, setDepartments] = useState<Department[]>([])
@@ -710,6 +747,10 @@ export default function AdminHeadHierarchyPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 pb-10">
+      {loading ? (
+        <HierarchySkeleton />
+      ) : (
+        <>
       <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6">
         <div className="w-full px-4 md:px-8 py-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -1252,6 +1293,8 @@ export default function AdminHeadHierarchyPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </>
+      )}
     </div>
   )
 }

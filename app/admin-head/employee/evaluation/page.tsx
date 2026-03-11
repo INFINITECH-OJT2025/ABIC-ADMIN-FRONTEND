@@ -29,8 +29,38 @@ interface Evaluation {
   remarks_2: string | null
   status: string | null
   regularization_date?: string
-  updated_at?: string
 }
+
+const EvaluationSkeleton = () => (
+  <div className="min-h-screen bg-slate-50 flex flex-col">
+    {/* White Header Skeleton */}
+    <div className="bg-white border-b border-slate-200 shadow-sm h-48 w-full animate-pulse px-8 py-6 flex flex-col justify-center">
+      <Skeleton className="h-10 w-64 bg-slate-200 mb-3" />
+      <Skeleton className="h-4 w-96 bg-slate-100 mb-6" />
+      <div className="flex gap-4">
+        <Skeleton className="h-10 w-40 bg-slate-100 rounded-lg" />
+        <Skeleton className="h-10 w-40 bg-slate-100 rounded-lg" />
+        <Skeleton className="h-10 w-40 bg-slate-100 rounded-lg" />
+      </div>
+    </div>
+    <div className="p-8 space-y-6">
+      <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-8 animate-pulse shadow-sm">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-8 w-80 bg-slate-100" />
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-60 bg-slate-50" />
+            <Skeleton className="h-10 w-48 bg-slate-50" />
+          </div>
+        </div>
+        <div className="space-y-4">
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full bg-slate-50 rounded-xl" />
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+)
 
 export default function EvaluationPage() {
   const router = useRouter()
@@ -336,17 +366,7 @@ export default function EvaluationPage() {
           </div>
         </div>
       ) : loading ? (
-        <div className="w-full py-12 px-8 space-y-12">
-          {/* Header Skeleton */}
-          <div className="bg-slate-200/50 h-32 w-full rounded-3xl animate-pulse flex flex-col justify-center px-8 space-y-3">
-             <Skeleton className="h-10 w-64" />
-             <Skeleton className="h-4 w-96" />
-          </div>
-          
-          <div className="space-y-8">
-            <Skeleton className="h-[600px] w-full rounded-3xl" />
-          </div>
-        </div>
+        <EvaluationSkeleton />
       ) : (
         <>
       {/* Header aligned with Hierarchy Management styling */}

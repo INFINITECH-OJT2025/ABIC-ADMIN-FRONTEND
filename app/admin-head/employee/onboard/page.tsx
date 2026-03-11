@@ -111,17 +111,78 @@ const toIsoDate = (value: unknown): string => {
 
 export default function OnboardPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex items-center justify-center min-h-screen">
-          Loading...
-        </div>
-      }
-    >
+    <Suspense fallback={<OnboardSkeleton />}>
       <OnboardPageContent />
     </Suspense>
   );
 }
+
+const OnboardSkeleton = () => (
+  <div className="min-h-screen w-full bg-[#F5F6F8] animate-pulse">
+    {/* White Header Skeleton */}
+    <div className="bg-white border-b border-slate-200 shadow-sm mb-6">
+      <div className="w-full px-4 md:px-8 py-6">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-64 bg-slate-200" />
+            <div className="flex gap-4">
+              <Skeleton className="h-4 w-40 bg-slate-100" />
+              <Skeleton className="h-4 w-24 bg-slate-100" />
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <Skeleton className="h-10 w-32 bg-slate-100 rounded-lg" />
+            <Skeleton className="h-10 w-32 bg-slate-100 rounded-lg" />
+          </div>
+        </div>
+      </div>
+      {/* Step Indicator Skeleton */}
+      <div className="border-t border-slate-100 bg-slate-50/50">
+        <div className="w-full px-4 md:px-8 py-3">
+          <div className="flex items-center gap-8">
+            <div className="flex items-center gap-3">
+              <Skeleton className="w-10 h-10 rounded-full bg-slate-200" />
+              <div className="space-y-2">
+                <Skeleton className="h-3 w-16 bg-slate-100" />
+                <Skeleton className="h-4 w-32 bg-slate-200" />
+              </div>
+            </div>
+            <div className="flex gap-6 ml-auto">
+              <div className="flex flex-col items-end space-y-2">
+                <Skeleton className="h-2 w-16 bg-white/10" />
+                <Skeleton className="h-6 w-12 bg-white/20" />
+              </div>
+              <div className="flex flex-col space-y-2">
+                <Skeleton className="h-2 w-20 bg-white/10" />
+                <Skeleton className="h-6 w-24 bg-white/20" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* Content Skeleton */}
+    <div className="max-w-7xl mx-auto py-8 px-4 md:px-8 space-y-12">
+      <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-12">
+        <div className="space-y-4">
+          <Skeleton className="h-10 w-64" />
+          <Skeleton className="h-4 w-[80%]" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-8">
+          {Array(8)
+            .fill(0)
+            .map((_, i) => (
+              <div key={i} className="space-y-3">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-12 w-full rounded-xl" />
+              </div>
+            ))}
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 function OnboardPageContent() {
   const router = useRouter();
@@ -399,27 +460,30 @@ function OnboardPageContent() {
     }
   };
 
-  const cancelRehireStatus = React.useCallback(async (employeeId?: string | null) => {
-    if (!isRehireFlow || !employeeId) return true;
-    try {
-      const response = await apiFetch(
-        `/api/employees/${encodeURIComponent(employeeId)}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            status: "terminated",
-            rehire_process: false,
-          }),
-        },
-      );
-      const data = await parseJsonFromResponse(response);
-      return Boolean(response.ok && data?.success);
-    } catch (error) {
-      console.error("Failed to revert to terminated status:", error);
-      return false;
-    }
-  }, [isRehireFlow]);
+  const cancelRehireStatus = React.useCallback(
+    async (employeeId?: string | null) => {
+      if (!isRehireFlow || !employeeId) return true;
+      try {
+        const response = await apiFetch(
+          `/api/employees/${encodeURIComponent(employeeId)}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              status: "terminated",
+              rehire_process: false,
+            }),
+          },
+        );
+        const data = await parseJsonFromResponse(response);
+        return Boolean(response.ok && data?.success);
+      } catch (error) {
+        console.error("Failed to revert to terminated status:", error);
+        return false;
+      }
+    },
+    [isRehireFlow],
+  );
 
   const fetchEmployeeByIdentifier = async (
     identifier: string,
@@ -822,9 +886,12 @@ function OnboardPageContent() {
   }) => {
     const { employeeName, employeeId, rehireStartedAt } = params;
     try {
-      const response = await fetch(`${getApiUrl()}/api/onboarding-checklist?employeeId=${encodeURIComponent(employeeId ?? "")}&type=${isRehireFlow ? 'rehire' : 'onboard'}`, {
-        headers: { Accept: "application/json" },
-      });
+      const response = await fetch(
+        `${getApiUrl()}/api/onboarding-checklist?employeeId=${encodeURIComponent(employeeId ?? "")}&type=${isRehireFlow ? "rehire" : "onboard"}`,
+        {
+          headers: { Accept: "application/json" },
+        },
+      );
       const data = await response.json();
       const list = Array.isArray(data?.data) ? data.data : [];
       const normalizedEmployeeId = String(employeeId ?? "")
@@ -848,14 +915,17 @@ function OnboardPageContent() {
         const datePart = raw.includes("T") ? raw.split("T")[0] : raw;
         if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
         const parsed = new Date(raw);
-        if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+        if (!Number.isNaN(parsed.getTime()))
+          return parsed.toISOString().slice(0, 10);
         return "";
       };
 
       const rehireStartDay = normalizeDateOnly(rehireStartedAt);
       const scopedForCurrentRehire = sortedByLatest.filter((item: any) => {
         if (!rehireStartDay) return true;
-        const itemDate = normalizeDateOnly(item?.startDate ?? item?.start_date ?? item?.created_at);
+        const itemDate = normalizeDateOnly(
+          item?.startDate ?? item?.start_date ?? item?.created_at,
+        );
         return itemDate && itemDate >= rehireStartDay;
       });
 
@@ -964,27 +1034,30 @@ function OnboardPageContent() {
         employeeEmailParam ?? undefined,
       );
 
-        if (emp) {
-          setOnboardingEmployeeId(String(emp?.id ?? id));
-          if (emp.current_onboarding_batch !== undefined && emp.current_onboarding_batch !== null) {
-            setCurrentBatch(Number(emp.current_onboarding_batch));
-          }
-          if (emp.same_as_permanent !== undefined) {
-            setSameAsPermanent(Boolean(emp.same_as_permanent));
-          } else {
-            // Check if fields match manually if flag is missing
-            const fieldsMatch =
-              emp.region === emp.perm_region &&
-              emp.province === emp.perm_province &&
-              emp.city_municipality === emp.perm_city_municipality &&
-              emp.barangay === emp.perm_barangay &&
-              emp.zip_code === emp.perm_zip_code &&
-              emp.region !== undefined &&
-              emp.region !== null &&
-              emp.region !== "";
-            setSameAsPermanent(fieldsMatch);
-          }
-          setOnboardFormData({
+      if (emp) {
+        setOnboardingEmployeeId(String(emp?.id ?? id));
+        if (
+          emp.current_onboarding_batch !== undefined &&
+          emp.current_onboarding_batch !== null
+        ) {
+          setCurrentBatch(Number(emp.current_onboarding_batch));
+        }
+        if (emp.same_as_permanent !== undefined) {
+          setSameAsPermanent(Boolean(emp.same_as_permanent));
+        } else {
+          // Check if fields match manually if flag is missing
+          const fieldsMatch =
+            emp.region === emp.perm_region &&
+            emp.province === emp.perm_province &&
+            emp.city_municipality === emp.perm_city_municipality &&
+            emp.barangay === emp.perm_barangay &&
+            emp.zip_code === emp.perm_zip_code &&
+            emp.region !== undefined &&
+            emp.region !== null &&
+            emp.region !== "";
+          setSameAsPermanent(fieldsMatch);
+        }
+        setOnboardFormData({
           first_name: toPlainString(emp.first_name),
           last_name: toPlainString(emp.last_name),
           email: toPlainString(emp.email),
@@ -1606,7 +1679,7 @@ function OnboardPageContent() {
             name: toPlainString(checklistData.name),
             position: toPlainString(checklistData.position),
             department: normalizedDepartment,
-            type: isRehireFlow ? 'rehire' : 'onboard',
+            type: isRehireFlow ? "rehire" : "onboard",
             startDate: normalizedStartDate,
             status: isRehireFlow
               ? finalizeRehire
@@ -2128,7 +2201,7 @@ function OnboardPageContent() {
         onConfirm: async () => {
           if (isNavigatingRef.current) return;
           isNavigatingRef.current = true;
-          
+
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           try {
             await cancelRehireStatus(onboardingEmployeeId);
@@ -2231,7 +2304,7 @@ function OnboardPageContent() {
           onConfirm: async () => {
             if (isNavigatingRef.current) return;
             isNavigatingRef.current = true;
-            
+
             setConfirmModal((prev) => ({ ...prev, isOpen: false }));
             try {
               await cancelRehireStatus(onboardingEmployeeId);
@@ -2277,7 +2350,7 @@ function OnboardPageContent() {
           onConfirm: async () => {
             if (isNavigatingRef.current) return;
             isNavigatingRef.current = true;
-            
+
             setConfirmModal((prev) => ({ ...prev, isOpen: false }));
             // Remove listener before navigation
             window.removeEventListener("popstate", handlePopState);
@@ -2304,7 +2377,9 @@ function OnboardPageContent() {
     // Initial push to lock the current history entry - only once
     if (isRehireFlow && onboardingEmployeeId && !isNavigatingRef.current) {
       // Use a flag to prevent repeated pushState calls
-      const hasInitialPush = sessionStorage.getItem(`rehire_push_${onboardingEmployeeId}`);
+      const hasInitialPush = sessionStorage.getItem(
+        `rehire_push_${onboardingEmployeeId}`,
+      );
       if (!hasInitialPush) {
         window.history.pushState(null, "", window.location.href);
         sessionStorage.setItem(`rehire_push_${onboardingEmployeeId}`, "1");
@@ -2346,143 +2421,124 @@ function OnboardPageContent() {
         </div>
       )}
 
-      {/* ----- INTEGRATED PREMIUM HEADER ----- */}
-      <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6 relative overflow-hidden">
-        {/* Main Header Row */}
-        <div className="w-full px-4 md:px-8 py-6 relative z-10">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-            <div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">
-                {view === "onboard"
-                  ? "Onboard New Employee"
-                  : view === "checklist"
-                    ? "Onboarding Process"
-                    : "Employee Data Entry"}
-              </h1>
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
-                  <ClipboardList className="w-4 h-4" />
-                  ABIC REALTY & CONSULTANCY
-                </p>
-                {isRehireFlow && (
-                  <div className="inline-flex items-center gap-2 rounded-md border border-amber-300/70 bg-amber-100/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-100">
-                    <AlertCircle className="h-3 w-3" />
-                    REHIRE PROCESS
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-3">
-              {view === "update-info" && (
-                <button
-                  onClick={() => setView("checklist")}
-                  className="border-2 border-white/40 text-white hover:bg-white/20 hover:border-white/60 bg-transparent backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2 cursor-pointer"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  <span>BACK TO CHECKLIST</span>
-                </button>
-              )}
-              <button
-                onClick={handleCancelOnboarding}
-                className="border-2 border-white/40 text-white hover:bg-white/20 hover:border-white/60 bg-transparent backdrop-blur-sm shadow-sm hover:shadow-md transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2 cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                <span>BACK TO MASTERFILE</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Secondary Toolbar - Progress & Info Bar */}
-        {checklistData && view !== "onboard" && (
-          <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm relative z-10">
-            <div className="w-full px-4 md:px-8 py-3">
-              <div className="flex flex-wrap items-center gap-4 md:gap-8">
-                {/* Employee Info */}
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center text-lg font-bold">
-                    {checklistData.name.charAt(0)}
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none mb-1">
-                      Employee
-                    </p>
-                    <p className="text-white font-bold text-sm leading-none">
-                      {checklistData.name}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Position */}
-                {checklistData.position && (
-                  <div>
-                    <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none mb-1">
-                      Position
-                    </p>
-                    <p className="text-white font-bold text-sm leading-none">
-                      {checklistData.position}
-                    </p>
-                  </div>
-                )}
-
-                {/* Overall Progress */}
-                <div className="ml-auto flex items-center gap-6 bg-white/5 px-6 py-2 rounded-xl border border-white/10 backdrop-blur-sm">
-                  <div className="flex flex-col items-end">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">
-                      Overall Progress
-                    </p>
-                    <p className="text-xl font-black text-white leading-none">
-                      {view === "checklist"
-                        ? completionPercentage
-                        : calculateProgressionProgress()}
-                      %
-                    </p>
-                  </div>
-                  <div className="h-8 w-px bg-white/10" />
-                  <div className="flex flex-col">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">
-                      {view === "checklist"
-                        ? "Last Updated"
-                        : `Batch ${currentBatch} of 7`}
-                    </p>
-                    <p className="text-lg font-bold text-white tracking-tight leading-none">
-                      {view === "checklist"
-                        ? completionDateText || "—"
-                        : batches[currentBatch - 1].title}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
       {loading ? (
-        <div className="max-w-7xl mx-auto py-8 px-8 space-y-12">
-          <div className="bg-white/50 backdrop-blur-sm rounded-3xl p-8 border border-slate-200/60 shadow-xl space-y-12">
-            <div className="flex justify-between items-center">
-              <div className="space-y-4">
-                <Skeleton className="h-10 w-64" />
-                <Skeleton className="h-4 w-96" />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {Array(6)
-                .fill(0)
-                .map((_, i) => (
-                  <div key={i} className="space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-12 w-full rounded-xl" />
-                  </div>
-                ))}
-            </div>
-          </div>
-        </div>
+        <OnboardSkeleton />
       ) : (
         <>
+          {/* ----- INTEGRATED PREMIUM HEADER ----- */}
+          <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6 relative overflow-hidden">
+            {/* Main Header Row */}
+            <div className="w-full px-4 md:px-8 py-6 relative z-10">
+              <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                  <h1 className="text-2xl md:text-3xl font-bold mb-2">
+                    {view === "onboard"
+                      ? "Onboard New Employee"
+                      : view === "checklist"
+                        ? "Onboarding Process"
+                        : "Employee Data Entry"}
+                  </h1>
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                    <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
+                      <ClipboardList className="w-4 h-4" />
+                      ABIC REALTY & CONSULTANCY
+                    </p>
+                    {isRehireFlow && (
+                      <div className="inline-flex items-center gap-2 rounded-md border border-amber-300/70 bg-amber-100/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-100">
+                        <AlertCircle className="h-3 w-3" />
+                        REHIRE PROCESS
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-3">
+                  {view === "update-info" && (
+                    <button
+                      onClick={() => setView("checklist")}
+                      className="bg-white text-[#7B0F2B] border-2 border-[#7B0F2B] hover:bg-[#FDF2F5] hover:border-[#7B0F2B] shadow-sm hover:shadow-md transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2 cursor-pointer"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>BACK TO CHECKLIST</span>
+                    </button>
+                  )}
+                  <button
+                    onClick={handleCancelOnboarding}
+                    className="bg-white text-[#7B0F2B] border-2 border-[#7B0F2B] hover:bg-[#FDF2F5] hover:border-[#7B0F2B] shadow-sm hover:shadow-md transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2 cursor-pointer"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    <span>BACK TO MASTERFILE</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Secondary Toolbar - Progress & Info Bar */}
+            {checklistData && view !== "onboard" && (
+              <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm relative z-10">
+                <div className="w-full px-4 md:px-8 py-3">
+                  <div className="flex flex-wrap items-center gap-4 md:gap-8">
+                    {/* Employee Info */}
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center text-lg font-bold">
+                        {checklistData.name.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none mb-1">
+                          Employee
+                        </p>
+                        <p className="text-white font-bold text-sm leading-none">
+                          {checklistData.name}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Position */}
+                    {checklistData.position && (
+                      <div>
+                        <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest leading-none mb-1">
+                          Position
+                        </p>
+                        <p className="text-white font-bold text-sm leading-none">
+                          {checklistData.position}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Overall Progress */}
+                    <div className="ml-auto flex items-center gap-6 bg-white/5 px-6 py-2 rounded-xl border border-white/10 backdrop-blur-sm">
+                      <div className="flex flex-col items-end">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">
+                          Overall Progress
+                        </p>
+                        <p className="text-xl font-black text-white leading-none">
+                          {view === "checklist"
+                            ? completionPercentage
+                            : calculateProgressionProgress()}
+                          %
+                        </p>
+                      </div>
+                      <div className="h-8 w-px bg-white/10" />
+                      <div className="flex flex-col">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">
+                          {view === "checklist"
+                            ? "Last Updated"
+                            : `Batch ${currentBatch} of 7`}
+                        </p>
+                        <p className="text-lg font-bold text-white tracking-tight leading-none">
+                          {view === "checklist"
+                            ? completionDateText || "—"
+                            : batches[currentBatch - 1].title}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {view === "onboard" && (
             <div className="w-full">
               <div className="max-w-3xl mx-auto py-4">
@@ -3818,7 +3874,9 @@ function OnboardPageContent() {
                             name="province"
                             value={progressionFormData.province || ""}
                             onChange={handleProgressionChange}
-                            disabled={!progressionFormData.region || sameAsPermanent}
+                            disabled={
+                              !progressionFormData.region || sameAsPermanent
+                            }
                             className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium disabled:bg-slate-100 disabled:cursor-not-allowed"
                           >
                             <option value="">Select Province...</option>
@@ -3841,7 +3899,9 @@ function OnboardPageContent() {
                             name="city_municipality"
                             value={progressionFormData.city_municipality || ""}
                             onChange={handleProgressionChange}
-                            disabled={!progressionFormData.province || sameAsPermanent}
+                            disabled={
+                              !progressionFormData.province || sameAsPermanent
+                            }
                             className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium disabled:bg-slate-100 disabled:cursor-not-allowed"
                           >
                             <option value="">Select City...</option>
@@ -3863,7 +3923,10 @@ function OnboardPageContent() {
                             name="barangay"
                             value={progressionFormData.barangay || ""}
                             onChange={handleProgressionChange}
-                            disabled={!progressionFormData.city_municipality || sameAsPermanent}
+                            disabled={
+                              !progressionFormData.city_municipality ||
+                              sameAsPermanent
+                            }
                             className="flex h-10 w-full rounded-md border border-slate-200 px-3 py-2 text-sm font-medium disabled:bg-slate-100 disabled:cursor-not-allowed"
                           >
                             <option value="">Select Barangay...</option>
