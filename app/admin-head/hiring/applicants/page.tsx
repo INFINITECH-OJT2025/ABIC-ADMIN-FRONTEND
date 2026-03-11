@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit2, Save, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Search, Edit2, Save, ChevronDown, ChevronRight, AlertCircle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getApiUrl } from "@/lib/api";
 
@@ -26,6 +26,10 @@ type FinalCandidate = {
   position: string;
 };
 
+type OnboardedRow = {
+  position: string;
+};
+
 const INTERVIEW_STATUSES: InterviewStatus[] = ["PENDING", "CONFIRMED", "PASSED", "FAILED"];
 
 function toRow(item: Record<string, unknown>): InterviewRow {
@@ -44,6 +48,10 @@ function toRow(item: Record<string, unknown>): InterviewRow {
   };
 }
 
+function normalizePosition(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 export default function ApplicantsForInterviewPage() {
   const [editingInitialId, setEditingInitialId] = useState<number | string | null>(null);
   const [editingFinalId, setEditingFinalId] = useState<number | string | null>(null);
@@ -58,21 +66,24 @@ export default function ApplicantsForInterviewPage() {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
+  const [initialNameErrors, setInitialNameErrors] = useState<Record<string, string>>({});
 
   const loadData = async () => {
     const apiUrl = getApiUrl();
 
-    const [initialRes, finalRes, finalCandidatesRes, summariesRes] = await Promise.all([
+    const [initialRes, finalRes, finalCandidatesRes, summariesRes, onboardedRes] = await Promise.all([
       fetch(`${apiUrl}/api/hiring/interviews?stage=initial`, { headers: { Accept: "application/json" } }),
       fetch(`${apiUrl}/api/hiring/interviews?stage=final`, { headers: { Accept: "application/json" } }),
       fetch(`${apiUrl}/api/hiring/interviews/final-candidates`, { headers: { Accept: "application/json" } }),
       fetch(`${apiUrl}/api/hiring/summaries`, { headers: { Accept: "application/json" } }),
+      fetch(`${apiUrl}/api/hiring/onboarded`, { headers: { Accept: "application/json" } }),
     ]);
 
     const initialJson = await initialRes.json();
     const finalJson = await finalRes.json();
     const finalCandidatesJson = await finalCandidatesRes.json();
     const summariesJson = await summariesRes.json();
+    const onboardedJson = await onboardedRes.json();
 
     const summaryRows = Array.isArray(summariesJson?.data)
       ? summariesJson.data
@@ -80,9 +91,31 @@ export default function ApplicantsForInterviewPage() {
       ? summariesJson
       : [];
 
+    const onboardedRows: OnboardedRow[] = Array.isArray(onboardedJson?.data)
+      ? onboardedJson.data
+      : Array.isArray(onboardedJson)
+      ? onboardedJson
+      : [];
+
+    const onboardedCountByPosition = onboardedRows.reduce<Map<string, number>>((acc, row) => {
+      const key = normalizePosition(typeof row?.position === "string" ? row.position : "");
+      if (!key) return acc;
+      acc.set(key, (acc.get(key) ?? 0) + 1);
+      return acc;
+    }, new Map<string, number>());
+
     const uniquePositions = Array.from<string>(
       new Set<string>(
         summaryRows
+          .filter((row: { position?: unknown; required_headcount?: unknown }) => {
+            const position = typeof row.position === "string" ? row.position.trim() : "";
+            if (!position) return false;
+
+            const requiredHeadcount = Number(row.required_headcount ?? 0);
+            const onboardedCount = onboardedCountByPosition.get(normalizePosition(position)) ?? 0;
+
+            return requiredHeadcount - onboardedCount > 0;
+          })
           .map((row: { position?: unknown }) => (typeof row.position === "string" ? row.position.trim() : ""))
           .filter(Boolean)
       )
@@ -126,28 +159,17 @@ export default function ApplicantsForInterviewPage() {
     setIsInitialOpen(true);
   };
 
-  const addFinalRow = () => {
-    const tempId = `tmp-final-${Date.now()}`;
-    const fallbackCandidate = finalCandidates[0];
-    setFinalRows((prev) => [
-      ...prev,
-      {
-        id: tempId,
-        name: fallbackCandidate?.applicant_name ?? "",
-        position: fallbackCandidate?.position ?? "",
-        date: "",
-        time: "",
-        status: "PENDING",
-        stage: "final",
-        initialInterviewId: fallbackCandidate?.id ?? null,
-        isNew: true,
-      },
-    ]);
-    setEditingFinalId(tempId);
-    setIsFinalOpen(true);
-  };
-
   const handleInitialChange = (id: number | string, field: keyof InterviewRow, value: string) => {
+    if (field === "name") {
+      setInitialNameErrors((prev) => {
+        const key = String(id);
+        if (!prev[key]) return prev;
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }
+
     setInitialRows((prev) => prev.map((row) => (row.id === id ? { ...row, [field]: value } : row)));
   };
 
@@ -173,6 +195,14 @@ export default function ApplicantsForInterviewPage() {
 
   const saveInitial = async (row: InterviewRow) => {
     const apiUrl = getApiUrl();
+    const rowKey = String(row.id);
+    setInitialNameErrors((prev) => {
+      if (!prev[rowKey]) return prev;
+      const next = { ...prev };
+      delete next[rowKey];
+      return next;
+    });
+
     const payload = {
       stage: "initial",
       applicant_name: row.name,
@@ -195,11 +225,43 @@ export default function ApplicantsForInterviewPage() {
         });
 
     if (!response.ok) {
+      let message = "Failed to save initial interview row.";
+      try {
+        const errorJson = await response.json();
+        if (typeof errorJson?.message === "string" && errorJson.message.trim()) {
+          message = errorJson.message;
+        } else if (errorJson?.errors && typeof errorJson.errors === "object") {
+          const firstFieldErrors = Object.values(errorJson.errors)[0];
+          if (Array.isArray(firstFieldErrors) && firstFieldErrors[0]) {
+            message = String(firstFieldErrors[0]);
+          }
+        }
+      } catch {
+        // Keep generic message when response is not JSON.
+      }
+
+      const duplicateNamePattern = /name already exists|already exists in interviews|already exists in employee records/i;
+      if (duplicateNamePattern.test(message)) {
+        setInitialNameErrors((prev) => ({
+          ...prev,
+          [rowKey]: "Name already exists",
+        }));
+        return;
+      }
+
+      window.alert(message);
       return;
     }
 
     const json = await response.json();
     const saved = toRow(json.data ?? {});
+
+    setInitialNameErrors((prev) => {
+      if (!prev[rowKey]) return prev;
+      const next = { ...prev };
+      delete next[rowKey];
+      return next;
+    });
 
     setInitialRows((prev) => prev.map((item) => (item.id === row.id ? saved : item)));
     setEditingInitialId(null);
@@ -234,6 +296,22 @@ export default function ApplicantsForInterviewPage() {
         });
 
     if (!response.ok) {
+      let message = "Failed to save final interview row.";
+      try {
+        const errorJson = await response.json();
+        if (typeof errorJson?.message === "string" && errorJson.message.trim()) {
+          message = errorJson.message;
+        } else if (errorJson?.errors && typeof errorJson.errors === "object") {
+          const firstFieldErrors = Object.values(errorJson.errors)[0];
+          if (Array.isArray(firstFieldErrors) && firstFieldErrors[0]) {
+            message = String(firstFieldErrors[0]);
+          }
+        }
+      } catch {
+        // Keep generic message when response is not JSON.
+      }
+
+      window.alert(message);
       return;
     }
 
@@ -325,18 +403,32 @@ export default function ApplicantsForInterviewPage() {
               <TableBody>
                 {filteredInitialRows.map((row) => {
                   const editable = isInitialEditable(row);
+                  const rowNameError = initialNameErrors[String(row.id)] ?? "";
+                  const rowPositionOptions = row.position && !positionOptions.includes(row.position)
+                    ? [...positionOptions, row.position].sort((a, b) => a.localeCompare(b))
+                    : positionOptions;
                   return (
                     <TableRow
                       key={row.id}
                       className={`h-20 border-b-[2px] border-black hover:bg-slate-50/50 last:border-b-0 ${editable ? "bg-amber-50/50" : ""}`}
                     >
-                      <TableCell className="border-r-[3px] border-black p-0">
+                      <TableCell className="border-r-[3px] border-black p-0 relative">
+                        {editable && rowNameError && (
+                          <div className="absolute right-2 top-1 z-10 flex items-center gap-1 text-[11px] font-semibold text-[#ff2d55]">
+                            <AlertCircle size={12} />
+                            <span>{rowNameError}</span>
+                          </div>
+                        )}
                         <input
                           type="text"
                           value={row.name}
                           readOnly={!editable}
                           onChange={(e) => handleInitialChange(row.id, "name", e.target.value)}
-                          className="w-full h-full bg-transparent border-none px-4 font-bold text-black focus:outline-none placeholder:text-stone-300 read-only:cursor-default"
+                          className={`w-full h-full bg-transparent px-4 font-bold text-black focus:outline-none placeholder:text-stone-300 read-only:cursor-default ${
+                            editable && rowNameError
+                              ? "border-2 border-[#ff4d6d] rounded-xl mx-1 my-1 h-[calc(100%-0.5rem)]"
+                              : "border-none"
+                          }`}
                           placeholder="Name..."
                         />
                       </TableCell>
@@ -347,7 +439,7 @@ export default function ApplicantsForInterviewPage() {
                           onChange={(e) => handleInitialChange(row.id, "position", e.target.value)}
                           className="w-full h-full bg-transparent border-none appearance-none px-4 font-bold text-black focus:outline-none disabled:opacity-80"
                         >
-                          {positionOptions.map((p) => (
+                          {rowPositionOptions.map((p) => (
                             <option key={p} value={p}>
                               {p}
                             </option>
@@ -435,15 +527,7 @@ export default function ApplicantsForInterviewPage() {
               {isFinalOpen ? <ChevronDown size={20} className="text-white" /> : <ChevronRight size={20} className="text-white" />}
               <h2 className="font-bold text-sm uppercase tracking-tight select-none">For Final Interview</h2>
             </div>
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                addFinalRow();
-              }}
-              className="bg-white text-[#800020] border-2 border-[#800020] rounded-full p-0.5 w-7 h-7 flex items-center justify-center cursor-pointer hover:bg-slate-100 transition-colors shadow-sm active:scale-95"
-            >
-              <Plus size={20} strokeWidth={4} />
-            </div>
+            <div className="w-7 h-7" />
           </div>
           <div className={isFinalOpen ? "block" : "hidden"}>
             <Table className="border-collapse">

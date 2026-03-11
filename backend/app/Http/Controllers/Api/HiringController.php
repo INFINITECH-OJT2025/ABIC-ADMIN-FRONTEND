@@ -3,9 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Employee;
 use App\Models\HiringInterview;
 use App\Models\HiringJobOffer;
 use App\Models\HiringRequirementSummary;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -74,6 +76,16 @@ class HiringController extends Controller
                         'success' => false,
                         'message' => 'Applicant name is required for initial interview.',
                     ], 422);
+                }
+
+                $duplicateResponse = $this->validateInitialApplicantNameUniqueness((string) $validated['applicant_name']);
+                if ($duplicateResponse) {
+                    return $duplicateResponse;
+                }
+
+                $slotResponse = $this->validateInitialPositionHasAvailableSlots((string) ($validated['position'] ?? ''));
+                if ($slotResponse) {
+                    return $slotResponse;
                 }
             }
 
@@ -207,9 +219,27 @@ class HiringController extends Controller
                 }
             } else {
                 if (array_key_exists('applicant_name', $validated)) {
+                    $duplicateResponse = $this->validateInitialApplicantNameUniqueness(
+                        (string) ($validated['applicant_name'] ?? ''),
+                        $item->id
+                    );
+                    if ($duplicateResponse) {
+                        return $duplicateResponse;
+                    }
+
                     $item->applicant_name = $validated['applicant_name'] ?? '';
                 }
                 if (array_key_exists('position', $validated)) {
+                    $nextPosition = (string) ($validated['position'] ?? '');
+                    $currentPosition = (string) ($item->position ?? '');
+
+                    if (strtolower(trim($nextPosition)) !== strtolower(trim($currentPosition))) {
+                        $slotResponse = $this->validateInitialPositionHasAvailableSlots($nextPosition);
+                        if ($slotResponse) {
+                            return $slotResponse;
+                        }
+                    }
+
                     $item->position = $validated['position'];
                 }
             }
@@ -682,5 +712,76 @@ class HiringController extends Controller
         if ($existingJobOffer) {
             $existingJobOffer->delete();
         }
+    }
+
+    private function validateInitialApplicantNameUniqueness(string $name, ?int $excludeInterviewId = null): ?JsonResponse
+    {
+        $normalizedName = strtolower(trim($name));
+
+        if ($normalizedName === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Applicant name is required for initial interview.',
+            ], 422);
+        }
+
+        $existsInInterviews = HiringInterview::query()
+            ->when($excludeInterviewId, fn ($query) => $query->where('id', '!=', $excludeInterviewId))
+            ->whereRaw('LOWER(TRIM(applicant_name)) = ?', [$normalizedName])
+            ->exists();
+
+        if ($existsInInterviews) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Applicant name already exists in interviews.',
+            ], 422);
+        }
+
+        $existsInEmployees = Employee::query()
+            ->whereRaw("LOWER(TRIM(CONCAT_WS(' ', NULLIF(TRIM(first_name), ''), NULLIF(TRIM(last_name), '')))) = ?", [$normalizedName])
+            ->exists();
+
+        if ($existsInEmployees) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Applicant name already exists in employee records.',
+            ], 422);
+        }
+
+        return null;
+    }
+
+    private function validateInitialPositionHasAvailableSlots(string $position): ?JsonResponse
+    {
+        $normalizedPosition = strtolower(trim($position));
+
+        if ($normalizedPosition === '') {
+            return null;
+        }
+
+        $summary = HiringRequirementSummary::query()
+            ->whereRaw('LOWER(TRIM(position)) = ?', [$normalizedPosition])
+            ->first();
+
+        if (!$summary) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected position is not in hiring requirement summary.',
+            ], 422);
+        }
+
+        $requiredHeadcount = (int) $summary->required_headcount;
+        $onboardedCount = (int) DB::table('onboarded_applicants')
+            ->whereRaw('LOWER(TRIM(position)) = ?', [$normalizedPosition])
+            ->count();
+
+        if (($requiredHeadcount - $onboardedCount) <= 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No slots left for the selected position.',
+            ], 422);
+        }
+
+        return null;
     }
 }
