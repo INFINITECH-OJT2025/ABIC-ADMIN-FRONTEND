@@ -61,6 +61,7 @@ export default function AdminHeadSidebar() {
       className={`${isCollapsed ? "w-20" : "w-64"} bg-gradient-to-r from-[#7B0F2B] to-[#A4163A] text-white h-screen sticky top-0 p-4 flex flex-col transition-all duration-300 ease-in-out z-50`}
     >
       <button
+        suppressHydrationWarning
         onClick={toggleSidebar}
         className={cn(
           "mb-4 p-2 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center",
@@ -158,6 +159,7 @@ export default function AdminHeadSidebar() {
         {/* ATTENDANCE with Dropdown */}
         <div className="group relative">
           <button
+            suppressHydrationWarning
             onClick={() => setIsAttendanceOpen(!isAttendanceOpen)}
             className={cn(
               "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
@@ -253,6 +255,7 @@ export default function AdminHeadSidebar() {
         {/* EMPLOYEE with Dropdown */}
         <div className="group relative">
           <button
+            suppressHydrationWarning
             onClick={() => setIsEmployeeOpen(!isEmployeeOpen)}
             className={cn(
               "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
@@ -316,6 +319,7 @@ export default function AdminHeadSidebar() {
         {/* FORMS with Dropdown */}
         <div className="group relative">
           <button
+            suppressHydrationWarning
             onClick={() => setIsFormsOpen(!isFormsOpen)}
             className={cn(
               "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
@@ -395,6 +399,7 @@ export default function AdminHeadSidebar() {
         {/* HIRING with Dropdown */}
         <div className="group relative">
           <button
+            suppressHydrationWarning
             onClick={() => setIsHiringOpen(!isHiringOpen)}
             className={cn(
               "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
@@ -441,59 +446,6 @@ export default function AdminHeadSidebar() {
           </div>
         </div>
 
-
-        {/* ACTIVITY LOGS */}
-        <div className="group relative">
-          <Link
-            href="/admin-head"
-            className={cn(
-              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : ""
-            )}
-          >
-            <Activity size={22} className="shrink-0" />
-            {!isCollapsed && <span className="font-medium whitespace-nowrap">ACTIVITY LOGS</span>}
-          </Link>
-          {isCollapsed && (
-            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">ACTIVITY LOGS</div>
-              <Link
-                href="/admin-head"
-                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-              >
-                <Activity size={18} />
-                <span>Activity Logs</span>
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* DIRECTORY */}
-        <div className="group relative">
-          <Link
-            href="/admin-head/directory"
-            className={cn(
-              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : ""
-            )}
-          >
-            <BookOpen size={22} className="shrink-0" />
-            {!isCollapsed && <span className="font-medium whitespace-nowrap">DIRECTORY</span>}
-          </Link>
-          {isCollapsed && (
-            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">DIRECTORY</div>
-              <Link
-                href="/admin-head/directory"
-                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-              >
-                <BookOpen size={18} />
-                <span>Directory</span>
-              </Link>
-            </div>
-          )}
-        </div>
-
         {/* INVENTORY */}
         <div className="group relative">
           <Link
@@ -526,6 +478,7 @@ export default function AdminHeadSidebar() {
 
       <div className="flex justify-center mb-4 w-full px-4">
         <button
+          suppressHydrationWarning
           onClick={() => setShowLogoutConfirm(true)}
           className={cn(
             "flex items-center gap-3 rounded-xl transition-all duration-300 font-bold text-sm tracking-widest w-full justify-center",

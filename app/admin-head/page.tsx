@@ -460,6 +460,7 @@ export default function AdminHeadPage() {
                   {totalPages > 1 && (
                     <div className="p-4 bg-stone-50/50 border-t border-stone-100">
                       <button
+                        suppressHydrationWarning
                         onClick={() => { if (currentPage < totalPages) setCurrentPage(p => p + 1) }}
                         className="w-full py-4 bg-[#A4163A]/60 hover:bg-[#A4163A]/70 text-white rounded-md font-bold uppercase tracking-widest text-sm transition-all shadow-sm hover:shadow-md active:scale-[0.99]"
                       >
