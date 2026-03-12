@@ -546,7 +546,7 @@ class EmployeeController extends Controller
     public function getTerminations()
     {
         try {
-            $terminations = Termination::with('employee')->get();
+            $terminations = Termination::with('employee')->orderByDesc('created_at')->get();
 
             return response()->json([
                 'success' => true,
@@ -567,7 +567,7 @@ class EmployeeController extends Controller
     public function getResigned()
     {
         try {
-            $resigned = Resigned::with('employee')->get();
+            $resigned = Resigned::with('employee')->orderByDesc('created_at')->get();
 
             return response()->json([
                 'success' => true,

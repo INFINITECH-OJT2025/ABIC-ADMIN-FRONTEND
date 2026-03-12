@@ -197,7 +197,10 @@ function TerminatePageContent() {
   const searchParams = useSearchParams()
   const isHistoryView = searchParams.get('view') === 'history'
 
-  const prepareClearanceChecklist = async (employeeRec: TerminationRecord) => {
+  const prepareClearanceChecklist = async (
+    employeeRec: TerminationRecord,
+    options?: { forceFresh?: boolean },
+  ) => {
     setLoadingTasks(true)
     try {
       const empName = `${employeeRec.employee?.first_name} ${employeeRec.employee?.last_name}`
@@ -228,10 +231,18 @@ function TerminatePageContent() {
       }
       setClearanceTasks(tasksArray)
 
-      // 2. Fetch employee's clearance record
-      const recordRes = await fetch(`${getApiUrl()}/api/clearance-checklist`, { headers: { Accept: 'application/json' } })
       const newCompleted: Record<string, string> = {}
       const newSaved = new Set<string>()
+
+      if (options?.forceFresh) {
+        setChecklistRecordId(null)
+        setCompletedClearanceTasks(newCompleted)
+        setSavedClearanceTasks(newSaved)
+        return
+      }
+
+      // 2. Fetch employee's clearance record
+      const recordRes = await fetch(`${getApiUrl()}/api/clearance-checklist`, { headers: { Accept: 'application/json' } })
       
       if (recordRes.ok) {
         const recordData = await recordRes.json()
@@ -252,11 +263,13 @@ function TerminatePageContent() {
           return Boolean(targetLastDay) && recordLastDay === targetLastDay
         })
 
-        const sortedByLatest = [...(sameDayMatches.length > 0 ? sameDayMatches : [])].sort((a: any, b: any) => {
+        const sortedByLatest = [...(sameDayMatches.length > 0 ? sameDayMatches : [])]
+          .filter((item: any) => String(item?.status ?? '').toUpperCase() !== 'DONE')
+          .sort((a: any, b: any) => {
           const aTs = new Date(a?.updated_at ?? a?.created_at ?? 0).getTime()
           const bTs = new Date(b?.updated_at ?? b?.created_at ?? 0).getTime()
           return bTs - aTs
-        })
+          })
 
         const match = sortedByLatest[0]
         
@@ -586,8 +599,31 @@ function TerminatePageContent() {
         const checklistEmployeeId = searchParams.get('employeeId')
         const actionParam = searchParams.get('action')
         if (actionParam === 'checklist' && checklistEmployeeId) {
-          const foundRecord = (Array.isArray(termData.data) ? termData.data : []).find((r: any) => String(r.employee_id) === checklistEmployeeId) 
-                              || normalizedResigned.find((r: any) => String(r.employee_id) === checklistEmployeeId)
+          const byLatestActive = (list: any[]) =>
+            [...list]
+              .sort((a: any, b: any) => {
+                const aActive = a?.rehired_at ? 0 : 1
+                const bActive = b?.rehired_at ? 0 : 1
+                if (aActive !== bActive) return bActive - aActive
+
+                const aPending = String(a?.status ?? '').toLowerCase() === 'pending' ? 1 : 0
+                const bPending = String(b?.status ?? '').toLowerCase() === 'pending' ? 1 : 0
+                if (aPending !== bPending) return bPending - aPending
+
+                const aTs = new Date(a?.created_at ?? a?.updated_at ?? 0).getTime()
+                const bTs = new Date(b?.created_at ?? b?.updated_at ?? 0).getTime()
+                return bTs - aTs
+              })[0]
+
+          const foundRecord = byLatestActive(
+            (Array.isArray(termData.data) ? termData.data : []).filter(
+              (r: any) => String(r.employee_id) === checklistEmployeeId,
+            ),
+          ) || byLatestActive(
+            normalizedResigned.filter(
+              (r: any) => String(r.employee_id) === checklistEmployeeId,
+            ),
+          )
           if (foundRecord) {
              setChecklistEmployee(foundRecord)
              setView('checklist')
@@ -859,7 +895,7 @@ function TerminatePageContent() {
                 employee: selectedEmployee
               }
               setChecklistEmployee(tempRecord)
-              prepareClearanceChecklist(tempRecord)
+              prepareClearanceChecklist(tempRecord, { forceFresh: true })
               setView('checklist')
             }
           } else {
