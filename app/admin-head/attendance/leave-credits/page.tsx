@@ -178,13 +178,13 @@ export default function LeaveCreditsPage() {
 
         <div className="px-4 md:px-8 space-y-8">
           <Card className="bg-white border-2 border-[#FFE5EC] shadow-xl overflow-hidden rounded-2xl flex flex-col">
-            <CardHeader className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-4 border-b-2 border-[#630C22] p-6">
+            <CardHeader className="bg-gradient-to-r from-[#4A081A]/10 to-transparent py-4 border-b-2 border-[#630C22] px-6">
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <CardTitle className="text-2xl text-[#4A081A] font-black uppercase tracking-wider">
+                <CardTitle className="text-xl text-[#4A081A] font-black uppercase tracking-wider">
                   Employee Credits List
                 </CardTitle>
-                <CardDescription className="text-[#A0153E]/70 flex items-center gap-2 text-sm font-bold">
-                  <span className="inline-block w-3 h-3 rounded-full bg-[#C9184A]" />
+                <CardDescription className="text-[#A0153E]/70 flex items-center gap-2 text-xs font-bold">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#C9184A]" />
                   Showing {filteredCredits.length} total employees
                 </CardDescription>
               </div>
@@ -194,19 +194,19 @@ export default function LeaveCreditsPage() {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-[#FFE5EC]/30 border-b border-[#FFE5EC]">
-                      <th className="px-6 py-5 text-sm font-black text-[#800020] uppercase tracking-widest">
+                      <th className="px-4 py-3 text-[11px] font-black text-[#800020] uppercase tracking-widest">
                         Employee
                       </th>
-                      <th className="px-6 py-5 text-sm font-black text-[#800020] uppercase tracking-widest">
-                        Regularization Date
+                      <th className="px-4 py-3 text-[11px] font-black text-[#800020] uppercase tracking-widest">
+                        Regularization
                       </th>
-                      <th className="px-6 py-5 text-sm font-black text-[#800020] uppercase tracking-widest text-center">
-                        Benefit Status
+                      <th className="px-4 py-3 text-[11px] font-black text-[#800020] uppercase tracking-widest text-center">
+                        Status
                       </th>
-                      <th className="px-6 py-5 text-sm font-black text-[#800020] uppercase tracking-widest text-center">
+                      <th className="px-4 py-3 text-[11px] font-black text-[#800020] uppercase tracking-widest text-center">
                         Vacation Leave
                       </th>
-                      <th className="px-6 py-5 text-sm font-black text-[#800020] uppercase tracking-widest text-center">
+                      <th className="px-4 py-3 text-[11px] font-black text-[#800020] uppercase tracking-widest text-center">
                         Sick Leave
                       </th>
                     </tr>
@@ -214,54 +214,52 @@ export default function LeaveCreditsPage() {
                   <tbody className="divide-y divide-[#FFE5EC]/50 font-medium">
                     {paginatedCredits.length > 0 ? (
                       paginatedCredits.map((item) => (
-                        <tr>
-                          <td className="px-6 py-6">
+                        <tr key={item.employee_name} className="hover:bg-rose-50/30 transition-colors group">
+                          <td className="px-4 py-3">
                             <div>
-                              <div className="font-black text-[#4A081A] text-lg lg:text-xl group-hover:text-[#630C22] transition-colors leading-tight">
+                              <div className="font-black text-[#4A081A] text-sm group-hover:text-[#630C22] transition-colors leading-tight">
                                 {item.employee_name}
                               </div>
-                              <div className="text-xs lg:text-sm text-stone-500 font-bold flex items-center gap-1.5 mt-1 uppercase tracking-wide">
-                                <Briefcase className="w-3.5 h-3.5 opacity-70" />
+                              <div className="text-[10px] text-stone-500 font-bold flex items-center gap-1 mt-0.5 uppercase tracking-wide">
+                                <Briefcase className="w-3 h-3 opacity-70" />
                                 {item.department || "No Department"}
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-6 font-bold text-stone-600 text-base">
+                          <td className="px-4 py-3 font-bold text-stone-600 text-xs">
                             {item.regularization_date
-                              ? new Date(
-                                  item.regularization_date,
-                                ).toLocaleDateString("en-US", {
+                              ? new Date(item.regularization_date).toLocaleDateString("en-US", {
                                   month: "short",
                                   day: "numeric",
                                   year: "numeric",
                                 })
                               : "Pending"}
                           </td>
-                          <td className="px-6 py-6 text-center">
+                          <td className="px-4 py-3 text-center">
                             {item.has_one_year_regular ? (
-                              <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border-emerald-300 py-1.5 px-4 rounded-lg text-xs font-black uppercase tracking-wider">
+                              <Badge className="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-emerald-200 py-0.5 px-2 rounded-md text-[9px] font-black uppercase tracking-wider">
                                 Qualified
                               </Badge>
                             ) : (
                               <Badge
                                 variant="outline"
-                                className="text-stone-400 border-stone-200 py-1.5 px-4 rounded-lg text-xs font-black uppercase tracking-wider"
+                                className="text-stone-400 border-stone-200 py-0.5 px-2 rounded-md text-[9px] font-black uppercase tracking-wider"
                               >
                                 Ineligible
                               </Badge>
                             )}
                           </td>
-                          <td className="px-6 py-6">
+                          <td className="px-4 py-3">
                             <div className="flex flex-col items-center">
-                              <div className="flex items-end gap-1.5">
-                                <span className="text-2xl font-black text-[#4A081A]">
+                              <div className="flex items-end gap-1">
+                                <span className="text-base font-black text-[#4A081A]">
                                   {item.vl_balance}
                                 </span>
-                                <span className="text-[11px] font-black text-stone-400 uppercase mb-1.5">
-                                  / {item.vl_total} Days
+                                <span className="text-[9px] font-black text-stone-400 uppercase mb-0.5">
+                                  / {item.vl_total}
                                 </span>
                               </div>
-                              <div className="w-28 h-2 bg-stone-100 rounded-full mt-2.5 overflow-hidden border border-stone-100">
+                              <div className="w-20 h-1.5 bg-stone-100 rounded-full mt-1.5 overflow-hidden border border-stone-100/50">
                                 <div
                                   className="h-full bg-gradient-to-r from-[#A4163A] to-[#630C22] rounded-full"
                                   style={{
@@ -269,22 +267,22 @@ export default function LeaveCreditsPage() {
                                   }}
                                 />
                               </div>
-                              <span className="text-[11px] text-stone-500 font-black uppercase mt-1.5 tracking-tight">
+                              <span className="text-[9px] text-stone-500 font-black uppercase mt-1 tracking-tight">
                                 {item.vl_used} Used
                               </span>
                             </div>
                           </td>
-                          <td className="px-6 py-6">
+                          <td className="px-4 py-3">
                             <div className="flex flex-col items-center">
-                              <div className="flex items-end gap-1.5">
-                                <span className="text-2xl font-black text-[#4A081A]">
+                              <div className="flex items-end gap-1">
+                                <span className="text-base font-black text-[#4A081A]">
                                   {item.sl_balance}
                                 </span>
-                                <span className="text-[11px] font-black text-stone-400 uppercase mb-1.5">
-                                  / {item.sl_total} Days
+                                <span className="text-[9px] font-black text-stone-400 uppercase mb-0.5">
+                                  / {item.sl_total}
                                 </span>
                               </div>
-                              <div className="w-28 h-2 bg-stone-100 rounded-full mt-2.5 overflow-hidden border border-stone-100">
+                              <div className="w-20 h-1.5 bg-stone-100 rounded-full mt-1.5 overflow-hidden border border-stone-100/50">
                                 <div
                                   className="h-full bg-orange-500 rounded-full"
                                   style={{
@@ -292,7 +290,7 @@ export default function LeaveCreditsPage() {
                                   }}
                                 />
                               </div>
-                              <span className="text-[11px] text-stone-500 font-black uppercase mt-1.5 tracking-tight">
+                              <span className="text-[9px] text-stone-500 font-black uppercase mt-1 tracking-tight">
                                 {item.sl_used} Used
                               </span>
                             </div>
@@ -301,22 +299,22 @@ export default function LeaveCreditsPage() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="px-6 py-32 text-center">
+                        <td colSpan={5} className="px-6 py-20 text-center">
                           <div className="flex flex-col items-center gap-4">
-                            <div className="w-20 h-20 rounded-full bg-rose-50 flex items-center justify-center text-rose-200">
-                              <Users className="w-10 h-10" />
+                            <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-200">
+                              <Users className="w-8 h-8" />
                             </div>
                             <div className="space-y-1">
-                              <div className="text-xl font-black text-[#4A081A] uppercase tracking-wide">
+                              <div className="text-base font-black text-[#4A081A] uppercase tracking-wide">
                                 No Results Found
                               </div>
-                              <div className="text-stone-400 font-bold">
+                              <div className="text-stone-400 font-bold text-xs">
                                 We couldn't find any match for "{search}"
                               </div>
                             </div>
                             <Button
                               variant="ghost"
-                              className="text-[#630C22] font-black uppercase underline decoration-2 underline-offset-4"
+                              className="text-[#630C22] font-black uppercase underline decoration-2 underline-offset-4 text-xs h-auto py-1"
                               onClick={() => setSearch("")}
                             >
                               Clear search
@@ -330,8 +328,8 @@ export default function LeaveCreditsPage() {
               </div>
 
               {totalPages > 1 && (
-                <div className="px-8 py-6 bg-[#FFE5EC]/10 border-t-2 border-[#FFE5EC] flex items-center justify-between">
-                  <div className="text-sm text-stone-500 font-black uppercase tracking-wider">
+                <div className="px-6 py-4 bg-[#FFE5EC]/10 border-t-2 border-[#FFE5EC] flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="text-[10px] text-stone-500 font-black uppercase tracking-wider">
                     Showing{" "}
                     <span className="text-[#4A081A]">
                       {(currentPage - 1) * itemsPerPage + 1}
@@ -349,28 +347,28 @@ export default function LeaveCreditsPage() {
                     </span>{" "}
                     Employees
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
                       size="icon"
-                      className="w-10 h-10 rounded-xl border-2 border-stone-100 hover:border-[#FFE5EC] text-stone-600 transition-all font-black"
+                      className="w-8 h-8 rounded-lg border border-stone-100 hover:border-[#FFE5EC] text-stone-600 transition-all"
                       onClick={() =>
                         setCurrentPage((prev) => Math.max(1, prev - 1))
                       }
                       disabled={currentPage === 1}
                     >
-                      <ChevronLeft className="w-5 h-5" />
+                      <ChevronLeft className="w-4 h-4" />
                     </Button>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map(
                         (page) => (
                           <Button
                             key={page}
                             variant={currentPage === page ? "default" : "ghost"}
                             className={cn(
-                              "w-10 h-10 rounded-xl p-0 font-black text-sm transition-all",
+                              "w-8 h-8 rounded-lg p-0 font-black text-xs transition-all",
                               currentPage === page
-                                ? "bg-white text-red shadow-md scale-110"
+                                ? "bg-[#800020] text-white shadow-sm scale-105"
                                 : "text-stone-600 hover:bg-rose-50",
                             )}
                             onClick={() => setCurrentPage(page)}
@@ -383,13 +381,13 @@ export default function LeaveCreditsPage() {
                     <Button
                       variant="outline"
                       size="icon"
-                      className="w-10 h-10 rounded-xl border-2 border-stone-100 hover:border-[#FFE5EC] text-stone-600 transition-all font-black"
+                      className="w-8 h-8 rounded-lg border border-stone-100 hover:border-[#FFE5EC] text-stone-600 transition-all font-black"
                       onClick={() =>
                         setCurrentPage((prev) => Math.min(totalPages, prev + 1))
                       }
                       disabled={currentPage === totalPages}
                     >
-                      <ChevronRight className="w-5 h-5" />
+                      <ChevronRight className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
@@ -397,16 +395,16 @@ export default function LeaveCreditsPage() {
             </CardContent>
           </Card>
 
-          <div className="flex items-start gap-5 p-8 bg-white rounded-2xl border-2 border-[#FFE5EC] shadow-sm relative overflow-hidden group">
-            <div className="absolute left-0 top-0 bottom-0 w-2 bg-[#630C22]" />
-            <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center shrink-0">
-              <AlertCircle className="w-7 h-7 text-[#630C22]" />
+          <div className="flex items-start gap-4 p-5 bg-white rounded-xl border-2 border-[#FFE5EC] shadow-sm relative overflow-hidden group">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#630C22]" />
+            <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
+              <AlertCircle className="w-6 h-6 text-[#630C22]" />
             </div>
-            <div className="space-y-2">
-              <h4 className="text-lg font-black text-[#4A081A] uppercase tracking-wider">
+            <div className="space-y-1">
+              <h4 className="text-sm font-black text-[#4A081A] uppercase tracking-wider">
                 Credit Policy Briefing
               </h4>
-              <p className="text-stone-600 leading-relaxed font-bold text-base">
+              <p className="text-stone-600 leading-relaxed font-bold text-xs">
                 Employees are granted{" "}
                 <span className="text-[#630C22] underline decoration-rose-200">
                   15 days Vacation Leave

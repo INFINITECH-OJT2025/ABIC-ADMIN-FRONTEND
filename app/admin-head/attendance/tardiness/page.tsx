@@ -1373,7 +1373,6 @@ export default function AttendanceDashboard() {
   const [yearsList, setYearsList] = useState<number[]>(availableYears);
   const [sortOrder, setSortOrder] = useState<"Recent" | "Oldest">("Oldest");
 
-
   // State for all entries (Master Record)
   const [allEntries, setAllEntries] = useState<LateEntry[]>([]);
   const [leaves, setLeaves] = useState<LeaveEntry[]>([]);
@@ -1542,7 +1541,7 @@ export default function AttendanceDashboard() {
 
   // UI state for which cutoff table to show
   const [showCutoff, setShowCutoff] = useState<"first" | "second" | "both">(
-    new Date().getDate() <= 15 ? "first" : "second"
+    new Date().getDate() <= 15 ? "first" : "second",
   );
 
   // Global Search state for both cutoff tables
@@ -1644,7 +1643,9 @@ export default function AttendanceDashboard() {
       const data = await res.json();
       if (data.success) {
         setAllEntries((prev) => {
-          const updated = prev.filter((entry) => String(entry.id) !== String(id));
+          const updated = prev.filter(
+            (entry) => String(entry.id) !== String(id),
+          );
           return recalculateWarnings(updated, leaves);
         });
         toast.success("Entry removed successfully");
@@ -1692,9 +1693,13 @@ export default function AttendanceDashboard() {
       } else {
         // If it failed but it was just a 404/not implemented, we don't need to alert the user
         // as the local state update is sufficient for initialization.
-        console.log("Backend year initialization skipped or not supported, proceeding with local year.");
-        toast.info(`Year ${nextYear} initialized locally. Add an entry to persist it.`);
-        }
+        console.log(
+          "Backend year initialization skipped or not supported, proceeding with local year.",
+        );
+        toast.info(
+          `Year ${nextYear} initialized locally. Add an entry to persist it.`,
+        );
+      }
     } catch (error) {
       console.error("Save error:", error);
       if (error instanceof TypeError && error.message === "Failed to fetch") {
@@ -2067,7 +2072,8 @@ export default function AttendanceDashboard() {
                   variant="outline"
                   className={cn(
                     "bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2",
-                    isEntryFormOpen && "bg-rose-100 text-[#4A081A] border-rose-200",
+                    isEntryFormOpen &&
+                      "bg-rose-100 text-[#4A081A] border-rose-200",
                   )}
                 >
                   {isEntryFormOpen ? (
@@ -2330,7 +2336,9 @@ export default function AttendanceDashboard() {
                     <h2 className="text-xl font-black text-[#4A081A] uppercase tracking-tight">
                       New Tardiness Entry
                     </h2>
-                    <p className="text-sm font-medium text-slate-400">Record a late arrival for today</p>
+                    <p className="text-sm font-medium text-slate-400">
+                      Record a late arrival for today
+                    </p>
                   </div>
                 </div>
 
@@ -2376,7 +2384,9 @@ export default function AttendanceDashboard() {
                     </Button>
                     <Button
                       onClick={handleSaveClick}
-                      disabled={isSaving || selectedYear !== new Date().getFullYear()}
+                      disabled={
+                        isSaving || selectedYear !== new Date().getFullYear()
+                      }
                       className="h-12 px-10 text-xs font-bold text-white uppercase tracking-widest bg-[#7B0F2B] hover:bg-[#630C22] shadow-lg shadow-rose-900/20 rounded-xl min-w-[160px]"
                     >
                       {isSaving ? (
@@ -2388,14 +2398,14 @@ export default function AttendanceDashboard() {
                         "Save Record"
                       )}
                     </Button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ----- CUTOFF TABLES - WITH SUMMARY BUTTONS ----- */}
+        {/* ----- CUTOFF TABLES - WITH SUMMARY BUTTONS ----- */}
         <div
           className={`grid ${showCutoff === "both" ? "grid-cols-1 lg:grid-cols-2 gap-4" : "grid-cols-1"} w-full`}
         >

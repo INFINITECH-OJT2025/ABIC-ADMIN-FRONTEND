@@ -105,7 +105,10 @@ export default function LeaveSummaryPage() {
     const runningCredits = new Map<string, { vl: number; sl: number }>();
 
     // Sort leaves chronologically to deduct correctly
-    const sortedLeaves = [...leaves].sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+    const sortedLeaves = [...leaves].sort(
+      (a, b) =>
+        new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
+    );
 
     sortedLeaves.forEach((leave) => {
       // Include only Approved leaves (not Pending, not Declined)
@@ -129,16 +132,16 @@ export default function LeaveSummaryPage() {
 
       const creditInfo = creditsMap.get(empId);
       const isEligible = creditInfo?.has_one_year_regular;
-      
+
       let daysToCount = Number(leave.number_of_days) || 0;
-      
+
       if (isEligible) {
         if (!runningCredits.has(empId)) {
           runningCredits.set(empId, { vl: 15, sl: 15 });
         }
         const running = runningCredits.get(empId)!;
         const remarks = String((leave as any).remarks || "").toLowerCase();
-        
+
         if (remarks.includes("sick")) {
           const deduct = Math.min(daysToCount, running.sl);
           running.sl -= deduct;
@@ -594,25 +597,25 @@ export default function LeaveSummaryPage() {
       {/* ----- INTEGRATED HEADER & TOOLBAR ----- */}
       <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6 sticky top-0 z-50">
         {/* Main Header Row */}
-        <div className="w-full px-4 md:px-8 py-6">
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div className="w-full px-4 md:px-8 py-4">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">
+              <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight">
                 Yearly Leave Summary
               </h1>
-              <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
+              <p className="text-white/80 text-[10px] md:text-xs font-bold flex items-center gap-2 uppercase tracking-widest">
+                <Calendar className="w-3.5 h-3.5" />
                 Leave Monitoring {selectedYear}
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Link href="/admin-head/attendance/leave">
                 <Button
                   variant="outline"
-                  className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg flex items-center gap-2"
+                  className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-2"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-3.5 h-3.5" />
                   <span>Back to leave entry</span>
                 </Button>
               </Link>
@@ -621,23 +624,23 @@ export default function LeaveSummaryPage() {
         </div>
 
         {/* Secondary Toolbar */}
-        <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm">
-          <div className="w-full px-4 md:px-8 py-3">
-            <div className="flex flex-wrap items-center gap-3 md:gap-4">
+        <div className="border-t border-white/10 bg-black/5 backdrop-blur-sm">
+          <div className="w-full px-4 md:px-8 py-2">
+            <div className="flex flex-wrap items-center gap-3 md:gap-6">
               {/* Year Selection */}
-              <div className="flex items-center gap-3">
-                <span className="text-sm font-bold text-white/70 uppercase tracking-wider">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">
                   Year
                 </span>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[120px] justify-between shadow-sm font-bold inline-flex items-center whitespace-nowrap rounded-lg cursor-pointer group border-2">
+                    <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-[11px] h-8 px-3 min-w-[90px] justify-between shadow-sm font-black inline-flex items-center whitespace-nowrap rounded-md cursor-pointer group border-2">
                       <span>{selectedYear}</span>
-                      <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
+                      <ChevronDown className="w-3.5 h-3.5 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
                     </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
-                    className="w-[150px] bg-white border-rose-100 shadow-xl rounded-xl p-1.5"
+                    className="w-[120px] bg-white border-rose-100 shadow-xl rounded-lg p-1"
                     align="start"
                   >
                     {yearOptions.map((year) => (
@@ -645,15 +648,15 @@ export default function LeaveSummaryPage() {
                         key={year}
                         onClick={() => setSelectedYear(year)}
                         className={cn(
-                          "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
+                          "flex items-center justify-between rounded-md px-2 py-1.5 text-xs cursor-pointer transition-colors",
                           selectedYear === year
-                            ? "bg-red-50 text-red-900 font-semibold"
+                            ? "bg-red-50 text-red-900 font-bold"
                             : "text-slate-600 hover:bg-slate-50",
                         )}
                       >
                         {year}
                         {selectedYear === year && (
-                          <Check className="w-4 h-4 text-red-600" />
+                          <Check className="w-3.5 h-3.5 text-red-600" />
                         )}
                       </DropdownMenuItem>
                     ))}
@@ -665,24 +668,21 @@ export default function LeaveSummaryPage() {
               <Button
                 variant="outline"
                 onClick={handleExport}
-                className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg flex items-center gap-2"
+                className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-2"
               >
-                <Download className="w-4 h-4" />
-                <span>Export</span>
+                <Download className="w-3.5 h-3.5" />
+                <span>Export Report</span>
               </Button>
 
               {/* Search Bar */}
-              <div className="flex items-center gap-3 ml-auto">
-                <span className="text-sm font-bold text-white/70 uppercase tracking-wider hidden xl:block">
-                  Search
-                </span>
+              <div className="flex items-center gap-2 ml-auto">
                 <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <Input
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search Employee..."
-                    className="pl-9 h-10 w-[300px] lg:w-[400px] bg-white border-2 border-[#FFE5EC] text-[#800020] placeholder:text-slate-400 font-medium rounded-lg shadow-sm focus-visible:ring-rose-200 transition-all duration-200 focus:w-[320px] lg:focus:w-[440px]"
+                    className="pl-9 h-8 w-[250px] lg:w-[320px] bg-white border-2 border-[#FFE5EC] text-[#800020] placeholder:text-slate-400 font-bold text-xs rounded-md shadow-sm focus-visible:ring-rose-200 transition-all duration-200"
                   />
                 </div>
               </div>
@@ -692,10 +692,10 @@ export default function LeaveSummaryPage() {
       </div>
 
       {/* ----- CONTENT ----- */}
-      <div className="px-6 py-6 md:px-8">
+      <div className="px-4 py-4 md:px-6">
         <div className="bg-white rounded-xl shadow-sm border border-rose-200 overflow-hidden">
-          <div className="bg-gradient-to-r from-[#FDF2F4] to-[#FFF5F6] border-b border-rose-200 px-8 py-6 flex items-center justify-between">
-            <h2 className="text-[#7B0F2B] text-xl tracking-wide uppercase">
+          <div className="bg-gradient-to-r from-[#FDF2F4] to-[#FFF5F6] border-b border-rose-200 px-6 py-3 flex items-center justify-between">
+            <h2 className="text-[#7B0F2B] text-sm font-black tracking-widest uppercase">
               Leave Monitoring Summary {selectedYear}
             </h2>
           </div>
@@ -706,26 +706,24 @@ export default function LeaveSummaryPage() {
                 Loading leave data...
               </div>
             ) : (
-              <table className="w-full text-base border-collapse">
+              <table className="w-full text-xs border-collapse">
                 <thead>
-                  <tr className="bg-[#FFF1F3] text-[#7B0F2B] border-b border-rose-200">
-                    <th className="px-6 py-4 uppercase text-center whitespace-nowrap border-r border-rose-200/50">
+                  <tr className="bg-[#FFF1F3] text-[#7B0F2B] border-b border-rose-200 font-black uppercase text-[10px] tracking-wider">
+                    <th className="px-3 py-2 text-center border-r border-rose-200/50 w-20">
                       ID Number
                     </th>
-                    <th className="px-6 py-4 uppercase text-center min-w-[250px] border-r border-rose-200/50">
+                    <th className="px-3 py-2 text-left pl-6 min-w-[180px] border-r border-rose-200/50">
                       Name
                     </th>
                     {MONTHS.map((m) => (
                       <th
                         key={m}
-                        className="px-2 py-4 text-sm uppercase text-center w-14 border-r border-rose-200/50"
+                        className="px-1 py-2 text-center w-10 border-r border-rose-200/50"
                       >
                         {m}
                       </th>
                     ))}
-                    <th className="px-6 py-4 uppercase text-center whitespace-nowrap">
-                      Total Leave Taken
-                    </th>
+                    <th className="px-3 py-2 text-center w-24">Total</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -733,14 +731,14 @@ export default function LeaveSummaryPage() {
                     <tr
                       key={record.employee.id}
                       className={cn(
-                        "border-b border-rose-100 hover:bg-rose-50/80 transition-colors",
-                        idx % 2 === 0 ? "bg-white" : "bg-[#FFF9FA]",
+                        "border-b border-rose-100/50 hover:bg-rose-50/50 transition-colors",
+                        idx % 2 === 0 ? "bg-white" : "bg-[#FFF9FA]/50",
                       )}
                     >
-                      <td className="px-6 py-4 text-center text-slate-700 font-semibold border-r border-rose-100">
+                      <td className="px-3 py-2 text-center text-slate-500 font-medium border-r border-rose-100/50">
                         {record.employee.id}
                       </td>
-                      <td className="px-6 py-4 text-left text-lg text-slate-800 border-r border-rose-100">
+                      <td className="px-6 py-2 text-left text-sm font-bold text-slate-700 border-r border-rose-100/50">
                         {record.employee.name}
                       </td>
 
@@ -748,35 +746,35 @@ export default function LeaveSummaryPage() {
                         <td
                           key={mIdx}
                           className={cn(
-                            "px-2 py-4 text-center border-r border-rose-100",
+                            "px-1 py-2 text-center border-r border-rose-100/50",
                             val >= 3
-                              ? "bg-rose-200 text-rose-900 font-black text-lg shadow-[inset_0_0_8px_rgba(225,29,72,0.2)]"
-                              : "text-slate-600 font-semibold",
+                              ? "bg-rose-100 text-[#800020] font-black text-xs"
+                              : "text-slate-500 font-bold",
                           )}
                         >
                           {val > 0 ? (
                             val % 1 !== 0 ? (
                               Math.floor(val) > 0 ? (
-                                `${Math.floor(val)}d ${(val % 1) * 8}hrs`
+                                `${Math.floor(val)}d ${(val % 1) * 8}h`
                               ) : (
-                                `${val * 8}hrs`
+                                `${val * 8}h`
                               )
                             ) : (
                               val
                             )
                           ) : (
-                            <span className="text-slate-300">-</span>
+                            <span className="text-slate-200">-</span>
                           )}
                         </td>
                       ))}
 
-                      <td className="px-6 py-4 text-center text-[#4A081A] text-xl bg-[#FFF5F6]">
+                      <td className="px-3 py-2 text-center font-black text-[#4A081A] bg-[#FFF5F6] text-sm">
                         {record.total > 0 ? (
                           record.total % 1 !== 0 ? (
                             Math.floor(record.total) > 0 ? (
-                              `${Math.floor(record.total)}d ${(record.total % 1) * 8}hrs`
+                              `${Math.floor(record.total)}d ${(record.total % 1) * 8}h`
                             ) : (
-                              `${record.total * 8}hrs`
+                              `${record.total * 8}h`
                             )
                           ) : (
                             record.total

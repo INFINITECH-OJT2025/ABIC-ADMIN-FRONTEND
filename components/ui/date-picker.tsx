@@ -69,6 +69,9 @@ export function DatePicker({
           selected={parsedDate}
           onSelect={onChange}
           initialFocus
+          captionLayout="dropdown"
+          fromYear={1900}
+          toYear={2100}
         />
       </PopoverContent>
     </Popover>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
+import { format } from "date-fns";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -24,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/ui/date-picker";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -540,17 +542,17 @@ function CalendarView({
     <>
       <div className="bg-white rounded-xl shadow border border-rose-100 overflow-hidden">
         {/* Legend */}
-        <div className="flex items-center gap-4 px-6 py-3 border-b border-rose-50 justify-end text-md">
+        <div className="flex items-center gap-4 px-4 py-2 border-b border-rose-50 justify-end text-xs">
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-2 rounded-md bg-orange-200 border border-orange-300"></span>{" "}
+            <span className="inline-block w-2.5 h-1.5 rounded-sm bg-orange-200 border border-orange-300"></span>{" "}
             Pending
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-2 rounded-md bg-green-200 border border-green-300"></span>{" "}
-            Approved/Completed
+            <span className="inline-block w-2.5 h-1.5 rounded-sm bg-green-200 border border-green-300"></span>{" "}
+            Approved
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="inline-block w-3 h-2 rounded-md bg-red-200 border border-red-300"></span>{" "}
+            <span className="inline-block w-2.5 h-1.5 rounded-sm bg-red-200 border border-red-300"></span>{" "}
             Declined
           </span>
         </div>
@@ -559,9 +561,9 @@ function CalendarView({
           {WEEKDAYS.map((w) => (
             <div
               key={w}
-              className="py-2 text-center text-md font-bold text-[#4A081A] uppercase tracking-wide"
+              className="py-1.5 text-center text-xs font-bold text-[#4A081A] uppercase tracking-wide"
             >
-              {w}
+              {w.substring(0, 3)}
             </div>
           ))}
         </div>
@@ -570,7 +572,10 @@ function CalendarView({
           {cells.map((day, idx) => {
             if (!day)
               return (
-                <div key={`empty-${idx}`} className="min-h-[140px] bg-white" />
+                <div
+                  key={`empty-${idx}`}
+                  className="min-h-[100px] bg-white/50"
+                />
               );
             const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
             const dayEntries = entriesForDay(day);
@@ -580,68 +585,70 @@ function CalendarView({
               <div
                 key={day}
                 className={cn(
-                  "min-h-[140px] p-1.5 bg-white",
-                  isToday && "bg-rose-50",
+                  "min-h-[100px] p-1 bg-white",
+                  isToday && "bg-rose-50/50",
                 )}
               >
                 <div
                   className={cn(
-                    "text-lg font-semibold mb-2 ml-1 mt-1",
-                    isToday ? "text-[#4A081A] font-bold" : "text-slate-600",
+                    "text-xs font-semibold mb-1 ml-1 mt-0.5",
+                    isToday ? "text-[#4A081A] font-bold" : "text-slate-500",
                   )}
                 >
                   {day}
                 </div>
-                {dayEntries.slice(0, 5).map((e, i) => {
-                  const colInRow = idx % 7;
-                  const isDeclined = e.approved_by === "Declined";
-                  const isPending = e.approved_by === "Pending";
-                  const barColor = isDeclined
-                    ? "bg-red-200 border border-red-300"
-                    : isPending
-                      ? "bg-orange-200 border border-orange-300"
-                      : "bg-green-200 border border-green-300";
+                <div className="space-y-1">
+                  {dayEntries.slice(0, 4).map((e, i) => {
+                    const colInRow = idx % 7;
+                    const isDeclined = e.approved_by === "Declined";
+                    const isPending = e.approved_by === "Pending";
+                    const barColor = isDeclined
+                      ? "bg-red-200 border border-red-300"
+                      : isPending
+                        ? "bg-orange-200 border border-orange-300"
+                        : "bg-green-200 border border-green-300";
 
-                  // Rounded edges only at true entry start/end or week row boundary
-                  const entryStartStr = e.start_date.slice(0, 10);
-                  const entryEndStr = e.leave_end_date.slice(0, 10);
-                  const isStart = entryStartStr === dateStr;
+                    // Rounded edges only at true entry start/end or week row boundary
+                    const entryStartStr = e.start_date.slice(0, 10);
+                    const entryEndStr = e.leave_end_date.slice(0, 10);
+                    const isStart = entryStartStr === dateStr;
 
-                  const isEnd = entryEndStr === dateStr;
-                  const roundLeft = isStart || colInRow === 0;
-                  const roundRight = isEnd || colInRow === 6;
+                    const isEnd = entryEndStr === dateStr;
+                    const roundLeft = isStart || colInRow === 0;
+                    const roundRight = isEnd || colInRow === 6;
 
-                  return (
-                    <div
-                      key={i}
-                      onClick={(ev) => {
-                        ev.stopPropagation();
-                        setSelectedEntry(e);
-                      }}
-                      title={`${e.employee_name} • ${e.remarks}${e.shift ? ` (${e.shift})` : ""}`}
-                      style={{
-                        marginLeft: roundLeft ? "2px" : "0px",
-                        marginRight: roundRight ? "2px" : "-1px",
-                        borderRadius: `${roundLeft ? 4 : 0}px ${roundRight ? 4 : 0}px ${roundRight ? 4 : 0}px ${roundLeft ? 4 : 0}px`,
-                      }}
-                      className={cn(
-                        "h-[32px] px-3 text-[14px] sm:text-[16px] leading-[32px] text-slate-900 font-bold tracking-wide truncate overflow-hidden select-none cursor-pointer hover:brightness-110 transition-[filter] mb-[5px] shadow-sm",
-                        barColor,
-                      )}
-                    >
-                      {`${e.employee_name}${e.category === "half-day" && e.shift ? ` (${e.shift})` : ""}, ${e.remarks}`}
-                    </div>
-                  );
-                })}
-                {dayEntries.length > 5 && (
+                    return (
+                      <div
+                        key={i}
+                        onClick={(ev) => {
+                          ev.stopPropagation();
+                          setSelectedEntry(e);
+                        }}
+                        title={`${e.employee_name} • ${e.remarks}${e.shift ? ` (${e.shift})` : ""}`}
+                        style={{
+                          marginLeft: roundLeft ? "2px" : "0px",
+                          marginRight: roundRight ? "2px" : "-1px",
+                          borderRadius: `${roundLeft ? 4 : 0}px ${roundRight ? 4 : 0}px ${roundRight ? 4 : 0}px ${roundLeft ? 4 : 0}px`,
+                        }}
+                        className={cn(
+                          "h-[22px] px-1.5 text-[10px] leading-[22px] text-slate-800 font-bold truncate overflow-hidden select-none cursor-pointer hover:brightness-105 transition-[filter] shadow-sm",
+                          barColor,
+                        )}
+                      >
+                        {`${e.employee_name}${e.category === "half-day" && e.shift ? ` (${e.shift})` : ""}`}
+                      </div>
+                    );
+                  })}
+                </div>
+                {dayEntries.length > 4 && (
                   <div
                     onClick={(ev) => {
                       ev.stopPropagation();
                       setViewAllForDay(day);
                     }}
-                    className="text-[13px] text-[#4A081A] text-center font-bold mt-1.5 cursor-pointer hover:font-extrabold hover:text-[#630C22]"
+                    className="text-[9px] text-[#4A081A] text-center font-bold mt-1 cursor-pointer hover:text-[#630C22]"
                   >
-                    + {dayEntries.length - 5} MORE
+                    + {dayEntries.length - 4} MORE
                   </div>
                 )}
               </div>
@@ -1714,34 +1721,34 @@ export default function LeavePage() {
       {/* ----- INTEGRATED HEADER & TOOLBAR ----- */}
       <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6 sticky top-0 z-50">
         {/* Main Header Row */}
-        <div className="w-full px-4 md:px-8 py-6">
+        <div className="w-full px-4 md:px-8 py-3">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold mb-2">
+              <h1 className="text-xl md:text-2xl font-black tracking-tight">
                 Leave Monitoring
               </h1>
-              <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
-                <Calendar className="w-4 h-4" />
+              <p className="text-white/80 text-[10px] md:text-xs flex items-center gap-2 uppercase font-bold tracking-widest mt-0.5">
+                <Calendar className="w-3 h-3" />
                 ABIC REALTY &amp; CONSULTANCY
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Button
                 onClick={() => setShowCalendar((v) => !v)}
                 variant="outline"
                 className={cn(
-                  "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg flex items-center gap-2",
+                  "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-1.5",
                   !showCalendar && "bg-rose-100 text-[#4A081A]",
                 )}
               >
                 {showCalendar ? (
                   <>
-                    <X className="w-4 h-4" />
+                    <X className="w-3 h-3" />
                     <span>HIDE CALENDAR</span>
                   </>
                 ) : (
                   <>
-                    <Calendar className="w-4 h-4" />
+                    <Calendar className="w-3 h-3" />
                     <span>SHOW CALENDAR</span>
                   </>
                 )}
@@ -1750,18 +1757,18 @@ export default function LeavePage() {
                 onClick={() => setAddModalOpen((v) => !v)}
                 variant="outline"
                 className={cn(
-                  "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg flex items-center gap-2",
+                  "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-1.5",
                   addModalOpen && "bg-rose-100 text-[#4A081A]",
                 )}
               >
                 {addModalOpen ? (
                   <>
-                    <X className="w-4 h-4" />
+                    <X className="w-3 h-3" />
                     <span>CLOSE</span>
                   </>
                 ) : (
                   <>
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-3 h-3" />
                     <span>ADD LEAVE</span>
                   </>
                 )}
@@ -1769,9 +1776,9 @@ export default function LeavePage() {
               <Link href="/admin-head/attendance/leave/leave-summary">
                 <Button
                   variant="outline"
-                  className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg flex items-center gap-2 whitespace-nowrap"
+                  className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-1.5 whitespace-nowrap"
                 >
-                  <FileText className="w-4 h-4" />
+                  <FileText className="w-3 h-3" />
                   <span>YEARLY SUMMARY</span>
                 </Button>
               </Link>
@@ -1968,402 +1975,341 @@ export default function LeavePage() {
       </div>
 
       <div className="px-8 py-6 space-y-8">
-        <>
-          {/* ── Inline Add Leave Form (toggleable) ── */}
-          <div
-            ref={formRef}
-            className={cn(
-              "transition-all duration-500 overflow-hidden",
-              addModalOpen
-                ? "max-h-[1200px] opacity-100 mb-8"
-                : "max-h-0 opacity-0 overflow-hidden",
-            )}
-          >
-            <div className="bg-white rounded-xl shadow border border-rose-100 overflow-hidden ring-4 ring-rose-50/50">
-              {/* Form Header */}
-              <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] px-6 py-4 flex justify-between items-center">
-                <h2 className="text-white text-xl font-bold">
-                  {inlineForm.id ? "Update Leave Record" : "Add Leave Record"}
-                </h2>
+        {/* ── Inline Add Leave Form (toggleable) ── */}
+        <div
+          ref={formRef}
+          className={cn(
+            "transition-all duration-500 overflow-hidden",
+            addModalOpen
+              ? "max-h-[1200px] opacity-100 mb-8"
+              : "max-h-0 opacity-0 overflow-hidden",
+          )}
+        >
+          <div className="bg-white rounded-xl shadow-lg border border-rose-100 overflow-hidden ring-2 ring-rose-50/50">
+            {/* Form Header */}
+            <div className="bg-gradient-to-r from-[#800020] to-[#4A081A] px-4 py-2 flex justify-between items-center">
+              <h2 className="text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
+                <Plus className="w-3.5 h-3.5 text-rose-300" />
+                {inlineForm.id ? "Update Leave Record" : "Add Leave Record"}
+              </h2>
+              <div className="flex items-center gap-2">
                 {inlineForm.id && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={resetInlineForm}
-                    className="text-white hover:bg-white/10 h-7 text-[10px] font-bold uppercase tracking-wider"
+                    className="text-white hover:bg-white/10 h-6 px-2 text-[9px] font-bold uppercase tracking-widest rounded transition-all"
                   >
                     <Plus className="w-3 h-3 mr-1" /> New Entry
                   </Button>
                 )}
+                <button
+                  onClick={() => setAddModalOpen(false)}
+                  className="text-white/40 hover:text-white transition-all p-1"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
+            </div>
 
-              <div className="px-8 py-8 space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-8">
-                  {/* Row 1 */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      Employee ID
-                    </label>
-                    <div
-                      className={cn(
-                        "flex-1 border-2 border-slate-100 rounded-xl px-4 py-2 text-base bg-slate-50/50 shadow-sm h-[52px] flex items-center min-w-0 transition-all focus-within:border-rose-200",
-                        inlineForm.employee_id
-                          ? "text-slate-800 font-bold"
-                          : "text-slate-400 italic font-medium",
-                      )}
-                    >
-                      <span className="truncate">
-                        {inlineForm.employee_id ||
-                          "Auto-filled on name selection"}
-                      </span>
-                    </div>
+            <div className="px-4 py-4 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-3">
+                {/* Row 1: Employee Info */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Employee ID
+                  </label>
+                  <div className="h-8 border-b-2 border-slate-100 bg-slate-50/30 px-3 flex items-center text-[11px] text-slate-500 font-bold rounded-t-md">
+                    {inlineForm.employee_id || "Auto-filled"}
                   </div>
-                  <div className="flex flex-col gap-2 relative">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      Employee Name
-                    </label>
-                    <Popover open={empOpen} onOpenChange={setEmpOpen}>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          className="flex items-center justify-between flex-1 border-2 border-slate-100 rounded-xl px-4 py-2 text-base bg-white hover:border-rose-200 transition-all shadow-sm h-[52px] min-w-0 text-left group"
-                        >
-                          <span
-                            className={cn(
-                              "flex-1 truncate",
-                              inlineForm.employee_name
-                                ? "text-slate-800 font-bold"
-                                : "text-slate-400 font-medium",
-                            )}
-                          >
-                            {inlineForm.employee_name || "Select Employee Name"}
-                          </span>
-                          <ChevronDown className="w-5 h-5 text-slate-300 group-hover:text-rose-400 transition-colors shrink-0 ml-2" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="p-0 w-[450px]">
-                        <Command>
-                          <CommandInput
-                            placeholder="Search employee..."
-                            className="text-base h-10"
-                          />
-                          <CommandEmpty className="text-base p-4">
-                            No employee found.
-                          </CommandEmpty>
-                          <CommandList>
-                            <CommandGroup>
-                              {employees
-                                .filter((e) => e.id !== inlineForm.employee_id)
-                                .map((emp) => (
-                                  <CommandItem
-                                    key={emp.id}
-                                    value={emp.name}
-                                    onSelect={() =>
-                                      handleInlineSelectEmployee(emp)
-                                    }
-                                    className="text-base py-3"
-                                  >
-                                    {emp.name}
-                                  </CommandItem>
-                                ))}
-                            </CommandGroup>
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      Category
-                    </label>
-                    <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
+                </div>
+
+                <div className="flex flex-col gap-1 relative">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Employee Name
+                  </label>
+                  <Popover open={empOpen} onOpenChange={setEmpOpen}>
+                    <PopoverTrigger asChild>
+                      <button className="flex items-center justify-between h-8 border-b-2 border-slate-100 bg-white px-3 text-[11px] text-left group hover:border-[#800020] transition-colors rounded-t-md shadow-sm">
+                        <span
                           className={cn(
-                            "flex items-center justify-between flex-1 border-2 border-slate-100 rounded-xl px-4 py-2 text-base transition-all shadow-sm h-[52px] min-w-0 text-left group",
-                            inlineForm.category
-                              ? LEAVE_CATEGORY_OPTIONS.find(
-                                  (o) => o.value === inlineForm.category,
-                                )?.color || "bg-white hover:border-rose-200"
-                              : "bg-white hover:border-rose-200",
+                            "truncate",
+                            inlineForm.employee_name
+                              ? "text-slate-800 font-bold"
+                              : "text-slate-400 italic",
                           )}
                         >
-                          <span
-                            className={cn(
-                              "flex-1 truncate",
-                              inlineForm.category
-                                ? "font-black tracking-wide"
-                                : "text-slate-400 font-medium",
-                            )}
-                          >
-                            {LEAVE_CATEGORY_OPTIONS.find(
-                              (o) => o.value === inlineForm.category,
-                            )?.label || "Half-day/Whole day"}
-                          </span>
-                          <ChevronDown
-                            className={cn(
-                              "w-5 h-5 shrink-0 ml-2 transition-colors",
-                              inlineForm.category
-                                ? "opacity-50"
-                                : "text-slate-300 group-hover:text-rose-400",
-                            )}
-                          />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="p-2 w-[350px] space-y-2 border-0 shadow-2xl rounded-2xl bg-white">
-                        {LEAVE_CATEGORY_OPTIONS.map((o) => (
-                          <button
-                            key={o.value}
-                            type="button"
-                            onClick={() => {
-                              setInlineForm((p) => ({
-                                ...p,
-                                category: o.value as "half-day" | "whole-day",
-                                shift: "",
-                              }));
-                              setCategoryOpen(false);
-                            }}
-                            className={cn(
-                              "w-full text-left px-5 py-4 rounded-xl text-lg transition-all font-black tracking-wider shadow-sm hover:opacity-80 uppercase",
-                              o.color,
-                            )}
-                          >
-                            {o.label}
-                          </button>
-                        ))}
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-
-                  <div className="flex flex-col gap-2 relative">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      Shift
-                    </label>
-                    <Popover open={shiftOpen} onOpenChange={setShiftOpen}>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
-                          disabled={inlineForm.category === "whole-day"}
-                          className={cn(
-                            "flex items-center justify-between flex-1 border-2 border-slate-100 rounded-xl px-4 py-2 text-base bg-white transition-all shadow-sm h-[52px] min-w-0 text-left group",
-                            inlineForm.category === "whole-day"
-                              ? "opacity-40 cursor-not-allowed bg-slate-50"
-                              : "hover:border-rose-200",
-                          )}
-                        >
-                          <span
-                            className={cn(
-                              "flex-1 truncate",
-                              inlineForm.shift
-                                ? "text-slate-800 font-bold"
-                                : "text-slate-400 font-medium",
-                            )}
-                          >
-                            {inlineForm.shift || "Select Hour"}
-                          </span>
-                          <ChevronDown className="w-5 h-5 text-slate-300 group-hover:text-rose-400 transition-colors shrink-0 ml-2" />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="p-2 w-[400px] space-y-1">
-                        {inlineAvailableShifts.length > 0 ? (
-                          inlineAvailableShifts
-                            .filter((s) => s !== inlineForm.shift)
-                            .map((s) => (
-                              <button
-                                key={s}
-                                type="button"
-                                onClick={() => {
-                                  setInlineForm((p) => ({ ...p, shift: s }));
-                                  setShiftOpen(false);
-                                }}
-                                className="w-full text-left px-5 py-4 rounded-lg text-lg hover:bg-rose-50 transition-all font-medium"
+                          {inlineForm.employee_name || "Select Employee"}
+                        </span>
+                        <ChevronDown className="w-3 h-3 text-slate-300 group-hover:text-[#800020] transition-colors" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-0 w-[400px]">
+                      <Command>
+                        <CommandInput
+                          placeholder="Search employee..."
+                          className="text-xs h-8"
+                        />
+                        <CommandList>
+                          <CommandGroup>
+                            {employees.map((emp) => (
+                              <CommandItem
+                                key={emp.id}
+                                value={emp.name}
+                                onSelect={() => handleInlineSelectEmployee(emp)}
+                                className="text-xs py-1.5"
                               >
-                                {s}
-                              </button>
-                            ))
-                        ) : (
-                          <p className="text-lg text-slate-400 italic px-5 py-4">
-                            {inlineForm.department
-                              ? `No shifts configured for "${inlineForm.department}"`
-                              : "Select an employee first"}
-                          </p>
-                        )}
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      Start Date
-                    </label>
-                    <Input
-                      type="date"
-                      max={inlineForm.leave_end_date || undefined}
-                      value={inlineForm.start_date || ""}
-                      onChange={(e) =>
-                        setInlineForm((p) => ({
-                          ...p,
-                          start_date: e.target.value,
-                        }))
-                      }
-                      className="border-2 border-slate-100 bg-white text-slate-800 flex-1 h-[52px] text-base font-bold rounded-xl shadow-sm px-4 focus-visible:border-rose-200 transition-all"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      Leave End
-                    </label>
-                    <Input
-                      type="date"
-                      min={inlineForm.start_date || undefined}
-                      value={
-                        inlineForm.category === "half-day"
-                          ? inlineForm.start_date || ""
-                          : inlineForm.leave_end_date || ""
-                      }
-                      disabled={inlineForm.category === "half-day"}
-                      onChange={(e) =>
-                        setInlineForm((p) => ({
-                          ...p,
-                          leave_end_date: e.target.value,
-                        }))
-                      }
-                      className={cn(
-                        "border-2 border-slate-100 bg-white text-slate-800 flex-1 h-[52px] text-base font-bold rounded-xl shadow-sm px-4 transition-all focus-visible:border-rose-200",
-                        inlineForm.category === "half-day" &&
-                          "opacity-60 cursor-not-allowed bg-slate-50 border-slate-200",
-                      )}
-                    />
-                  </div>
+                                {emp.name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-                  {/* Row 3 */}
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      No. of Days
-                    </label>
-                    <Input
-                      readOnly
-                      value={
-                        inlineForm.number_of_days > 0
-                          ? formatDays(
-                              inlineForm.number_of_days,
-                              inlineForm.category,
-                            )
-                          : ""
-                      }
-                      placeholder="—"
-                      className="border-2 border-slate-100 bg-slate-50/50 text-slate-900 cursor-default flex-1 h-[52px] rounded-xl shadow-sm px-4 font-black text-2xl"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      Approved By
-                    </label>
-                    <Popover open={approvalOpen} onOpenChange={setApprovalOpen}>
-                      <PopoverTrigger asChild>
-                        <button
-                          type="button"
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Category
+                  </label>
+                  <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        className={cn(
+                          "flex items-center justify-between h-8 border-b-2 px-3 text-[11px] text-left group transition-colors rounded-t-md shadow-sm",
+                          inlineForm.category
+                            ? "bg-rose-50 border-rose-200"
+                            : "bg-white border-slate-100 hover:border-[#800020]",
+                        )}
+                      >
+                        <span
                           className={cn(
-                            "flex items-center justify-between flex-1 border-2 border-slate-100 rounded-xl px-4 py-2 text-base transition-all shadow-sm h-[52px] min-w-0 text-left group",
-                            inlineForm.approved_by
-                              ? inlineApprovalOptions.find(
-                                  (o) => o.value === inlineForm.approved_by,
-                                )?.color || "bg-white hover:border-rose-200"
-                              : "bg-white hover:border-rose-200",
+                            "font-black tracking-wider uppercase",
+                            inlineForm.category
+                              ? "text-[#800020]"
+                              : "text-slate-400 italic font-medium",
                           )}
                         >
-                          <span
-                            className={cn(
-                              "flex-1 truncate",
-                              inlineForm.approved_by
-                                ? "font-bold tracking-wide"
-                                : "text-slate-400 font-medium",
-                            )}
-                          >
-                            {inlineApprovalOptions.find(
-                              (o) => o.value === inlineForm.approved_by,
-                            )?.label || "Select Status/Name"}
-                          </span>
-                          <ChevronDown
-                            className={cn("w-5 h-5 shrink-0 ml-2 text-slate-300 group-hover:text-rose-400 transition-colors")}
-                          />
-                        </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="p-2 w-[400px] space-y-2 border-0 shadow-2xl rounded-2xl bg-white">
-                        {inlineApprovalOptions.map((o) => (
-                          <button
-                            key={o.value}
-                            type="button"
-                            onClick={() => {
-                              setInlineForm((p) => ({
-                                ...p,
-                                approved_by: o.value,
-                              }));
-                              setApprovalOpen(false);
-                            }}
-                            className={cn(
-                              "w-full text-left px-5 py-4 rounded-xl text-lg transition-all font-bold tracking-wide shadow-sm hover:opacity-80",
-                              o.color,
-                            )}
-                          >
-                            {o.label}
-                          </button>
-                        ))}
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      Remarks
-                    </label>
-                    <Popover open={remarksOpen} onOpenChange={setRemarksOpen}>
-                      <PopoverTrigger asChild>
+                          {inlineForm.category || "Select Type"}
+                        </span>
+                        <ChevronDown className="w-3 h-3 text-slate-300 group-hover:text-[#800020] transition-colors" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-1 w-[200px] border border-rose-50 shadow-xl rounded-lg">
+                      {LEAVE_CATEGORY_OPTIONS.map((o) => (
                         <button
-                          type="button"
-                          className="flex items-center justify-between flex-1 border-2 border-slate-100 rounded-xl px-4 py-2 text-base bg-white hover:border-rose-200 transition-all shadow-sm h-[52px] min-w-0 text-left group"
+                          key={o.value}
+                          onClick={() => {
+                            setInlineForm((p) => ({
+                              ...p,
+                              category: o.value as "half-day" | "whole-day",
+                              shift: "",
+                            }));
+                            setCategoryOpen(false);
+                          }}
+                          className={cn(
+                            "w-full text-left px-3 py-2 rounded text-[10px] font-black uppercase transition-all mb-1 last:mb-0",
+                            o.color
+                          )}
                         >
-                          <span
-                            className={cn(
-                              "flex-1 truncate",
-                              inlineForm.remarks
-                                ? "text-slate-800 font-bold"
-                                : "text-slate-400 font-medium",
-                            )}
-                          >
-                            {inlineRemarkOptions.find(
-                              (o) => o.value === inlineForm.remarks,
-                            )?.label || "Select Leave Type"}
-                          </span>
-                          <ChevronDown className="w-5 h-5 text-slate-300 group-hover:text-rose-400 transition-colors shrink-0 ml-2" />
+                          {o.label}
                         </button>
-                      </PopoverTrigger>
-                      <PopoverContent className="p-2 w-[400px] space-y-1">
-                        {inlineRemarkOptions.map((o) => (
-                          <button
-                            key={o.value}
-                            type="button"
-                            onClick={() => {
-                              setInlineForm((p) => ({
-                                ...p,
-                                remarks: o.value,
-                              }));
-                              setRemarksOpen(false);
-                            }}
-                            className="w-full text-left px-5 py-4 rounded-lg text-lg hover:bg-rose-50 transition-all font-medium"
-                          >
-                            {o.label}
-                          </button>
-                        ))}
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                </div>
 
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[11px] font-black text-slate-400 uppercase tracking-widest ml-1">
-                      Reason
-                    </label>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Shift (if Half-day)
+                  </label>
+                  <Popover open={shiftOpen} onOpenChange={setShiftOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        disabled={inlineForm.category !== "half-day"}
+                        className={cn(
+                          "flex items-center justify-between h-8 border-b-2 px-3 text-[11px] text-left group transition-colors rounded-t-md shadow-sm",
+                          inlineForm.category !== "half-day"
+                            ? "bg-slate-50 border-slate-50 opacity-40 cursor-not-allowed"
+                            : "bg-white border-slate-100 hover:border-[#800020]",
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "truncate",
+                            inlineForm.shift
+                              ? "text-slate-800 font-bold"
+                              : "text-slate-400 italic",
+                          )}
+                        >
+                          {inlineForm.shift || "N/A"}
+                        </span>
+                        <ChevronDown className="w-3 h-3 text-slate-300 group-hover:text-[#800020] transition-colors" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-1 w-[300px]">
+                      {inlineAvailableShifts.map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => {
+                            setInlineForm((p) => ({ ...p, shift: s }));
+                            setShiftOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded text-[10px] font-bold hover:bg-rose-50 text-slate-600 transition-all"
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Row 2: Dates & Details */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Start Date
+                  </label>
+                  <DatePicker
+                    value={inlineForm.start_date}
+                    onChange={(date) =>
+                      setInlineForm((p) => ({
+                        ...p,
+                        start_date: date ? format(date, "yyyy-MM-dd") : "",
+                      }))
+                    }
+                    className="h-8 border-b-2 border-slate-100 bg-white px-3 text-[11px] font-bold text-slate-700 focus:outline-none focus:border-[#800020] transition-colors rounded-t-md shadow-sm"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    End Date
+                  </label>
+                  <DatePicker
+                    disabled={inlineForm.category === "half-day"}
+                    value={
+                      inlineForm.category === "half-day"
+                        ? inlineForm.start_date
+                        : inlineForm.leave_end_date
+                    }
+                    onChange={(date) =>
+                      setInlineForm((p) => ({
+                        ...p,
+                        leave_end_date: date ? format(date, "yyyy-MM-dd") : "",
+                      }))
+                    }
+                    className={cn(
+                      "h-8 border-b-2 px-3 text-[11px] font-bold focus:outline-none transition-colors rounded-t-md shadow-sm",
+                      inlineForm.category === "half-day"
+                        ? "bg-slate-50 border-slate-50 opacity-40 cursor-not-allowed text-slate-400"
+                        : "bg-white border-slate-100 text-slate-700 focus:border-[#800020]",
+                    )}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Status/Approver
+                  </label>
+                  <Popover open={approvalOpen} onOpenChange={setApprovalOpen}>
+                    <PopoverTrigger asChild>
+                      <button className="flex items-center justify-between h-8 border-b-2 border-slate-100 bg-white px-3 text-[11px] text-left group hover:border-[#800020] transition-colors rounded-t-md shadow-sm">
+                        <span
+                          className={cn(
+                            "truncate",
+                            inlineForm.approved_by
+                              ? "text-slate-800 font-bold"
+                              : "text-slate-400 italic",
+                          )}
+                        >
+                          {inlineForm.approved_by || "Pending..."}
+                        </span>
+                        <ChevronDown className="w-3 h-3 text-slate-300 group-hover:text-[#800020] transition-colors" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-1 w-[300px]">
+                      {inlineApprovalOptions.map((o) => (
+                        <button
+                          key={o.value}
+                          onClick={() => {
+                            setInlineForm((p) => ({
+                              ...p,
+                              approved_by: o.value,
+                            }));
+                            setApprovalOpen(false);
+                          }}
+                          className={cn(
+                            "w-full text-left px-3 py-2 rounded text-[10px] font-bold hover:bg-rose-50 transition-all",
+                            o.color,
+                          )}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Leave Type
+                  </label>
+                  <Popover open={remarksOpen} onOpenChange={setRemarksOpen}>
+                    <PopoverTrigger asChild>
+                      <button className="flex items-center justify-between h-8 border-b-2 border-slate-100 bg-white px-3 text-[11px] text-left group hover:border-[#800020] transition-colors rounded-t-md shadow-sm">
+                        <span
+                          className={cn(
+                            "truncate",
+                            inlineForm.remarks
+                              ? "text-[#800020] font-black tracking-widest uppercase"
+                              : "text-slate-400 italic font-medium",
+                          )}
+                        >
+                          {inlineForm.remarks || "Select Type"}
+                        </span>
+                        <ChevronDown className="w-3 h-3 text-slate-300 group-hover:text-[#800020] transition-colors" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-1 w-[300px]">
+                      {inlineRemarkOptions.map((o) => (
+                        <button
+                          key={o.value}
+                          onClick={() => {
+                            setInlineForm((p) => ({ ...p, remarks: o.value }));
+                            setRemarksOpen(false);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded text-[10px] font-bold hover:bg-rose-50 text-slate-600 transition-all uppercase tracking-wider"
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Row 3: Final Detail & Reason */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Days Counted
+                  </label>
+                  <div className="h-10 border-b-2 border-rose-100 bg-rose-50/20 px-3 flex items-center justify-center text-[18px] text-[#800020] font-black rounded-md shadow-inner">
+                    {inlineForm.number_of_days > 0
+                      ? formatDays(
+                          inlineForm.number_of_days,
+                          inlineForm.category,
+                        )
+                      : "—"}
+                  </div>
+                </div>
+
+                <div className="lg:col-span-3 flex flex-col gap-1">
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                    Detailed Reason
+                  </label>
+                  <div className="flex gap-3">
                     <textarea
-                      rows={2}
+                      rows={1}
                       value={inlineForm.cite_reason}
                       onChange={(e) =>
                         setInlineForm((p) => ({
@@ -2371,330 +2317,313 @@ export default function LeavePage() {
                           cite_reason: e.target.value,
                         }))
                       }
-                      placeholder="Specify reason..."
-                      className={cn(
-                        "flex-1 border-2 border-slate-100 rounded-xl px-4 py-3 text-base resize-none focus:outline-none focus:border-rose-200 bg-white text-slate-800 shadow-sm transition-all min-h-[90px]",
-                        inlineForm.cite_reason
-                          ? "font-bold"
-                          : "font-medium text-slate-400",
-                      )}
+                      placeholder="Why is the employee taking leave?..."
+                      className="flex-1 h-10 border-b-2 border-slate-100 bg-white px-3 py-2.5 text-[11px] font-medium text-slate-700 focus:outline-none focus:border-[#800020] transition-all rounded-t-md shadow-sm resize-none"
                     />
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setAddModalOpen(false);
+                          resetInlineForm();
+                        }}
+                        className="h-10 px-4 text-[10px] font-black uppercase tracking-widest rounded shadow-sm border-2 hover:bg-rose-50"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleInlineSave}
+                        disabled={inlineSaving}
+                        className="h-10 px-6 text-[10px] font-black uppercase tracking-widest rounded bg-[#800020] hover:bg-[#4A081A] shadow-lg shadow-rose-200 transition-all"
+                      >
+                        {inlineSaving
+                          ? "..."
+                          : inlineForm.id
+                            ? "Update"
+                            : "Save Record"}
+                      </Button>
+                    </div>
                   </div>
-                </div>
-
-                {/* Footer actions */}
-                <div className="flex justify-end gap-5 pt-8 pr-2 pb-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setAddModalOpen(false);
-                      resetInlineForm();
-                    }}
-                    className="h-12 px-10 text-xs font-black uppercase tracking-widest rounded-xl hover:scale-105"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={handleInlineSave}
-                    disabled={inlineSaving}
-                    variant="default" // Now maroon by default after our update
-                    className="h-12 px-12 text-xs font-black uppercase tracking-widest rounded-xl shadow-lg hover:shadow-[#7B0F2B]/30 hover:scale-105 active:scale-95 min-w-[180px]"
-                  >
-                    {inlineSaving
-                      ? inlineForm.id
-                        ? "Updating…"
-                        : "Saving…"
-                      : inlineForm.id
-                        ? "Update Leave"
-                        : "Save Leave"}
-                  </Button>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* ── Calendar ── */}
-          {showCalendar && (
-            <section>
-              {/* Calendar nav */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-bold text-[#4A081A]">
-                    {calendarMode === "week"
-                      ? `Week of ${MONTHS[calendarMonth]} ${calendarYear}`
-                      : `${MONTHS[calendarMonth]} ${calendarYear}`}
-                  </span>
-                  {/* WEEK / MONTH toggle */}
-                  <div className="flex text-LG border border-rose-200 rounded-lg overflow-hidden">
-                    <button
-                      onClick={() => setCalendarMode("week")}
-                      className={cn(
-                        "px-3 py-1 font-semibold transition",
-                        calendarMode === "week"
-                          ? "bg-[#4A081A] text-white"
-                          : "bg-rose-50 text-[#4A081A] hover:bg-rose-100",
-                      )}
-                    >
-                      WEEK
-                    </button>
-                    <button
-                      onClick={() => setCalendarMode("month")}
-                      className={cn(
-                        "px-3 py-1 font-semibold transition",
-                        calendarMode === "month"
-                          ? "bg-[#4A081A] text-white"
-                          : "bg-rose-50 text-[#4A081A] hover:bg-rose-100",
-                      )}
-                    >
-                      MONTH
-                    </button>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      if (calendarMonth === 0) {
-                        setCalendarMonth(11);
-                        setCalendarYear((y) => y - 1);
-                      } else setCalendarMonth((m) => m - 1);
-                    }}
-                    className="p-1.5 rounded-full hover:bg-rose-100 text-[#4A081A] transition"
-                  >
-                    <ChevronLeft className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      const now = new Date();
-                      setCalendarYear(now.getFullYear());
-                      setCalendarMonth(now.getMonth());
-                      setCalendarMode("month");
-                      setShowCalendar(true);
-                    }}
-                    className="text-LG px-3 py-1.5 border border-rose-300 rounded-md text-[#4A081A] hover:bg-rose-50 transition font-semibold"
-                  >
-                    TODAY
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (calendarMonth === 11) {
-                        setCalendarMonth(0);
-                        setCalendarYear((y) => y + 1);
-                      } else setCalendarMonth((m) => m + 1);
-                    }}
-                    className="p-1.5 rounded-full hover:bg-rose-100 text-[#4A081A] transition"
-                  >
-                    <ChevronRight className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-              <CalendarView
-                year={calendarYear}
-                month={calendarMonth}
-                entries={calendarEntries}
-                weekOnly={calendarMode === "week"}
-              />
-            </section>
-          )}
-
-          {/* ── Leave Monitoring Table ── */}
+        {/* ── Calendar ── */}
+        {showCalendar && (
           <section>
-            <div className="rounded-xl overflow-hidden shadow border border-rose-100">
-              {/* Table header banner */}
-              <div className="bg-gradient-to-r from-[#7B0F2B] to-[#A4163A] py-3 text-center text-white text-md font-bold tracking-widest uppercase">
-                Leave Monitoring {MONTHS[calendarMonth]} {calendarYear}
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-md border-collapse">
-                  <thead>
-                    <tr className="bg-[#c0143c] text-white">
-                      <th className="border border-[#7B0F2B] px-3 py-3 font-bold text-lg uppercase text-center w-24">
-                        Emp. ID
-                      </th>
-                      <th className="border border-[#7B0F2B] px-3 py-3 font-bold text-lg uppercase text-center">
-                        Employee Name
-                      </th>
-                      <th className="border border-[#7B0F2B] px-3 py-3 font-bold text-lg uppercase text-center">
-                        Category
-                      </th>
-                      <th className="border border-[#7B0F2B] px-3 py-3 font-bold text-lg uppercase text-center">
-                        Shift
-                      </th>
-                      <th className="border border-[#7B0F2B] px-3 py-3 font-bold text-lg uppercase text-center">
-                        Start Date
-                      </th>
-                      <th className="border border-[#7B0F2B] px-3 py-3 font-bold text-lg uppercase text-center">
-                        Leave End Date
-                      </th>
-                      <th className="border border-[#7B0F2B] px-3 py-3 font-bold text-lg uppercase text-center">
-                        No. of Days
-                      </th>
-                      <th className="border border-[#7B0F2B] px-3 py-3 font-bold text-lg uppercase text-center">
-                        Approved By
-                      </th>
-                      <th className="border border-[#7B0F2B] px-3 py-3 font-bold text-lg uppercase text-center">
-                        Remarks
-                      </th>
-                      <th className="border border-[#7B0F2B] px-3 py-3 font-bold text-lg uppercase text-center max-w-[150px]">
-                        Reason
-                      </th>
-                      <th className="border border-[#7B0F2B] px-3 py-3 font-bold text-lg uppercase text-center w-24 whitespace-nowrap">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={11}
-                          className="px-3 py-6 text-center text-slate-400 italic text-xs"
-                        >
-                          No leave records yet. Click "+ Add Leave for an
-                          Employee" to add one.
-                        </td>
-                      </tr>
-                    ) : (
-                      filtered.map((entry, idx) => (
-                        <tr
-                          key={entry.id}
-                          className={cn(
-                            "border-b border-rose-50 hover:bg-rose-50 transition",
-                            idx % 2 === 0 ? "bg-white" : "bg-rose-50/30",
-                          )}
-                        >
-                          <td className="border border-rose-100 px-3 py-3 text-center text-slate-700 font-bold text-lg">
-                            {entry.employee_id}
-                          </td>
-                          <td className="border border-rose-100 px-3 py-3 font-semibold text-slate-700 text-lg">
-                            {entry.employee_name}
-                          </td>
-                          <td className="border border-rose-100 px-3 py-3 text-center">
-                            <span
-                              className={cn(
-                                "px-3 py-1.5 rounded-none text-[10px] font-extrabold uppercase border shadow-sm transition-all",
-                                entry.category === "half-day"
-                                  ? "bg-amber-100 text-amber-700 border-amber-200/50"
-                                  : "bg-rose-100 text-rose-700 border-rose-200/50",
-                              )}
-                            >
-                              {entry.category === "half-day"
-                                ? "HALF-DAY"
-                                : "WHOLE DAY"}
-                            </span>
-                          </td>
-                          <td className="border border-rose-100 px-3 py-3 text-center text-slate-600 text-lg italic">
-                            {entry.category === "whole-day"
-                              ? "—"
-                              : entry.shift || "—"}
-                          </td>
-                          <td className="border border-rose-100 px-3 py-3 text-center text-slate-600 text-lg font-medium">
-                            {formatDisplayDate(entry.start_date)}
-                          </td>
-                          <td className="border border-rose-100 px-3 py-3 text-center text-slate-600 text-lg font-medium">
-                            {formatDisplayDate(entry.leave_end_date)}
-                          </td>
-                          <td className="border border-rose-100 px-3 py-3 text-center font-bold text-[#4A081A] text-lg">
-                            {formatDays(entry.number_of_days, entry.category)}
-                          </td>
-                          <td className="border border-rose-100 px-3 py-3 text-center">
-                            <span
-                              className={cn(
-                                "px-3 py-1.5 rounded-full text-[10px] font-extrabold uppercase border shadow-sm transition-all",
-                                entry.approved_by === "Pending" &&
-                                  "bg-amber-100 text-amber-700 border-amber-200/50",
-                                entry.approved_by === "Declined" &&
-                                  "bg-rose-100 text-rose-700 border-rose-200/50",
-                                !["Pending", "Declined"].includes(
-                                  entry.approved_by,
-                                ) &&
-                                  "bg-emerald-100 text-emerald-700 border-emerald-200/50",
-                              )}
-                            >
-                              {entry.approved_by}
-                            </span>
-                          </td>
-                          <td className="border border-rose-100 px-3 py-3 text-center text-lg">
-                            <span className="font-semibold text-[#4A081A] text-lg">
-                              {entry.remarks}
-                            </span>
-                          </td>
-                          <td className="border border-rose-100 px-3 py-4 text-slate-600 text-lg max-w-[200px]">
-                            {entry.cite_reason ? (
-                              <div className="flex items-center gap-3">
-                                <p
-                                  className="italic truncate flex-1 text-base font-medium text-slate-500"
-                                  title={entry.cite_reason}
-                                >
-                                  {entry.cite_reason}
-                                </p>
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <button
-                                      title="View full reason"
-                                      className="p-2 hover:bg-[#7B0F2B] hover:text-white rounded-xl text-[#7B0F2B] transition-all hover:rotate-6 active:scale-95 shrink-0 bg-rose-50 border border-rose-100 shadow-sm"
-                                    >
-                                      <Eye className="w-4 h-4" />
-                                    </button>
-                                  </PopoverTrigger>
-                                  <PopoverContent
-                                    className="w-[450px] p-0 border-0 shadow-2xl rounded-2xl bg-white overflow-hidden ring-1 ring-black/5"
-                                    align="end"
-                                  >
-                                    <div className="bg-gradient-to-r from-[#7B0F2B] to-[#A4163A] px-6 py-4 flex items-center justify-between">
-                                      <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-white/10 rounded-lg">
-                                          <FileText className="w-5 h-5 text-white" />
-                                        </div>
-                                        <span className="text-white font-black text-sm tracking-[0.1em] uppercase">
-                                          Reason for Leave
-                                        </span>
-                                      </div>
-                                      <span className="text-[10px] font-bold text-rose-200 uppercase px-2 py-0.5 bg-white/10 rounded">
-                                        Full Details
-                                      </span>
-                                    </div>
-                                    <div className="p-8 max-h-[350px] overflow-y-auto custom-scrollbar bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-opacity-5">
-                                      <p className="text-slate-800 text-xl leading-loose font-semibold whitespace-pre-wrap break-words border-l-4 border-rose-200 pl-6 py-2 italic text-justify">
-                                        "{entry.cite_reason}"
-                                      </p>
-                                    </div>
-                                  </PopoverContent>
-                                </Popover>
-                              </div>
-                            ) : (
-                              <span className="text-slate-300 italic text-sm text-center block w-full">
-                                No reason cited
-                              </span>
-                            )}
-                          </td>
-                          <td className="border border-rose-100 px-3 py-3 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                              <button
-                                onClick={() => handleEdit(entry)}
-                                className="p-1.5 hover:bg-blue-50 text-blue-600 rounded-md transition-all active:scale-90"
-                                title="Update Entry"
-                              >
-                                <Pencil className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDelete(entry.id)}
-                                className="p-1.5 hover:bg-red-50 text-red-600 rounded-md transition-all active:scale-90"
-                                title="Delete Entry"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
+            {/* Calendar nav */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <span className="text-lg font-bold text-[#4A081A]">
+                  {calendarMode === "week"
+                    ? `Week of ${MONTHS[calendarMonth]} ${calendarYear}`
+                    : `${MONTHS[calendarMonth]} ${calendarYear}`}
+                </span>
+                {/* WEEK / MONTH toggle */}
+                <div className="flex text-LG border border-rose-200 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setCalendarMode("week")}
+                    className={cn(
+                      "px-3 py-1 font-semibold transition",
+                      calendarMode === "week"
+                        ? "bg-[#4A081A] text-white"
+                        : "bg-rose-50 text-[#4A081A] hover:bg-rose-100",
                     )}
-                  </tbody>
-                </table>
+                  >
+                    WEEK
+                  </button>
+                  <button
+                    onClick={() => setCalendarMode("month")}
+                    className={cn(
+                      "px-3 py-1 font-semibold transition",
+                      calendarMode === "month"
+                        ? "bg-[#4A081A] text-white"
+                        : "bg-rose-50 text-[#4A081A] hover:bg-rose-100",
+                    )}
+                  >
+                    MONTH
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (calendarMonth === 0) {
+                      setCalendarMonth(11);
+                      setCalendarYear((y) => y - 1);
+                    } else setCalendarMonth((m) => m - 1);
+                  }}
+                  className="p-1.5 rounded-full hover:bg-rose-100 text-[#4A081A] transition"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={() => {
+                    const now = new Date();
+                    setCalendarYear(now.getFullYear());
+                    setCalendarMonth(now.getMonth());
+                    setCalendarMode("month");
+                    setShowCalendar(true);
+                  }}
+                  className="text-LG px-3 py-1.5 border border-rose-300 rounded-md text-[#4A081A] hover:bg-rose-50 transition font-semibold"
+                >
+                  TODAY
+                </button>
+                <button
+                  onClick={() => {
+                    if (calendarMonth === 11) {
+                      setCalendarMonth(0);
+                      setCalendarYear((y) => y + 1);
+                    } else setCalendarMonth((m) => m + 1);
+                  }}
+                  className="p-1.5 rounded-full hover:bg-rose-100 text-[#4A081A] transition"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
               </div>
             </div>
+            <CalendarView
+              year={calendarYear}
+              month={calendarMonth}
+              entries={calendarEntries}
+              weekOnly={calendarMode === "week"}
+            />
           </section>
-        </>
+        )}
+
+        {/* ── Leave Monitoring Table ── */}
+        <section>
+          <div className="rounded-xl overflow-hidden shadow border border-rose-100">
+            {/* Table header banner */}
+            <div className="bg-gradient-to-r from-[#7B0F2B] to-[#A4163A] py-2 text-center text-white text-xs font-bold tracking-widest uppercase">
+              Leave Records • {MONTHS[calendarMonth]} {calendarYear}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-[#c0143c] text-white">
+                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-20">
+                      ID
+                    </th>
+                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-left pl-4">
+                      Name
+                    </th>
+                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-24">
+                      Category
+                    </th>
+                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-20">
+                      Shift
+                    </th>
+                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-24">
+                      Start
+                    </th>
+                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-24">
+                      End
+                    </th>
+                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-16">
+                      Days
+                    </th>
+                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-20">
+                      Status
+                    </th>
+                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-24">
+                      Type
+                    </th>
+                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center">
+                      Reason
+                    </th>
+                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-20">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={11}
+                        className="px-3 py-6 text-center text-slate-400 italic text-xs"
+                      >
+                        No records found for this period.
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((entry, idx) => (
+                      <tr
+                        key={entry.id}
+                        className={cn(
+                          "border-b border-rose-50 hover:bg-rose-50/50 transition",
+                          idx % 2 === 0 ? "bg-white" : "bg-rose-50/20",
+                        )}
+                      >
+                        <td className="border border-rose-100 px-2 py-1.5 text-center text-slate-500 font-medium">
+                          {entry.employee_id}
+                        </td>
+                        <td className="border border-rose-100 px-4 py-1.5 font-bold text-slate-700">
+                          {entry.employee_name}
+                        </td>
+                        <td className="border border-rose-100 px-2 py-1.5 text-center">
+                          <span
+                            className={cn(
+                              "px-2 py-0.5 rounded text-[9px] font-black uppercase transition-all",
+                              entry.category === "half-day"
+                                ? "bg-amber-50 text-amber-600 border border-amber-100"
+                                : "bg-rose-50 text-rose-600 border border-rose-100",
+                            )}
+                          >
+                            {entry.category === "half-day" ? "Half" : "Whole"}
+                          </span>
+                        </td>
+                        <td className="border border-rose-100 px-2 py-1.5 text-center text-slate-500 italic">
+                          {entry.category === "whole-day"
+                            ? "—"
+                            : entry.shift || "—"}
+                        </td>
+                        <td className="border border-rose-100 px-2 py-1.5 text-center text-slate-600 font-medium whitespace-nowrap">
+                          {formatDisplayDate(entry.start_date)}
+                        </td>
+                        <td className="border border-rose-100 px-2 py-1.5 text-center text-slate-600 font-medium whitespace-nowrap">
+                          {formatDisplayDate(entry.leave_end_date)}
+                        </td>
+                        <td className="border border-rose-100 px-2 py-1.5 text-center font-bold text-[#4A081A]">
+                          {formatDays(entry.number_of_days, entry.category)}
+                        </td>
+                        <td className="border border-rose-100 px-2 py-1.5 text-center">
+                          <span
+                            className={cn(
+                              "px-2 py-0.5 rounded-full text-[9px] font-black uppercase transition-all",
+                              entry.approved_by === "Pending" &&
+                                "bg-orange-50 text-orange-600 border border-orange-100",
+                              entry.approved_by === "Declined" &&
+                                "bg-red-50 text-red-600 border border-red-100",
+                              !["Pending", "Declined"].includes(
+                                entry.approved_by,
+                              ) &&
+                                "bg-green-50 text-green-600 border border-green-100",
+                            )}
+                          >
+                            {entry.approved_by === "Pending"
+                              ? "Pend"
+                              : entry.approved_by === "Declined"
+                                ? "Decl"
+                                : "Appr"}
+                          </span>
+                        </td>
+                        <td className="border border-rose-100 px-2 py-1.5 text-center">
+                          <span className="font-bold text-[#4A081A] text-[10px]">
+                            {entry.remarks}
+                          </span>
+                        </td>
+                        <td className="border border-rose-100 px-3 py-1.5 text-slate-500 max-w-[150px]">
+                          {entry.cite_reason ? (
+                            <div className="flex items-center gap-2">
+                              <p
+                                className="italic truncate flex-1 text-[11px]"
+                                title={entry.cite_reason}
+                              >
+                                {entry.cite_reason}
+                              </p>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <button className="p-1 hover:bg-rose-100 text-[#7B0F2B] rounded transition-all shrink-0">
+                                    <Eye className="w-3 h-3" />
+                                  </button>
+                                </PopoverTrigger>
+                                <PopoverContent
+                                  className="w-[350px] p-0 border-0 shadow-xl rounded-xl bg-white overflow-hidden ring-1 ring-black/5"
+                                  align="end"
+                                >
+                                  <div className="bg-[#7B0F2B] px-4 py-2 flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-white" />
+                                    <span className="text-white font-bold text-xs uppercase tracking-wider">
+                                      Reason
+                                    </span>
+                                  </div>
+                                  <div className="p-4 max-h-[250px] overflow-y-auto">
+                                    <p className="text-slate-700 text-sm italic">
+                                      "{entry.cite_reason}"
+                                    </p>
+                                  </div>
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          ) : (
+                            <span className="text-slate-300 italic text-[10px] text-center block w-full">
+                              —
+                            </span>
+                          )}
+                        </td>
+                        <td className="border border-rose-100 px-2 py-1.5 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            <button
+                              onClick={() => handleEdit(entry)}
+                              className="p-1 hover:bg-blue-50 text-blue-600 rounded transition-all"
+                              title="Edit"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(entry.id)}
+                              className="p-1 hover:bg-red-50 text-red-600 rounded transition-all"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

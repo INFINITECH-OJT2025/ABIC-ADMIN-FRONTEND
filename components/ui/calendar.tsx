@@ -20,14 +20,18 @@ function Calendar({
       classNames={{
         months: "flex flex-col sm:flex-row gap-4",
         month: "flex flex-col gap-4",
-        month_caption: "flex justify-center pt-1 relative items-center",
-        caption_label: "text-sm font-semibold text-slate-800",
+        month_caption: "flex justify-center pt-1 relative items-center h-9",
+        caption_label: "text-sm font-semibold text-slate-800 hidden",
+        caption_dropdowns: "flex justify-center gap-1 items-center",
+        dropdown: "rdp-dropdown bg-white border border-slate-200 rounded-md text-xs font-bold focus:outline-none focus:ring-2 focus:ring-rose-200 px-2 py-1 cursor-pointer hover:bg-slate-50 transition-colors",
+        dropdown_month: "rdp-dropdown_month",
+        dropdown_year: "rdp-dropdown_year",
         nav: "flex items-center gap-1",
         button_previous: cn(
-          "absolute left-1 h-7 w-7 bg-transparent border border-slate-200 rounded-md flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-slate-100 transition-all",
+          "absolute left-1 h-7 w-7 bg-transparent border border-slate-200 rounded-md flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-slate-100 transition-all z-10",
         ),
         button_next: cn(
-          "absolute right-1 h-7 w-7 bg-transparent border border-slate-200 rounded-md flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-slate-100 transition-all",
+          "absolute right-1 h-7 w-7 bg-transparent border border-slate-200 rounded-md flex items-center justify-center opacity-60 hover:opacity-100 hover:bg-slate-100 transition-all z-10",
         ),
         month_grid: "w-full border-collapse",
         weekdays: "flex",
@@ -54,8 +58,8 @@ function Calendar({
         ...classNames,
       }}
       components={{
-        Chevron: (props) => {
-          if (props.orientation === "left") {
+        Chevron: ({ orientation }) => {
+          if (orientation === "left") {
             return <ChevronLeft className="h-4 w-4" />;
           }
           return <ChevronRight className="h-4 w-4" />;
