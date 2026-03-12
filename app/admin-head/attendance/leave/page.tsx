@@ -1069,7 +1069,7 @@ export default function LeavePage() {
             .then((d) => {
               if (d.success) setDepartments(d.data);
             }),
-          fetch(`${getApiUrl()}/api/employees?status=employed,rehired`)
+          fetch(`${getApiUrl()}/api/employees?status=employed,rehired_employee`)
             .then((r) => r.json())
             .then((empJson) => {
               if (empJson.success) {
@@ -2110,7 +2110,7 @@ export default function LeavePage() {
                           }}
                           className={cn(
                             "w-full text-left px-3 py-2 rounded text-[10px] font-black uppercase transition-all mb-1 last:mb-0",
-                            o.color
+                            o.color,
                           )}
                         >
                           {o.label}
