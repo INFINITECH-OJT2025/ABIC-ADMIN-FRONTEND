@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -345,6 +345,8 @@ export default function InventoryPage() {
   const [statsVisualsAnimated, setStatsVisualsAnimated] = useState(false)
   const [hoveredTopItemKey, setHoveredTopItemKey] = useState<string | null>(null)
   const [hoveredDepartmentLabel, setHoveredDepartmentLabel] = useState<string | null>(null)
+  const inventoryTableRef = useRef<HTMLDivElement | null>(null)
+  const transactionsSectionRef = useRef<HTMLDivElement | null>(null)
 
   const adminSupervisorHrEmployee = useMemo(() => {
     return employees.find((employee) => normalizePosition(employee.position) === 'admin supervisor/hr') ?? null
@@ -739,6 +741,53 @@ export default function InventoryPage() {
   const animatedNoStockItems = useCountUp(noStockItemsCount, !loadingItems, itemStatsAnimationKey, 900, 80)
   const animatedLowStock = useCountUp(stats.lowStock, !loadingItems, itemStatsAnimationKey, 900, 160)
   const animatedOutThisMonth = useCountUp(outThisMonth, !loadingTransactions, outStatsAnimationKey, 1000, 120)
+
+  const scrollToSection = (targetRef: React.RefObject<HTMLDivElement | null>) => {
+    targetRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+
+  const triggerCardActionOnKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+    callback: () => void
+  ) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return
+    event.preventDefault()
+    callback()
+  }
+
+  const handleInventoryItemsCardClick = () => {
+    setStockFilter('all')
+    setCategoryFilter('all')
+    setInventoryPage(1)
+    scrollToSection(inventoryTableRef)
+  }
+
+  const handleNoStockCardClick = () => {
+    setStockFilter('no-stock')
+    setCategoryFilter('all')
+    setInventoryPage(1)
+    scrollToSection(inventoryTableRef)
+  }
+
+  const handleLowStockCardClick = () => {
+    setStockFilter('low-stock')
+    setCategoryFilter('all')
+    setInventoryPage(1)
+    scrollToSection(inventoryTableRef)
+  }
+
+  const handleOutThisMonthCardClick = () => {
+    setTransactionDateMode('month')
+    setTransactionDateFilter('')
+    setTransactionMonthFilter(currentMonthValue)
+    setTransactionYearFilter(currentYear)
+    setTransactionTypeFilter('out')
+    setTransactionDepartmentFilter('all')
+    setTransactionDraft((prev) => ({ ...prev, item_id: '' }))
+    setItemPickerOpen(false)
+    setTransactionsPage(1)
+    scrollToSection(transactionsSectionRef)
+  }
 
   const loadItems = async (year: number) => {
     try {
@@ -1353,10 +1402,14 @@ export default function InventoryPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
           <Card
             className={cn(
-              'border border-slate-200 rounded-sm p-4 shadow-sm bg-white transition-all duration-500',
+              'border border-slate-200 rounded-sm p-4 shadow-sm bg-white transition-all duration-500 cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:scale-[1.01]',
               statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
             )}
             style={{ transitionDelay: '0ms' }}
+            onClick={handleInventoryItemsCardClick}
+            onKeyDown={(event) => triggerCardActionOnKeyDown(event, handleInventoryItemsCardClick)}
+            role="button"
+            tabIndex={0}
           >
             <div className="flex items-start justify-between gap-3">
               <p className="text-[11px] font-black uppercase tracking-wider text-slate-500">Inventory Items</p>
@@ -1375,10 +1428,14 @@ export default function InventoryPage() {
           </Card>
           <Card
             className={cn(
-              'border border-rose-200 rounded-sm p-4 shadow-sm bg-rose-50/50 transition-all duration-500',
+              'border border-rose-200 rounded-sm p-4 shadow-sm bg-rose-50/50 transition-all duration-500 cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:scale-[1.01]',
               statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
             )}
             style={{ transitionDelay: '60ms' }}
+            onClick={handleNoStockCardClick}
+            onKeyDown={(event) => triggerCardActionOnKeyDown(event, handleNoStockCardClick)}
+            role="button"
+            tabIndex={0}
           >
             <div className="flex items-start justify-between gap-3">
               <p className="text-[11px] font-black uppercase tracking-wider text-rose-700">No Stock Items</p>
@@ -1403,10 +1460,14 @@ export default function InventoryPage() {
           </Card>
           <Card
             className={cn(
-              'border border-amber-200 rounded-sm p-4 shadow-sm bg-amber-50/50 transition-all duration-500',
+              'border border-amber-200 rounded-sm p-4 shadow-sm bg-amber-50/50 transition-all duration-500 cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:scale-[1.01]',
               statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
             )}
             style={{ transitionDelay: '120ms' }}
+            onClick={handleLowStockCardClick}
+            onKeyDown={(event) => triggerCardActionOnKeyDown(event, handleLowStockCardClick)}
+            role="button"
+            tabIndex={0}
           >
             <div className="flex items-start justify-between gap-3">
               <p className="text-[11px] font-black uppercase tracking-wider text-amber-700">Low Stock (1-10)</p>
@@ -1431,10 +1492,14 @@ export default function InventoryPage() {
           </Card>
           <Card
             className={cn(
-              'border border-sky-200 rounded-sm p-4 shadow-sm bg-sky-50/50 transition-all duration-500',
+              'border border-sky-200 rounded-sm p-4 shadow-sm bg-sky-50/50 transition-all duration-500 cursor-pointer hover:-translate-y-1 hover:shadow-lg hover:scale-[1.01]',
               statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
             )}
             style={{ transitionDelay: '180ms' }}
+            onClick={handleOutThisMonthCardClick}
+            onKeyDown={(event) => triggerCardActionOnKeyDown(event, handleOutThisMonthCardClick)}
+            role="button"
+            tabIndex={0}
           >
             <div className="flex items-start justify-between gap-3">
               <p className="text-[11px] font-black uppercase tracking-wider text-sky-700">Out This Month</p>
@@ -1841,6 +1906,7 @@ export default function InventoryPage() {
       </div>
 
         <Card
+          ref={inventoryTableRef}
           className={cn(
             'border border-slate-200 rounded-sm shadow-sm overflow-hidden transition-all duration-500',
             statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
@@ -2114,6 +2180,7 @@ export default function InventoryPage() {
         </Card>
 
         <Card
+          ref={transactionsSectionRef}
           className={cn(
             'border border-slate-200 rounded-sm shadow-sm overflow-hidden transition-all duration-500',
             statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
@@ -2491,33 +2558,52 @@ export default function InventoryPage() {
           ) : null}
         </Card>
 
-        {stats.lowStock > 0 ? (
-          <Card
-            className={cn(
-              'border border-rose-200 bg-rose-50/70 rounded-sm px-4 py-3 transition-all duration-500',
-              statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-            )}
-            style={{ transitionDelay: '520ms' }}
-          >
-            <p className="text-[12px] font-bold text-rose-700 inline-flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              {stats.lowStock} item{stats.lowStock > 1 ? 's are' : ' is'} in low stock (1 to 10). Consider restocking soon.
-            </p>
-          </Card>
-        ) : (
-          <Card
-            className={cn(
-              'border border-emerald-200 bg-emerald-50/70 rounded-sm px-4 py-3 transition-all duration-500',
-              statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
-            )}
-            style={{ transitionDelay: '520ms' }}
-          >
-            <p className="text-[12px] font-bold text-emerald-700 inline-flex items-center gap-2">
-              <PackageCheck className="h-4 w-4" />
-              All tracked inventory items are above low-stock threshold.
-            </p>
-          </Card>
-        )}
+        <div className="space-y-3">
+          {noStockItemsCount > 0 ? (
+            <Card
+              className={cn(
+                'border border-rose-200 bg-rose-50/70 rounded-sm px-4 py-3 transition-all duration-500',
+                statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+              )}
+              style={{ transitionDelay: '520ms' }}
+            >
+              <p className="text-[12px] font-bold text-rose-700 inline-flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                {noStockItemsCount} item{noStockItemsCount > 1 ? 's have' : ' has'} 0 stock. Please restock immediately.
+              </p>
+            </Card>
+          ) : null}
+
+          {stats.lowStock > 0 ? (
+            <Card
+              className={cn(
+                'border border-amber-200 bg-amber-50/70 rounded-sm px-4 py-3 transition-all duration-500',
+                statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+              )}
+              style={{ transitionDelay: '560ms' }}
+            >
+              <p className="text-[12px] font-bold text-amber-700 inline-flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                {stats.lowStock} item{stats.lowStock > 1 ? 's are' : ' is'} in low stock (1 to 10). Consider restocking soon.
+              </p>
+            </Card>
+          ) : null}
+
+          {noStockItemsCount === 0 && stats.lowStock === 0 ? (
+            <Card
+              className={cn(
+                'border border-emerald-200 bg-emerald-50/70 rounded-sm px-4 py-3 transition-all duration-500',
+                statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+              )}
+              style={{ transitionDelay: '600ms' }}
+            >
+              <p className="text-[12px] font-bold text-emerald-700 inline-flex items-center gap-2">
+                <PackageCheck className="h-4 w-4" />
+                All tracked inventory items are above low-stock threshold.
+              </p>
+            </Card>
+          ) : null}
+        </div>
 
         <AlertDialog
           open={itemIdsToDelete.length > 0}
