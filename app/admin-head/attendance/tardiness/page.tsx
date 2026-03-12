@@ -1412,7 +1412,7 @@ export default function AttendanceDashboard() {
         // 2. Fetch all required supporting data
         const [empRes, hierRes, deptRes, leavesRes, offRes] = await Promise.all(
           [
-            fetch("/api/admin-head/employees?status=employed,rehired"),
+            fetch("/api/admin-head/employees?status=employed,rehired,rehired_employee"),
             fetch(`${getApiUrl()}/api/hierarchies`),
             fetch(`${getApiUrl()}/api/departments`),
             fetch(`${getApiUrl()}/api/leaves`),
