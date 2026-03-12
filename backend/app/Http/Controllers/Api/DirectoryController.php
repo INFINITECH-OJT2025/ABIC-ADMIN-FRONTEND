@@ -25,6 +25,7 @@ class DirectoryController extends Controller
             'pagibig', 'pag-ibig' => 'pag-ibig',
             'tin', 'bir' => 'bir',
             'general-contacts', 'general_contacts', 'generalcontacts' => 'general-contacts',
+            'user_profile', 'user-profile', 'userprofile' => 'user_profile',
             default => $this->slugSectionFolder($normalized),
         };
     }

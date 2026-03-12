@@ -238,6 +238,7 @@ class EmployeeController extends Controller
                 'perm_province' => 'sometimes|nullable|string|max:255',
                 'perm_region' => 'sometimes|nullable|string|max:255',
                 'perm_zip_code' => 'sometimes|nullable|string|max:255',
+                'user_profile' => 'sometimes|nullable|string|max:255',
 
                 'password' => 'sometimes|nullable|string|min:6',
                 'status' => 'sometimes|in:pending,employed,terminated,resigned,rehire_pending,rehired_employee,resignation_pending,termination_pending',
@@ -258,8 +259,18 @@ class EmployeeController extends Controller
             $changes = array_diff_key($validated, array_flip(['password']));
 
             if ($isRehireProcess) {
+                $rehireLiveUpdates = [];
                 if (array_key_exists('status', $validated)) {
-                    $employee->update(['status' => $validated['status']]);
+                    $rehireLiveUpdates['status'] = $validated['status'];
+                }
+                if (array_key_exists('current_onboarding_batch', $validated)) {
+                    $rehireLiveUpdates['current_onboarding_batch'] = $validated['current_onboarding_batch'];
+                }
+                if (array_key_exists('user_profile', $validated)) {
+                    $rehireLiveUpdates['user_profile'] = $validated['user_profile'];
+                }
+                if (!empty($rehireLiveUpdates)) {
+                    $employee->update($rehireLiveUpdates);
                 }
                 $rehiredRecord = $this->saveRehireProfileOnly($employee, $validated);
 

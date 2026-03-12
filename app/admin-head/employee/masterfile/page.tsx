@@ -60,6 +60,7 @@ interface Employee {
   last_name: string;
   email: string;
   position: string;
+  user_profile?: string | null;
   status:
     | "pending"
     | "employed"
@@ -96,6 +97,29 @@ interface Department {
   id: number;
   name: string;
 }
+
+const getInitials = (firstName?: string, lastName?: string) =>
+  `${String(firstName ?? "").trim().charAt(0)}${String(lastName ?? "").trim().charAt(0)}`.toUpperCase();
+
+const toEmployeeProfileImageUrl = (profileRef?: string | null) => {
+  const normalized = String(profileRef ?? "").trim();
+  if (!normalized) return "";
+  if (/^https?:\/\//i.test(normalized)) return normalized;
+  if (/^\/api\/laravel\/api\/directory\/images\/file\//i.test(normalized)) {
+    return normalized;
+  }
+  if (/^\/api\/directory\/images\/file\//i.test(normalized)) {
+    return `${getApiUrl()}${normalized}`;
+  }
+
+  const encodedPath = normalized
+    .split("/")
+    .filter(Boolean)
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
+
+  return `${getApiUrl()}/api/directory/images/file/${encodedPath}`;
+};
 
 const statusBadgeColors = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
@@ -315,6 +339,29 @@ export default function MasterfilePage() {
   // Position & Department Dropdown State
   const [positions, setPositions] = useState<Hierarchy[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
+  const MAX_ONBOARDING_BATCH = 8;
+
+  const normalizeBatchId = (value: unknown): number => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return 1;
+    return Math.min(MAX_ONBOARDING_BATCH, Math.max(1, Math.trunc(numeric)));
+  };
+
+  const getDisplayBatchId = (emp: any, fallbackBatchId?: number): number => {
+    const localSavedBatch = rehireBatchProgress[String(emp?.id ?? "")];
+    if (
+      emp?.status === "rehire_pending" &&
+      Number.isFinite(localSavedBatch) &&
+      localSavedBatch >= 1 &&
+      localSavedBatch <= MAX_ONBOARDING_BATCH
+    ) {
+      return localSavedBatch;
+    }
+
+    return normalizeBatchId(
+      fallbackBatchId ?? emp?.current_onboarding_batch ?? 1,
+    );
+  };
 
   const loadRehireBatchProgress = () => {
     try {
@@ -323,7 +370,7 @@ export default function MasterfilePage() {
       const next: Record<string, number> = {};
       Object.entries(parsed || {}).forEach(([id, value]) => {
         const batch = Number(value);
-        if (Number.isFinite(batch) && batch >= 1 && batch <= 7) {
+        if (Number.isFinite(batch) && batch >= 1 && batch <= MAX_ONBOARDING_BATCH) {
           next[String(id)] = batch;
         }
       });
@@ -352,6 +399,42 @@ export default function MasterfilePage() {
     confirmText: "Confirm",
     hideCancel: false,
   });
+  const [imagePreview, setImagePreview] = useState<{
+    isOpen: boolean;
+    src: string;
+    alt: string;
+  }>({
+    isOpen: false,
+    src: "",
+    alt: "",
+  });
+
+  const openImagePreview = (src: string, alt: string) => {
+    const normalizedSrc = String(src ?? "").trim();
+    if (!normalizedSrc) return;
+    setImagePreview({
+      isOpen: true,
+      src: normalizedSrc,
+      alt: String(alt ?? "Profile image"),
+    });
+  };
+
+  const closeImagePreview = () => {
+    setImagePreview({ isOpen: false, src: "", alt: "" });
+  };
+
+  useEffect(() => {
+    if (!imagePreview.isOpen) return;
+
+    const handleEsc = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeImagePreview();
+      }
+    };
+
+    window.addEventListener("keydown", handleEsc);
+    return () => window.removeEventListener("keydown", handleEsc);
+  }, [imagePreview.isOpen]);
 
   useEffect(() => {
     fetchEmployees();
@@ -792,7 +875,16 @@ export default function MasterfilePage() {
                 ).getTime();
                 return bTime - aTime;
               });
-            const checklist = checklistMatches[0];
+            const rehireChecklistMatches = checklistMatches.filter(
+              (c: any) =>
+                String(c?.type ?? "")
+                  .trim()
+                  .toLowerCase() === "rehire",
+            );
+            const checklist =
+              emp?.status === "rehire_pending"
+                ? (rehireChecklistMatches[0] ?? checklistMatches[0])
+                : checklistMatches[0];
             const termination = terminationsList
               .filter((t: any) => {
                 const idMatch = String(t?.employee_id ?? "") === String(emp.id);
@@ -859,9 +951,7 @@ export default function MasterfilePage() {
               const doneCount = tasks.filter(
                 (t: any) => String(t?.status ?? "").toUpperCase() === "DONE",
               ).length;
-              const checklistStatus = String(
-                checklist?.status ?? "",
-              ).toUpperCase();
+              const checklistStatus = String(checklist?.status ?? "").toUpperCase();
               const checklistUpdatedAt = new Date(
                 checklist?.updated_at ?? checklist?.created_at ?? 0,
               ).getTime();
@@ -886,9 +976,7 @@ export default function MasterfilePage() {
                   isComplete:
                     checklistBelongsToCurrentRehire &&
                     doneCount === tasks.length &&
-                    tasks.length > 0 &&
-                    (enhancedEmp.status !== "rehire_pending" ||
-                      checklistStatus === "DONE"),
+                    tasks.length > 0,
                 },
               };
             }
@@ -1010,11 +1098,13 @@ export default function MasterfilePage() {
     // Primary check: Has the employee completed the onboarding process by clicking "Complete & Finish"?
     if (!emp.onboarding_completed) {
       // Use the explicitly saved batch ID from the database if available
-      const batchId = emp.current_onboarding_batch || 1;
+      const batchId = normalizeBatchId(emp.current_onboarding_batch);
+      const batchLabel =
+        batchLabelById[batchId] || batchLabelById[1] || "Employee Details";
 
       return {
         isComplete: false,
-        status: `BATCH ${batchId}: ${batchLabelById[batchId].toUpperCase()}`,
+        status: `BATCH ${batchId}: ${batchLabel.toUpperCase()}`,
         batchId,
       };
     }
@@ -1025,7 +1115,7 @@ export default function MasterfilePage() {
         emp.status === "rehire_pending"
           ? "PENDING: COMPLETE & FINISH REHIRE"
           : "READY TO EMPLOY",
-      batchId: 7,
+      batchId: MAX_ONBOARDING_BATCH,
     };
   };
 
@@ -1037,6 +1127,7 @@ export default function MasterfilePage() {
     5: "Family Information",
     6: "Permanent Address",
     7: "Current Address",
+    8: "Profile Picture",
   };
 
   const handleSetAsEmployed = async () => {
@@ -1543,14 +1634,13 @@ export default function MasterfilePage() {
                           checkCompleteness(employee as any);
                         const isFullyComplete =
                           isComplete && checklistTasksComplete;
-                        const savedBatchId =
-                          rehireBatchProgress[String(employee.id)];
-                        const displayBatchId =
-                          isRehirePending && Number.isFinite(savedBatchId)
-                            ? savedBatchId
-                            : batchId;
+                        const displayBatchId = getDisplayBatchId(
+                          employee,
+                          batchId,
+                        );
                         const batchLabel =
                           batchLabelById[displayBatchId] || "Employee Details";
+                        const unresolvedBatchStatus = `BATCH ${displayBatchId}: ${batchLabel.toUpperCase()}`;
 
                         // For termination, it's not complete until status changes to 'terminated' or 'resigned' in the db
                         const displayStatus =
@@ -1588,20 +1678,36 @@ export default function MasterfilePage() {
                             {/* Top Row: Employee Info + Review Button */}
                             <div className="flex justify-between items-start gap-3 mb-4">
                               <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <div
-                                  className={`w-14 h-14 md:w-16 md:h-16 min-w-[3.5rem] md:min-w-[4rem] rounded-xl flex items-center justify-center text-xl md:text-2xl font-bold transition-colors duration-200 shadow-sm ${
-                                    isTerminationPending
-                                      ? "bg-rose-100 text-rose-700 group-hover:bg-rose-500 group-hover:text-white"
-                                      : isFullyComplete
-                                        ? "bg-emerald-100 text-emerald-700 group-hover:bg-emerald-500 group-hover:text-white"
-                                        : isRehirePending
-                                          ? "bg-blue-100 text-blue-700 group-hover:bg-blue-500 group-hover:text-white"
-                                          : "bg-orange-100 text-orange-700 group-hover:bg-orange-500 group-hover:text-white"
-                                  }`}
-                                >
-                                  {employee.first_name.charAt(0)}
-                                  {employee.last_name.charAt(0)}
-                                </div>
+                                {employee.user_profile ? (
+                                  <img
+                                    src={toEmployeeProfileImageUrl(employee.user_profile)}
+                                    alt={`${employee.first_name} ${employee.last_name}`}
+                                    className="w-14 h-14 md:w-16 md:h-16 min-w-[3.5rem] md:min-w-[4rem] rounded-xl object-cover shadow-sm border border-slate-200 cursor-zoom-in"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openImagePreview(
+                                        toEmployeeProfileImageUrl(
+                                          employee.user_profile,
+                                        ),
+                                        `${employee.first_name} ${employee.last_name}`,
+                                      );
+                                    }}
+                                  />
+                                ) : (
+                                  <div
+                                    className={`w-14 h-14 md:w-16 md:h-16 min-w-[3.5rem] md:min-w-[4rem] rounded-xl flex items-center justify-center text-xl md:text-2xl font-bold transition-colors duration-200 shadow-sm ${
+                                      isTerminationPending
+                                        ? "bg-rose-100 text-rose-700 group-hover:bg-rose-500 group-hover:text-white"
+                                        : isFullyComplete
+                                          ? "bg-emerald-100 text-emerald-700 group-hover:bg-emerald-500 group-hover:text-white"
+                                          : isRehirePending
+                                            ? "bg-blue-100 text-blue-700 group-hover:bg-blue-500 group-hover:text-white"
+                                            : "bg-orange-100 text-orange-700 group-hover:bg-orange-500 group-hover:text-white"
+                                    }`}
+                                  >
+                                    {getInitials(employee.first_name, employee.last_name)}
+                                  </div>
+                                )}
                                 <div className="overflow-hidden flex flex-col justify-center min-w-0 flex-1">
                                   <p className="font-semibold text-[#4A081A] text-[10px] uppercase tracking-wider mb-1 truncate opacity-60">
                                     {employee.position || "No Position"}
@@ -1745,12 +1851,13 @@ export default function MasterfilePage() {
                                     {!checklistTasksComplete
                                       ? "PENDING: onboarding process"
                                       : !isComplete
-                                        ? status
+                                        ? unresolvedBatchStatus
                                         : isRehirePending
                                           ? "PENDING: COMPLETE & FINISH REHIRE"
                                           : "PENDING: ONBOARDING CHECKLIST"}
                                   </Badge>
-                                  {employee.onboarding_tasks && (
+                                  {employee.onboarding_tasks &&
+                                    !(checklistTasksComplete && !isComplete) && (
                                     <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap">
                                       {checklistTasksComplete
                                         ? `Batch ${displayBatchId}: ${batchLabel}`
@@ -1834,10 +1941,30 @@ export default function MasterfilePage() {
                       <div className="flex flex-wrap items-center gap-4 md:gap-6">
                         {/* Employee Badge */}
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center text-lg font-bold">
-                            {selectedEmployee?.first_name?.charAt(0)}
-                            {selectedEmployee?.last_name?.charAt(0)}
-                          </div>
+                          {selectedEmployee?.user_profile ? (
+                            <img
+                              src={toEmployeeProfileImageUrl(
+                                selectedEmployee.user_profile,
+                              )}
+                              alt={`${selectedEmployee?.first_name} ${selectedEmployee?.last_name}`}
+                              className="w-10 h-10 rounded-full object-cover border border-white/30 cursor-zoom-in"
+                              onClick={() =>
+                                openImagePreview(
+                                  toEmployeeProfileImageUrl(
+                                    selectedEmployee.user_profile,
+                                  ),
+                                  `${selectedEmployee.first_name} ${selectedEmployee.last_name}`,
+                                )
+                              }
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-white/20 text-white flex items-center justify-center text-lg font-bold">
+                              {getInitials(
+                                selectedEmployee?.first_name,
+                                selectedEmployee?.last_name,
+                              )}
+                            </div>
+                          )}
                           <div>
                             <p className="text-sm font-bold text-white/70 uppercase tracking-wider">
                               Employee
@@ -3175,6 +3302,32 @@ export default function MasterfilePage() {
         hideCancel={confirmModal.hideCancel}
         isLoading={isUpdating}
       />
+
+      {imagePreview.isOpen && (
+        <div
+          className="fixed inset-0 z-[120] bg-black/75 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={closeImagePreview}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Profile image preview"
+        >
+          <button
+            type="button"
+            onClick={closeImagePreview}
+            className="absolute top-4 right-4 text-white/90 hover:text-white bg-black/40 hover:bg-black/60 rounded-full p-2 transition-colors"
+            aria-label="Close image preview"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <img
+            src={imagePreview.src}
+            alt={imagePreview.alt}
+            className="max-w-[92vw] max-h-[88vh] w-auto h-auto rounded-xl border border-white/20 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }

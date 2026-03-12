@@ -42,6 +42,8 @@ import {
   Save,
   Check,
   Loader2,
+  ImagePlus,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
@@ -297,6 +299,7 @@ function OnboardPageContent() {
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingBarangays, setLoadingBarangays] = useState(false);
+  const [uploadingProfileImage, setUploadingProfileImage] = useState(false);
 
   // Email Check States
   const [emailChecking, setEmailChecking] = useState(false);
@@ -394,7 +397,14 @@ function OnboardPageContent() {
       icon: MapPin,
       description: "Current residence",
     },
+    {
+      id: 8,
+      title: "Profile Picture",
+      icon: ImagePlus,
+      description: "Upload an optional employee photo",
+    },
   ];
+  const lastBatchId = batches.length;
 
   const [onboardingTasks, setOnboardingTasks] = useState<string[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
@@ -685,7 +695,7 @@ function OnboardPageContent() {
     // Override batch if provided in query param
     if (batchParam) {
       const bId = parseInt(batchParam);
-      if (!isNaN(bId) && bId >= 1 && bId <= 7) {
+      if (!isNaN(bId) && bId >= 1 && bId <= lastBatchId) {
         setCurrentBatch(bId);
       }
     }
@@ -713,6 +723,7 @@ function OnboardPageContent() {
     requestedViewParam,
     rehireParam,
     batchParam,
+    lastBatchId,
   ]);
 
   useEffect(() => {
@@ -1029,27 +1040,38 @@ function OnboardPageContent() {
         return itemDate && itemDate >= rehireStartDay;
       });
 
-      let matched = normalizedEmployeeId
-        ? scopedForCurrentRehire.find((item: any) => {
-            const checklistEmpId = String(
-              item?.employeeId ?? item?.employee_id ?? "",
-            )
-              .trim()
-              .toLowerCase();
-            return checklistEmpId === normalizedEmployeeId;
-          })
-        : undefined;
+      const findChecklistMatch = (source: any[]) => {
+        let found = normalizedEmployeeId
+          ? source.find((item: any) => {
+              const checklistEmpId = String(
+                item?.employeeId ?? item?.employee_id ?? "",
+              )
+                .trim()
+                .toLowerCase();
+              return checklistEmpId === normalizedEmployeeId;
+            })
+          : undefined;
 
+        if (!found) {
+          found = source.find(
+            (item: any) => normalizeName(item?.name) === normalizedName,
+          );
+        }
+        if (!found && firstName && lastName) {
+          found = source.find((item: any) => {
+            const candidate = normalizeName(item?.name);
+            return candidate.includes(firstName) && candidate.includes(lastName);
+          });
+        }
+
+        return found;
+      };
+
+      // Prefer entries scoped to the current rehire cycle, but if none match
+      // fall back to the latest matching checklist so saved progress still restores.
+      let matched = findChecklistMatch(scopedForCurrentRehire);
       if (!matched) {
-        matched = scopedForCurrentRehire.find(
-          (item: any) => normalizeName(item?.name) === normalizedName,
-        );
-      }
-      if (!matched && firstName && lastName) {
-        matched = scopedForCurrentRehire.find((item: any) => {
-          const candidate = normalizeName(item?.name);
-          return candidate.includes(firstName) && candidate.includes(lastName);
-        });
+        matched = findChecklistMatch(sortedByLatest);
       }
 
       if (!matched) {
@@ -1136,7 +1158,17 @@ function OnboardPageContent() {
 
       if (emp) {
         setOnboardingEmployeeId(String(emp?.id ?? id));
-        if (
+        const requestedBatchFromQuery = Number(batchParam);
+        const hasRequestedBatch =
+          Number.isFinite(requestedBatchFromQuery) &&
+          requestedBatchFromQuery >= 1 &&
+          requestedBatchFromQuery <= lastBatchId;
+
+        // When a batch is explicitly requested from masterfile (e.g. Continue Rehire),
+        // keep it as source of truth and do not override it with stale DB value.
+        if (hasRequestedBatch) {
+          setCurrentBatch(requestedBatchFromQuery);
+        } else if (
           emp.current_onboarding_batch !== undefined &&
           emp.current_onboarding_batch !== null
         ) {
@@ -2054,6 +2086,82 @@ function OnboardPageContent() {
     }
   };
 
+  const toDirectoryImageUrl = (publicId: string) => {
+    const normalized = String(publicId ?? "").trim();
+    if (!normalized) return "";
+    if (/^https?:\/\//i.test(normalized)) return normalized;
+    if (/^\/api\/laravel\/api\/directory\/images\/file\//i.test(normalized)) {
+      return normalized;
+    }
+    if (/^\/api\/directory\/images\/file\//i.test(normalized)) {
+      return `${getApiUrl().replace(/\/+$/, "")}${normalized}`;
+    }
+
+    const encodedPath = normalized
+      .split("/")
+      .filter(Boolean)
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+
+    return `${getApiUrl().replace(/\/+$/, "")}/api/directory/images/file/${encodedPath}`;
+  };
+
+  const handleProfileImageUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select a valid image file");
+      event.target.value = "";
+      return;
+    }
+
+    const maxBytes = 20 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      toast.error("Image size must be 20MB or less");
+      event.target.value = "";
+      return;
+    }
+
+    setUploadingProfileImage(true);
+    try {
+      const formData = new FormData();
+      formData.append("sectionCode", "user_profile");
+      formData.append("file", file);
+
+      const response = await fetch("/api/directory/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await parseJsonFromResponse(response);
+      if (!response.ok || !data?.public_id) {
+        throw new Error(
+          data?.message ||
+            `Failed to upload profile image (HTTP ${response.status})`,
+        );
+      }
+
+      setProgressionFormData((prev) => ({
+        ...prev,
+        user_profile: data.public_id,
+      }));
+      toast.success("Profile image uploaded");
+    } catch (error) {
+      console.error("Error uploading profile image:", error);
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to upload profile image",
+      );
+    } finally {
+      setUploadingProfileImage(false);
+      event.target.value = "";
+    }
+  };
+
   const calculateProgressionProgress = () => {
     const allFields = [
       "position",
@@ -2138,13 +2246,15 @@ function OnboardPageContent() {
             !!data.zip_code &&
             !!data.street)
         );
+      case 8:
+        return true;
       default:
         return true;
     }
   };
 
   const nextBatch = () => {
-    if (isCurrentBatchValid() && currentBatch < 7) {
+    if (isCurrentBatchValid() && currentBatch < lastBatchId) {
       setCurrentBatch(currentBatch + 1);
     } else if (!isCurrentBatchValid()) {
       toast.error("Please fill in all required fields to proceed.");
@@ -2190,7 +2300,7 @@ function OnboardPageContent() {
               ? {
                   ...cleanedData,
                   same_as_permanent: sameAsPermanent,
-                  current_onboarding_batch: 7,
+                  current_onboarding_batch: lastBatchId,
                   rehire_process: false,
                   status: "rehire_pending",
                   onboarding_completed: true,
@@ -2198,7 +2308,7 @@ function OnboardPageContent() {
               : {
                   ...cleanedData,
                   same_as_permanent: sameAsPermanent,
-                  current_onboarding_batch: 7,
+                  current_onboarding_batch: lastBatchId,
                   onboarding_completed: true,
                 },
           ),
@@ -2633,7 +2743,7 @@ function OnboardPageContent() {
                         <p className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">
                           {view === "checklist"
                             ? "Last Updated"
-                            : `Batch ${currentBatch} of 7`}
+                                            : `Batch ${currentBatch} of ${lastBatchId}`}
                         </p>
                         <p className="text-lg font-bold text-white tracking-tight leading-none">
                           {view === "checklist"
@@ -3037,10 +3147,22 @@ function OnboardPageContent() {
                           </TableRow>
                         ) : (
                           onboardingTasks.map((task, index) => (
+                            (() => {
+                              const isSavedLocked =
+                                Boolean(completedTasks[task]) &&
+                                savedTasks.has(task);
+                              return (
                             <TableRow
                               key={index}
-                              onClick={() => toggleTask(task)}
-                              className="border-b-[1px] border-dashed border-stone-200 last:border-0 hover:bg-stone-50 transition-colors cursor-pointer group"
+                              onClick={() => {
+                                if (!isSavedLocked) toggleTask(task);
+                              }}
+                              className={cn(
+                                "border-b-[1px] border-dashed border-stone-200 last:border-0 transition-colors group",
+                                isSavedLocked
+                                  ? "cursor-not-allowed bg-stone-50/70"
+                                  : "hover:bg-stone-50 cursor-pointer",
+                              )}
                             >
                               <TableCell className="text-center py-2 text-[11px] font-medium text-stone-400">
                                 {completedTasks[task] || "PENDING"}
@@ -3074,6 +3196,8 @@ function OnboardPageContent() {
                                 </span>
                               </TableCell>
                             </TableRow>
+                              );
+                            })()
                           ))
                         )}
                       </TableBody>
@@ -4063,6 +4187,84 @@ function OnboardPageContent() {
                         </div>
                       </div>
                     )}
+
+                    {/* BATCH 8: Optional Profile Picture */}
+                    {currentBatch === 8 && (
+                      <div className="space-y-6">
+                        <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 text-sm text-slate-600">
+                          Uploading a profile picture is optional. If skipped, onboarding can still be completed.
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-[220px,1fr] gap-6 items-start">
+                          <div className="h-[220px] w-[220px] rounded-2xl border border-slate-200 bg-white overflow-hidden flex items-center justify-center shadow-sm">
+                            {progressionFormData.user_profile ? (
+                              <img
+                                src={toDirectoryImageUrl(
+                                  String(progressionFormData.user_profile),
+                                )}
+                                alt="Employee profile"
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="text-center px-4">
+                                <ImagePlus className="h-10 w-10 mx-auto text-slate-400" />
+                                <p className="mt-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                                  No profile photo
+                                </p>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label
+                                htmlFor="user_profile_upload"
+                                className="text-sm font-semibold"
+                              >
+                                Profile Picture (Optional)
+                              </Label>
+                              <Input
+                                id="user_profile_upload"
+                                type="file"
+                                accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/heic,image/heif"
+                                onChange={handleProfileImageUpload}
+                                disabled={uploadingProfileImage || isSaving}
+                                className="font-medium"
+                              />
+                              <p className="text-xs text-slate-500">
+                                Allowed: JPG, PNG, GIF, WebP, HEIC, HEIF. Max size: 20MB.
+                              </p>
+                            </div>
+
+                            <div className="flex items-center gap-3">
+                              {uploadingProfileImage && (
+                                <div className="inline-flex items-center gap-2 text-xs font-semibold text-[#A4163A]">
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                  Uploading profile image...
+                                </div>
+                              )}
+
+                              {progressionFormData.user_profile && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  onClick={() =>
+                                    setProgressionFormData((prev) => ({
+                                      ...prev,
+                                      user_profile: "",
+                                    }))
+                                  }
+                                  className="h-9 px-4 text-xs font-bold uppercase tracking-widest border-slate-300"
+                                >
+                                  <X className="h-3.5 w-3.5 mr-1.5" />
+                                  Remove Photo
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
 
                   <Separator />
@@ -4089,7 +4291,7 @@ function OnboardPageContent() {
                         ))}
                       </div>
 
-                      {currentBatch === 7 ? (
+                      {currentBatch === lastBatchId ? (
                         <div className="flex gap-3">
                           <Button
                             onClick={() => confirmSaveProgress("partial")}
