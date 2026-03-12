@@ -1044,7 +1044,7 @@ function EmployeeSelector({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-center gap-2 h-9 text-sm border-stone-200 hover:bg-stone-50 font-normal text-slate-700 rounded-sm shadow-none"
+          className="w-full justify-between gap-2 h-12 text-sm border-slate-200 hover:bg-stone-50 font-normal text-slate-500 rounded-xl shadow-none px-4"
         >
           <span className="truncate shrink-0">
             {value
@@ -1389,7 +1389,10 @@ export default function AttendanceDashboard() {
         );
         const data = await res.json();
         if (data.success) {
-          setYearsList(data.data);
+          setYearsList((prev) => {
+            const merged = Array.from(new Set([...prev, ...data.data]));
+            return merged.sort((a, b) => a - b);
+          });
         }
       } catch (error) {
         console.error("Failed to fetch years:", error);
@@ -1539,7 +1542,7 @@ export default function AttendanceDashboard() {
 
   // UI state for which cutoff table to show
   const [showCutoff, setShowCutoff] = useState<"first" | "second" | "both">(
-    new Date().getDate() <= 15 ? "first" : "second",
+    new Date().getDate() <= 15 ? "first" : "second"
   );
 
   // Global Search state for both cutoff tables
@@ -1658,36 +1661,40 @@ export default function AttendanceDashboard() {
   const addNewYear = async () => {
     const nextYear = Math.max(...yearsList) + 1;
     setIsAddingYear(true);
+
+    // Update locally first (Optimistic UI)
+    // This allows the user to select the new year immediately and start adding records
+    setYearsList((prev) => [...prev, nextYear].sort((a, b) => a - b));
+    setSelectedYear(nextYear);
+    setShowNewYearConfirm(false);
+
     try {
       const res = await fetch("/api/admin-head/attendance/tardiness/years", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ year: nextYear }),
       });
-      const data = await res.json();
-      if (data.success) {
-        setYearsList((prev) => [...prev, nextYear].sort());
-        setSelectedYear(nextYear);
-        setShowNewYearConfirm(false);
 
-        // Show success with Undo action
+      // Even if the POST fails (e.g., 404 because no dedicated years table exists),
+      // we've updated the UI state. Once a record is added to this year,
+      // it will persist in the database and appear in subsequent GET /years calls.
+      const data = await res.json().catch(() => ({ success: false }));
+
+      if (data.success) {
         toast.success(`Year ${nextYear} added`, {
-          description: "Click undo if this was a mistake",
+          description: "Select it from the menu to start adding records",
           action: {
             label: "Undo",
             onClick: () => handleUndoYear(nextYear),
           },
-          duration: 10000, // 10 seconds for undo
+          duration: 10000,
         });
       } else {
-        // Parse validation errors if present
-        if (data.errors) {
-          const errorMessages = Object.values(data.errors).flat().join(" ");
-          toast.error(errorMessages || data.message);
-        } else {
-          toast.error(data.message || "Failed to add year");
+        // If it failed but it was just a 404/not implemented, we don't need to alert the user
+        // as the local state update is sufficient for initialization.
+        console.log("Backend year initialization skipped or not supported, proceeding with local year.");
+        toast.info(`Year ${nextYear} initialized locally. Add an entry to persist it.`);
         }
-      }
     } catch (error) {
       console.error("Save error:", error);
       if (error instanceof TypeError && error.message === "Failed to fetch") {
@@ -2045,31 +2052,32 @@ export default function AttendanceDashboard() {
                 </p>
               </div>
 
-              {/* Year selector & Actions */}
+              {/* Actions */}
               <div className="flex items-center gap-3">
                 <Button
                   onClick={handleAddNewYearConfirm}
                   variant="outline"
-                  className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg"
+                  className="bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-5 rounded-lg flex items-center gap-2"
                 >
-                  <Plus className="w-4 h-4 mr-2" /> New Year
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>New Year</span>
                 </Button>
                 <Button
                   onClick={() => setIsEntryFormOpen(!isEntryFormOpen)}
                   variant="outline"
                   className={cn(
-                    "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg flex items-center gap-2",
-                    isEntryFormOpen && "bg-rose-100 text-[#4A081A]",
+                    "bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2",
+                    isEntryFormOpen && "bg-rose-100 text-[#4A081A] border-rose-200",
                   )}
                 >
                   {isEntryFormOpen ? (
                     <>
-                      <X className="w-4 h-4" />
+                      <X className="w-3.5 h-3.5" />
                       <span>CLOSE</span>
                     </>
                   ) : (
                     <>
-                      <Plus className="w-4 h-4" />
+                      <Plus className="w-3.5 h-3.5" />
                       <span>NEW RECORD</span>
                     </>
                   )}
@@ -2311,99 +2319,83 @@ export default function AttendanceDashboard() {
           )}
         >
           <div className="flex justify-center pt-2">
-            <Card className="w-full bg-white border-[1.5px] border-[#800020] shadow-sm rounded-none">
-              <CardContent className="p-6 pb-4">
-                <div className="flex flex-col">
-                  {/* Header Part */}
-                  <div className="flex items-center gap-2 shrink-0 mb-4 mt-2">
-                    <div className="w-6 h-6 bg-[#FBDADD]/40 rounded-md flex items-center justify-center">
-                      <Plus className="w-3.5 h-3.5 text-[#4A081A] stroke-[2.5]" />
-                    </div>
-                    <h2 className="text-[13px] font-black text-[#4A081A] uppercase tracking-wider whitespace-nowrap">
-                      New Late Entry
-                    </h2>
+            <div className="w-full bg-white border border-slate-100 shadow-sm rounded-xl p-8">
+              <div className="flex flex-col gap-8">
+                {/* Form Header */}
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[#FFF1F3] rounded-full flex items-center justify-center">
+                    <Plus className="w-6 h-6 text-[#7B0F2B]" />
                   </div>
-
-                  {/* Form Fields & Actions - Horizontal Inline */}
-                  <div className="flex flex-col lg:flex-row items-center w-full px-2 gap-4">
-                    {/* Employee & Time Group */}
-                    <div className="flex flex-col sm:flex-row items-center flex-1 gap-4 w-full">
-                      <div className="flex-1 w-full">
-                        <EmployeeSelector
-                          value={newEntryEmployee}
-                          onChange={setNewEntryEmployee}
-                          employees={employees}
-                        />
-                      </div>
-                      <div className="relative group w-full sm:w-36 shrink-0">
-                        <Clock className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400 group-focus-within:text-[#4A081A] transition-colors" />
-                        <Input
-                          id="time"
-                          type="time"
-                          value={newEntryTime}
-                          onChange={(e) => setNewEntryTime(e.target.value)}
-                          className="bg-white border text-center border-rose-100 text-slate-800 pl-8 pr-2 h-9 w-full rounded-md text-sm font-bold focus:ring-[#800020]/10 focus:border-[#630C22] shadow-none transition-all"
-                        />
-                      </div>
-
-                      {/* Shift Display */}
-                      {newEntryEmployee &&
-                        employees.find((e) => e.name === newEntryEmployee) && (
-                          <div className="flex items-center gap-2 px-3 py-2 bg-[#FFE5EC] rounded-md text-xs font-semibold text-[#4A081A] whitespace-nowrap">
-                            <span className="text-[10px] opacity-70">
-                              SHIFT:
-                            </span>
-                            <span>
-                              {
-                                getShiftSchedule(
-                                  employees.find(
-                                    (e) => e.name === newEntryEmployee,
-                                  )?.department,
-                                ).displayName
-                              }
-                            </span>
-                          </div>
-                        )}
-                    </div>
-
-                    {/* Actions Group */}
-                    <div className="flex items-center gap-3 shrink-0 mt-4 lg:mt-0 lg:ml-auto">
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          setIsEntryFormOpen(false);
-                          resetAddEntryFields();
-                        }}
-                        className="border border-[#FBDADD] text-slate-700 hover:bg-rose-50 text-xs px-6 h-9 rounded-sm shadow-none font-medium"
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        onClick={handleSaveClick}
-                        disabled={
-                          isSaving || selectedYear !== new Date().getFullYear()
-                        }
-                        className="bg-gradient-to-r from-[#4A081A] via-[#630C22] to-[#800020] hover:shadow-md active:scale-95 text-white font-medium text-sm px-6 h-9 rounded-md transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed min-w-[120px] shadow-none"
-                      >
-                        {isSaving ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                            <span>Saving...</span>
-                          </div>
-                        ) : (
-                          "Save Record"
-                        )}
-                      </Button>
-                    </div>
+                  <div>
+                    <h2 className="text-xl font-black text-[#4A081A] uppercase tracking-tight">
+                      New Tardiness Entry
+                    </h2>
+                    <p className="text-sm font-medium text-slate-400">Record a late arrival for today</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+
+                {/* Form Grid */}
+                <div className="flex flex-wrap items-end gap-6">
+                  <div className="flex-1 min-w-[300px] flex flex-col gap-3">
+                    <label className="text-[11px] font-bold text-[#8A99AF] uppercase tracking-wider ml-1">
+                      Select Employee
+                    </label>
+                    <EmployeeSelector
+                      value={newEntryEmployee}
+                      onChange={setNewEntryEmployee}
+                      employees={employees}
+                    />
+                  </div>
+
+                  <div className="flex-1 min-w-[200px] flex flex-col gap-3">
+                    <label className="text-[11px] font-bold text-[#8A99AF] uppercase tracking-wider ml-1">
+                      Actual In Time
+                    </label>
+                    <div className="relative group">
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-[#7B0F2B] transition-colors" />
+                      <Input
+                        id="time"
+                        type="time"
+                        value={newEntryTime}
+                        onChange={(e) => setNewEntryTime(e.target.value)}
+                        className="bg-white border border-slate-200 text-slate-800 pl-11 pr-4 h-12 w-full rounded-xl text-base font-medium focus-visible:border-rose-200 focus-visible:ring-rose-100 shadow-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 shrink-0 mb-0.5">
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setIsEntryFormOpen(false);
+                        resetAddEntryFields();
+                      }}
+                      className="h-12 px-6 text-xs font-bold text-[#7B0F2B] uppercase tracking-widest hover:bg-rose-50 rounded-xl transition-all"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSaveClick}
+                      disabled={isSaving || selectedYear !== new Date().getFullYear()}
+                      className="h-12 px-10 text-xs font-bold text-white uppercase tracking-widest bg-[#7B0F2B] hover:bg-[#630C22] shadow-lg shadow-rose-900/20 rounded-xl min-w-[160px]"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        "Save Record"
+                      )}
+                    </Button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* ----- CUTOFF TABLES - WITH SUMMARY BUTTONS ----- */}
+      {/* ----- CUTOFF TABLES - WITH SUMMARY BUTTONS ----- */}
         <div
           className={`grid ${showCutoff === "both" ? "grid-cols-1 lg:grid-cols-2 gap-4" : "grid-cols-1"} w-full`}
         >
@@ -2565,9 +2557,9 @@ function CutoffTable({
             <Button
               size="sm"
               onClick={onSummaryClick}
-              className="bg-gradient-to-r from-[#4A081A] to-[#630C22] hover:from-[#630C22] hover:to-[#7B0F2B] text-white text-xl md:text-xl h-9 px-4 flex items-center gap-1 shrink-0 shadow-md transition-all duration-300"
+              className="bg-gradient-to-r from-[#4A081A] to-[#630C22] hover:shadow-lg text-white text-[11px] font-black uppercase tracking-widest h-10 px-6 flex items-center gap-2 shrink-0 transition-all duration-300 rounded-lg"
             >
-              <FileText className="w-3.5 h-3.5 md:w-4 md:h-4 text-white" />
+              <FileDown className="w-4 h-4" />
               Summary
             </Button>
           </div>
