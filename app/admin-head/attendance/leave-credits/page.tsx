@@ -1,5 +1,6 @@
 "use client";
 
+
 import React, { useState, useEffect } from "react";
 import {
   Users,
@@ -28,6 +29,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+
 interface LeaveCredit {
   employee_name: string;
   department: string;
@@ -41,6 +43,7 @@ interface LeaveCredit {
   sl_balance: number;
 }
 
+
 export default function LeaveCreditsPage() {
   const [loading, setLoading] = useState(true);
   const [credits, setCredits] = useState<LeaveCredit[]>([]);
@@ -48,9 +51,11 @@ export default function LeaveCreditsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
+
   useEffect(() => {
     fetchCredits();
   }, []);
+
 
   const fetchCredits = async () => {
     try {
@@ -70,6 +75,7 @@ export default function LeaveCreditsPage() {
     }
   };
 
+
   const filteredCredits = credits
     .filter(
       (c) =>
@@ -82,17 +88,20 @@ export default function LeaveCreditsPage() {
       if (a.has_one_year_regular && !b.has_one_year_regular) return -1;
       if (!a.has_one_year_regular && b.has_one_year_regular) return 1;
 
+
       // Within same status, sort by total leave balance (VL + SL) highest to lowest
       const totalA = a.vl_balance + a.sl_balance;
       const totalB = b.vl_balance + b.sl_balance;
       return totalB - totalA;
     });
 
+
   const totalPages = Math.ceil(filteredCredits.length / itemsPerPage);
   const paginatedCredits = filteredCredits.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage,
   );
+
 
   const stats = {
     totalEmployees: credits.length,
@@ -101,7 +110,9 @@ export default function LeaveCreditsPage() {
     totalSLRemaining: credits.reduce((sum, c) => sum + c.sl_balance, 0),
   };
 
+
   if (loading) return <LeaveCreditsSkeleton />;
+
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-stone-50 via-white to-red-50 text-stone-900 font-sans pb-12 animate-in fade-in duration-500">
@@ -123,6 +134,7 @@ export default function LeaveCreditsPage() {
             </div>
           </div>
 
+
           {/* Secondary Toolbar with Pills, Search, and Refresh */}
           <div className="border-t border-white/10 bg-[#A4163A] backdrop-blur-sm">
             <div className="w-full px-4 md:px-8 py-3 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -133,21 +145,25 @@ export default function LeaveCreditsPage() {
                   Total Employees: {stats.totalEmployees}
                 </div>
 
+
                 <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 shadow-sm">
                   <ShieldCheck className="h-4 w-4" />
                   Qualified: {stats.qualified}
                 </div>
+
 
                 <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 shadow-sm">
                   <TrendingUp className="h-4 w-4" />
                   VL Balance: {stats.totalVLRemaining}
                 </div>
 
+
                 <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 shadow-sm">
                   <Briefcase className="h-4 w-4" />
                   SL Balance: {stats.totalSLRemaining}
                 </div>
               </div>
+
 
               {/* Action Area (Search & Refresh) */}
               <div className="flex items-center gap-3 w-full lg:w-auto">
@@ -164,6 +180,7 @@ export default function LeaveCreditsPage() {
                   />
                 </div>
 
+
                 <Button
                   onClick={fetchCredits}
                   className="bg-white text-[#7B0F2B] hover:bg-rose-50 px-6 h-10 rounded-lg font-black transition-all flex items-center gap-2 text-xs md:text-sm shadow-md uppercase tracking-wider border-none"
@@ -175,6 +192,7 @@ export default function LeaveCreditsPage() {
             </div>
           </div>
         </div>
+
 
         <div className="px-4 md:px-8 space-y-8">
           <Card className="bg-white border-2 border-[#FFE5EC] shadow-xl overflow-hidden rounded-2xl flex flex-col">
@@ -214,10 +232,7 @@ export default function LeaveCreditsPage() {
                   <tbody className="divide-y divide-[#FFE5EC]/50 font-medium">
                     {paginatedCredits.length > 0 ? (
                       paginatedCredits.map((item) => (
-                        <tr
-                          key={item.employee_name}
-                          className="hover:bg-rose-50/30 transition-colors group"
-                        >
+                        <tr key={item.employee_name} className="hover:bg-rose-50/30 transition-colors group">
                           <td className="px-4 py-3">
                             <div>
                               <div className="font-black text-[#4A081A] text-sm group-hover:text-[#630C22] transition-colors leading-tight">
@@ -231,9 +246,7 @@ export default function LeaveCreditsPage() {
                           </td>
                           <td className="px-4 py-3 font-bold text-stone-600 text-xs">
                             {item.regularization_date
-                              ? new Date(
-                                  item.regularization_date,
-                                ).toLocaleDateString("en-US", {
+                              ? new Date(item.regularization_date).toLocaleDateString("en-US", {
                                   month: "short",
                                   day: "numeric",
                                   year: "numeric",
@@ -332,6 +345,7 @@ export default function LeaveCreditsPage() {
                 </table>
               </div>
 
+
               {totalPages > 1 && (
                 <div className="px-6 py-4 bg-[#FFE5EC]/10 border-t-2 border-[#FFE5EC] flex flex-col sm:flex-row items-center justify-between gap-4">
                   <div className="text-[10px] text-stone-500 font-black uppercase tracking-wider">
@@ -400,6 +414,7 @@ export default function LeaveCreditsPage() {
             </CardContent>
           </Card>
 
+
           <div className="flex items-start gap-4 p-5 bg-white rounded-xl border-2 border-[#FFE5EC] shadow-sm relative overflow-hidden group">
             <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-[#630C22]" />
             <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
@@ -433,6 +448,7 @@ export default function LeaveCreditsPage() {
   );
 }
 
+
 function LeaveCreditsSkeleton() {
   return (
     <div className="min-h-screen bg-stone-50/50">
@@ -457,6 +473,7 @@ function LeaveCreditsSkeleton() {
           ))}
         </div>
       </div>
+
 
       <div className="px-8 space-y-8">
         <Card className="bg-white border-2 border-stone-100 shadow-sm rounded-2xl">
