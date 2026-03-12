@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Checkbox } from '@/components/ui/checkbox'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import {
   Command,
@@ -33,6 +34,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import {
   Table,
   TableBody,
   TableCell,
@@ -45,7 +56,7 @@ import { getApiUrl } from '@/lib/api'
 import { ensureOkResponse } from '@/lib/api/error-message'
 import { PageErrorState } from '@/components/state/page-feedback'
 import { toast } from 'sonner'
-import { Boxes, Loader2, RefreshCw, Plus, ArrowDownUp, Search, AlertTriangle, PackageCheck, ChevronsUpDown, Check } from 'lucide-react'
+import { Boxes, Loader2, RefreshCw, Plus, ArrowDownUp, Search, AlertTriangle, PackageCheck, ChevronsUpDown, Check, Pencil, Trash2, Save, X } from 'lucide-react'
 
 type DepartmentRow = {
   id: number
@@ -93,6 +104,7 @@ type TransactionRow = {
   balance_auto: number
   issued_log: string | null
   requested_by_name: string | null
+  requested_by_position?: string | null
   transaction_at: string | null
   updated_at: string | null
 }
@@ -117,9 +129,14 @@ type CreateItemConfirmDraft = {
   category: string
   opening_balance: number
 }
+type InventoryItemEditDraft = {
+  item_name: string
+  category: string
+}
 type MovementType = 'in' | 'out'
 type TransactionDateMode = 'date' | 'month' | 'year'
 type VisualizationTopLimit = '5' | '8' | '10'
+const NO_DEPARTMENT_ASSIGNED_LABEL = 'NO DEPARTMENT ASSIGNED'
 
 const initialItemDraft: ItemDraft = {
   item_name: '',
@@ -191,6 +208,31 @@ const getEmployeeDisplayName = (employee: EmployeeRow): string => {
   const last = String(employee.last_name || '').trim()
   const full = `${first} ${last}`.trim()
   return full || employee.id
+}
+
+const normalizePosition = (value: string | null | undefined): string =>
+  String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s*\/\s*/g, '/')
+    .replace(/\s+/g, ' ')
+
+const getEmployeeDepartmentLabel = (employee: Pick<EmployeeRow, 'department' | 'position'> | null | undefined): string => {
+  const department = String(employee?.department || '').trim()
+  if (department) return department
+  const position = String(employee?.position || '').trim()
+  return position ? `${NO_DEPARTMENT_ASSIGNED_LABEL} (${position})` : NO_DEPARTMENT_ASSIGNED_LABEL
+}
+
+const getTransactionDepartmentLabel = (row: Pick<TransactionRow, 'department_name' | 'requested_by_position'>): string => {
+  const department = String(row.department_name || '').trim()
+  const isNoDepartmentAssigned = department.toLowerCase() === NO_DEPARTMENT_ASSIGNED_LABEL.toLowerCase()
+  if (department && !isNoDepartmentAssigned) return department
+
+  const position = String(row.requested_by_position || '').trim()
+  if (position) return `${NO_DEPARTMENT_ASSIGNED_LABEL} (${position})`
+
+  return department || NO_DEPARTMENT_ASSIGNED_LABEL
 }
 
 const getStockBadgeTone = (stock: number): string => {
@@ -273,8 +315,15 @@ export default function InventoryPage() {
   const [loadingTransactions, setLoadingTransactions] = useState(false)
   const [savingItem, setSavingItem] = useState(false)
   const [savingTransaction, setSavingTransaction] = useState(false)
+  const [savingItemEdit, setSavingItemEdit] = useState(false)
+  const [deletingItems, setDeletingItems] = useState(false)
   const [createItemConfirmOpen, setCreateItemConfirmOpen] = useState(false)
   const [createItemConfirmDraft, setCreateItemConfirmDraft] = useState<CreateItemConfirmDraft | null>(null)
+  const [itemEditMode, setItemEditMode] = useState(false)
+  const [editingItemId, setEditingItemId] = useState<number | null>(null)
+  const [itemEditDraft, setItemEditDraft] = useState<InventoryItemEditDraft | null>(null)
+  const [selectedItemIds, setSelectedItemIds] = useState<number[]>([])
+  const [itemIdsToDelete, setItemIdsToDelete] = useState<number[]>([])
   const [error, setError] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
   const [stockFilter, setStockFilter] = useState<'all' | 'no-stock' | 'low-stock' | 'high-stock'>('all')
@@ -297,12 +346,12 @@ export default function InventoryPage() {
   const [hoveredTopItemKey, setHoveredTopItemKey] = useState<string | null>(null)
   const [hoveredDepartmentLabel, setHoveredDepartmentLabel] = useState<string | null>(null)
 
-  const adminHeadEmployee = useMemo(() => {
-    return employees.find((employee) => String(employee.position || '').trim().toLowerCase() === 'admin head') ?? null
+  const adminSupervisorHrEmployee = useMemo(() => {
+    return employees.find((employee) => normalizePosition(employee.position) === 'admin supervisor/hr') ?? null
   }, [employees])
 
   const effectiveRequestedByEmployeeId = movementType === 'in'
-    ? (adminHeadEmployee?.id ?? '')
+    ? (adminSupervisorHrEmployee?.id ?? '')
     : transactionDraft.requested_by_employee_id
 
   const selectedItem = useMemo(
@@ -375,14 +424,14 @@ export default function InventoryPage() {
   const groupedEmployeesByDepartment = useMemo(() => {
     const grouped = new Map<string, EmployeeRow[]>()
     const sortedEmployees = [...employees].sort((a, b) => {
-      const departmentA = String(a.department || '').trim().toLowerCase() || 'unassigned'
-      const departmentB = String(b.department || '').trim().toLowerCase() || 'unassigned'
+      const departmentA = getEmployeeDepartmentLabel(a).toLowerCase()
+      const departmentB = getEmployeeDepartmentLabel(b).toLowerCase()
       const byDepartment = departmentA.localeCompare(departmentB)
       if (byDepartment !== 0) return byDepartment
       return getEmployeeDisplayName(a).toLowerCase().localeCompare(getEmployeeDisplayName(b).toLowerCase())
     })
     sortedEmployees.forEach((employee) => {
-      const department = String(employee.department || '').trim() || 'Unassigned'
+      const department = getEmployeeDepartmentLabel(employee)
       const bucket = grouped.get(department) ?? []
       bucket.push(employee)
       grouped.set(department, bucket)
@@ -451,6 +500,10 @@ export default function InventoryPage() {
     })
   }, [items, searchTerm, stockFilter, categoryFilter])
 
+  const selectedItemIdSet = useMemo(() => new Set(selectedItemIds), [selectedItemIds])
+  const filteredItemIds = useMemo(() => filteredItems.map((item) => item.id), [filteredItems])
+  const allFilteredItemsSelected = filteredItems.length > 0 && selectedItemIds.length === filteredItems.length
+
   const inventoryTotalPages = useMemo(
     () => Math.max(1, Math.ceil(filteredItems.length / INVENTORY_PAGE_SIZE)),
     [filteredItems.length]
@@ -464,7 +517,7 @@ export default function InventoryPage() {
   const transactionDepartmentOptions = useMemo(() => {
     return [...new Set(
       transactions
-        .map((row) => String(row.department_name || '').trim())
+        .map((row) => getTransactionDepartmentLabel(row))
         .filter((name) => name.length > 0)
     )].sort((a, b) => a.localeCompare(b))
   }, [transactions])
@@ -497,7 +550,7 @@ export default function InventoryPage() {
           : Number(row.quantity_out || 0) > 0
       const matchesDepartment = transactionDepartmentFilter === 'all'
         ? true
-        : String(row.department_name || '').trim().toLowerCase() === transactionDepartmentFilter.toLowerCase()
+        : getTransactionDepartmentLabel(row).toLowerCase() === transactionDepartmentFilter.toLowerCase()
 
       return matchesDateMode && matchesType && matchesDepartment
     })
@@ -548,7 +601,7 @@ export default function InventoryPage() {
       const quantityOut = Number(row.quantity_out || 0)
       if (!itemKey || quantityOut <= 0) return
 
-      const departmentLabel = String(row.department_name || '').trim() || 'Unassigned'
+      const departmentLabel = getTransactionDepartmentLabel(row)
       const itemBreakdown = breakdownByItem.get(itemKey) ?? new Map<string, number>()
       itemBreakdown.set(departmentLabel, (itemBreakdown.get(departmentLabel) ?? 0) + quantityOut)
       breakdownByItem.set(itemKey, itemBreakdown)
@@ -566,7 +619,7 @@ export default function InventoryPage() {
   const departmentOutData = useMemo(() => {
     const totals = new Map<string, { label: string; quantityOut: number }>()
     filteredTransactions.forEach((row) => {
-      const label = String(row.department_name || '').trim() || 'Unassigned'
+      const label = getTransactionDepartmentLabel(row)
       const current = totals.get(label) ?? { label, quantityOut: 0 }
       current.quantityOut += Number(row.quantity_out || 0)
       totals.set(label, current)
@@ -585,7 +638,7 @@ export default function InventoryPage() {
   const departmentItemBreakdown = useMemo(() => {
     const breakdownByDepartment = new Map<string, Map<string, number>>()
     filteredTransactions.forEach((row) => {
-      const departmentLabel = String(row.department_name || '').trim() || 'Unassigned'
+      const departmentLabel = getTransactionDepartmentLabel(row)
       const itemCode = String(row.item_code || '').trim()
       const itemName = String(row.item_name || '').trim()
       const itemLabel = itemCode && itemName ? `${itemCode} - ${itemName}` : itemCode || itemName || 'Unknown Item'
@@ -788,6 +841,31 @@ export default function InventoryPage() {
   }, [inventoryTotalPages])
 
   useEffect(() => {
+    const validIds = new Set(items.map((item) => item.id))
+    setSelectedItemIds((prev) => prev.filter((id) => validIds.has(id)))
+    setItemIdsToDelete((prev) => prev.filter((id) => validIds.has(id)))
+
+    if (editingItemId !== null && !validIds.has(editingItemId)) {
+      setEditingItemId(null)
+      setItemEditDraft(null)
+    }
+  }, [items, editingItemId])
+
+  useEffect(() => {
+    const visibleIds = new Set(filteredItemIds)
+    setSelectedItemIds((prev) => prev.filter((id) => visibleIds.has(id)))
+    setItemIdsToDelete((prev) => prev.filter((id) => visibleIds.has(id)))
+  }, [filteredItemIds])
+
+  useEffect(() => {
+    if (itemEditMode) return
+    setEditingItemId(null)
+    setItemEditDraft(null)
+    setSelectedItemIds([])
+    setItemIdsToDelete([])
+  }, [itemEditMode])
+
+  useEffect(() => {
     setTransactionsPage(1)
   }, [
     transactions.length,
@@ -870,11 +948,11 @@ export default function InventoryPage() {
   useEffect(() => {
     if (movementType !== 'in') return
     setTransactionDraft((prev) => {
-      const nextId = adminHeadEmployee?.id ?? ''
+      const nextId = adminSupervisorHrEmployee?.id ?? ''
       if (prev.requested_by_employee_id === nextId) return prev
       return { ...prev, requested_by_employee_id: nextId }
     })
-  }, [movementType, adminHeadEmployee?.id])
+  }, [movementType, adminSupervisorHrEmployee?.id])
 
   const handleMovementTypeChange = (nextType: MovementType) => {
     setMovementType(nextType)
@@ -882,7 +960,7 @@ export default function InventoryPage() {
       ...prev,
       quantity_in: nextType === 'in' ? prev.quantity_in : '0',
       quantity_out: nextType === 'out' ? prev.quantity_out : '0',
-      requested_by_employee_id: nextType === 'in' ? (adminHeadEmployee?.id ?? '') : '',
+      requested_by_employee_id: nextType === 'in' ? (adminSupervisorHrEmployee?.id ?? '') : '',
     }))
   }
 
@@ -963,6 +1041,169 @@ export default function InventoryPage() {
     setCreateItemConfirmOpen(true)
   }
 
+  const handleItemEditModeToggle = () => {
+    if (!canEditItemSetup) {
+      toast.warning('Edit Restricted', {
+        description: 'Item setup can only be edited for past or present years.',
+      })
+      return
+    }
+    setItemEditMode((prev) => !prev)
+  }
+
+  const toggleSelectAllItems = (checked: boolean) => {
+    if (checked) {
+      setSelectedItemIds(filteredItemIds)
+      return
+    }
+    setSelectedItemIds([])
+  }
+
+  const toggleItemSelection = (itemId: number, checked: boolean) => {
+    setSelectedItemIds((prev) => {
+      if (checked) return prev.includes(itemId) ? prev : [...prev, itemId]
+      return prev.filter((id) => id !== itemId)
+    })
+  }
+
+  const beginEditItem = (item: InventoryRow) => {
+    setEditingItemId(item.id)
+    setItemEditDraft({
+      item_name: String(item.item_name || ''),
+      category: String(item.category || ''),
+    })
+  }
+
+  const cancelEditItem = () => {
+    setEditingItemId(null)
+    setItemEditDraft(null)
+  }
+
+  const saveEditedItem = async (itemId: number) => {
+    if (!canEditItemSetup) {
+      toast.warning('Edit Restricted', {
+        description: 'Item setup can only be edited for past or present years.',
+      })
+      return
+    }
+    if (!itemEditDraft) return
+
+    const itemName = String(itemEditDraft.item_name || '').trim()
+    const category = String(itemEditDraft.category || '').trim()
+
+    if (!itemName || !category) {
+      toast.warning('Missing Item Details', {
+        description: 'Please provide both Item Name and Category before saving.',
+      })
+      return
+    }
+
+    const duplicateExists = items.some((item) =>
+      item.id !== itemId && String(item.item_name || '').trim().toLowerCase() === itemName.toLowerCase()
+    )
+    if (duplicateExists) {
+      toast.warning('Duplicate Item', {
+        description: 'An inventory item with the same name already exists.',
+      })
+      return
+    }
+
+    try {
+      setSavingItemEdit(true)
+      const response = await fetch(`${getApiUrl()}/api/office-supply/items/${itemId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          item_name: itemName,
+          category,
+        }),
+      })
+
+      await ensureOkResponse(response, 'Unable to update inventory item.')
+      toast.success('Inventory item updated successfully.')
+      setEditingItemId(null)
+      setItemEditDraft(null)
+      await Promise.all([
+        loadItems(selectedYear),
+        loadTransactions(transactionYearFilter, transactionDraft.item_id || undefined),
+      ])
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update inventory item.'
+      toast.error('Update Item Failed', { description: message })
+    } finally {
+      setSavingItemEdit(false)
+    }
+  }
+
+  const queueItemDeletion = (itemIds: number[]) => {
+    const uniqueIds = [...new Set(itemIds.filter((id) => Number.isFinite(id) && id > 0))]
+    if (uniqueIds.length === 0) return
+    setItemIdsToDelete(uniqueIds)
+  }
+
+  const removeSelectedItems = async () => {
+    if (!canEditItemSetup) {
+      toast.warning('Edit Restricted', {
+        description: 'Item setup can only be edited for past or present years.',
+      })
+      return
+    }
+    if (itemIdsToDelete.length === 0) return
+
+    const idsToDelete = [...new Set(itemIdsToDelete)]
+    const isSingleDelete = idsToDelete.length === 1
+    const selectedTxItemId = Number(transactionDraft.item_id || 0)
+    const shouldClearSelectedTxItem = selectedTxItemId > 0 && idsToDelete.includes(selectedTxItemId)
+    const nextTransactionItemId = shouldClearSelectedTxItem ? '' : transactionDraft.item_id
+
+    try {
+      setDeletingItems(true)
+      const endpoint = isSingleDelete
+        ? `${getApiUrl()}/api/office-supply/items/${idsToDelete[0]}`
+        : `${getApiUrl()}/api/office-supply/items/batch`
+      const response = await fetch(endpoint, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: isSingleDelete ? undefined : JSON.stringify({ item_ids: idsToDelete }),
+      })
+
+      await ensureOkResponse(response, 'Unable to delete inventory item(s).')
+
+      setSelectedItemIds((prev) => prev.filter((id) => !idsToDelete.includes(id)))
+      setItemIdsToDelete([])
+      if (editingItemId !== null && idsToDelete.includes(editingItemId)) {
+        setEditingItemId(null)
+        setItemEditDraft(null)
+      }
+      if (shouldClearSelectedTxItem) {
+        setTransactionDraft((prev) => ({ ...prev, item_id: '' }))
+        setItemPickerOpen(false)
+      }
+
+      toast.success(
+        isSingleDelete
+          ? 'Inventory item deleted successfully.'
+          : `${idsToDelete.length} inventory items deleted successfully.`
+      )
+
+      await Promise.all([
+        loadItems(selectedYear),
+        loadTransactions(transactionYearFilter, nextTransactionItemId || undefined),
+      ])
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete inventory item(s).'
+      toast.error('Delete Failed', { description: message })
+    } finally {
+      setDeletingItems(false)
+    }
+  }
+
   const createTransaction = async () => {
     if (!canEditTransactions) {
       toast.warning('Edit Restricted', {
@@ -980,7 +1221,7 @@ export default function InventoryPage() {
     try {
       setSavingTransaction(true)
       const requesterId = movementType === 'in'
-        ? (adminHeadEmployee?.id ?? '')
+        ? (adminSupervisorHrEmployee?.id ?? '')
         : transactionDraft.requested_by_employee_id
       const quantityInValue = movementType === 'in' ? Number(transactionDraft.quantity_in || 0) : 0
       const quantityOutValue = movementType === 'out' ? Number(transactionDraft.quantity_out || 0) : 0
@@ -991,8 +1232,8 @@ export default function InventoryPage() {
         return
       }
       if (movementType === 'in' && !requesterId) {
-        toast.warning('Admin Head Missing', {
-          description: 'No employed employee with position "Admin Head" was found.',
+        toast.warning('Admin Supervisor/HR Missing', {
+          description: 'No employed employee with position "Admin Supervisor/HR" was found.',
         })
         return
       }
@@ -1072,6 +1313,7 @@ export default function InventoryPage() {
   }
 
   const isRefreshingAny = refreshingData || loadingItems || loadingTransactions
+  const inventoryColumnCount = itemEditMode ? 7 : 5
 
   return (
     <div className="min-h-screen bg-[#F5F6F8] font-sans flex flex-col">
@@ -1515,7 +1757,7 @@ export default function InventoryPage() {
                               <span className="flex min-w-0 items-center gap-2">
                                 <span className="truncate">{getEmployeeDisplayName(selectedEmployee)}</span>
                                 <Badge className="rounded-sm border bg-slate-100 text-slate-700 border-slate-200">
-                                  {selectedEmployee.department || 'Unassigned'}
+                                  {getEmployeeDepartmentLabel(selectedEmployee)}
                                 </Badge>
                               </span>
                             ) : (
@@ -1551,7 +1793,7 @@ export default function InventoryPage() {
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
                                           <Badge className="rounded-sm border bg-slate-100 text-slate-700 border-slate-200">
-                                            {employee.department || 'Unassigned'}
+                                            {getEmployeeDepartmentLabel(employee)}
                                           </Badge>
                                           <Check className={cn('h-4 w-4', transactionDraft.requested_by_employee_id === employee.id ? 'opacity-100 text-emerald-600' : 'opacity-0')} />
                                         </div>
@@ -1568,9 +1810,9 @@ export default function InventoryPage() {
                     <div className="space-y-1.5">
                       <Label className="text-xs font-black uppercase tracking-wider text-slate-500">Department (Auto)</Label>
                       <div className="h-10 rounded-sm border border-slate-200 bg-slate-50 px-3 flex items-center">
-                        {selectedEmployee?.department ? (
+                        {selectedEmployee ? (
                           <Badge className="rounded-sm border bg-slate-100 text-slate-700 border-slate-200">
-                            {selectedEmployee.department}
+                            {getEmployeeDepartmentLabel(selectedEmployee)}
                           </Badge>
                         ) : (
                           <span className="text-sm text-slate-500">Auto-filled from selected employee</span>
@@ -1605,12 +1847,41 @@ export default function InventoryPage() {
           )}
           style={{ transitionDelay: '380ms' }}
         >
-          <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/70 flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#A4163A]">Inventory Register</p>
-              <h3 className="text-base font-black text-slate-900 mt-1">Inventory Table</h3>
+          <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/70 space-y-3">
+            <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#A4163A]">Inventory Register</p>
+                <h3 className="text-base font-black text-slate-900 mt-1">Inventory Table</h3>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant={itemEditMode ? 'default' : 'outline'}
+                  onClick={handleItemEditModeToggle}
+                  disabled={savingItemEdit || deletingItems}
+                  className={cn(
+                    'h-9 rounded-sm font-black text-xs uppercase tracking-wider',
+                    itemEditMode ? 'bg-[#A4163A] hover:bg-[#800020] text-white' : 'border-[#FFE5EC] text-[#A4163A] hover:bg-rose-50'
+                  )}
+                >
+                  {itemEditMode ? <X className="w-3.5 h-3.5 mr-2" /> : <Pencil className="w-3.5 h-3.5 mr-2" />}
+                  {itemEditMode ? 'Close Edit' : 'Edit Items'}
+                </Button>
+                {itemEditMode ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => queueItemDeletion(selectedItemIds)}
+                    disabled={selectedItemIds.length === 0 || deletingItems || savingItemEdit}
+                    className="h-9 rounded-sm border-rose-200 text-rose-700 hover:bg-rose-50 font-black text-xs uppercase tracking-wider"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                    Delete Selected ({selectedItemIds.length})
+                  </Button>
+                ) : null}
+              </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+            <div className="flex flex-col sm:flex-row gap-2 w-full">
               <div className="relative w-full sm:w-[260px]">
                 <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <Input
@@ -1650,33 +1921,50 @@ export default function InventoryPage() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-rose-50/50 border-b border-rose-100">
+                  {itemEditMode ? (
+                    <TableHead className="w-[54px] text-center">
+                      <Checkbox
+                        checked={allFilteredItemsSelected ? true : selectedItemIds.length > 0 ? 'indeterminate' : false}
+                        onCheckedChange={(checked) => toggleSelectAllItems(checked === true)}
+                        disabled={filteredItems.length === 0 || deletingItems || savingItemEdit}
+                        aria-label="Select all inventory items"
+                        className="mx-auto"
+                      />
+                    </TableHead>
+                  ) : null}
                   <TableHead className="font-black text-[#800020] uppercase tracking-wider text-[11px]">Item Code</TableHead>
                   <TableHead className="font-black text-[#800020] uppercase tracking-wider text-[11px]">Item Name</TableHead>
                   <TableHead className="font-black text-[#800020] uppercase tracking-wider text-[11px]">Category</TableHead>
                   <TableHead className="text-right font-black text-[#800020] uppercase tracking-wider text-[11px]">Current</TableHead>
                   <TableHead className="font-black text-[#800020] uppercase tracking-wider text-[11px]">Last Updated</TableHead>
+                  {itemEditMode ? (
+                    <TableHead className="w-[180px] text-right font-black text-[#800020] uppercase tracking-wider text-[11px]">Action</TableHead>
+                  ) : null}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loadingItems ? (
                   Array.from({ length: 6 }).map((_, idx) => (
                     <TableRow key={`inventory-loading-row-${idx}`} className="border-b border-slate-100">
+                      {itemEditMode ? <TableCell><Skeleton className="h-5 w-5 rounded-sm mx-auto" /></TableCell> : null}
                       <TableCell><Skeleton className="h-5 w-16" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-44" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-36" /></TableCell>
                       <TableCell className="text-right"><Skeleton className="h-5 w-10 ml-auto" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                      {itemEditMode ? <TableCell className="text-right"><Skeleton className="h-5 w-24 ml-auto" /></TableCell> : null}
                     </TableRow>
                   ))
                 ) : filteredItems.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="h-36 text-center text-slate-500">
+                    <TableCell colSpan={inventoryColumnCount} className="h-36 text-center text-slate-500">
                       {items.length === 0 ? 'No inventory items yet.' : 'No items match your filters.'}
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedFilteredItems.map((item) => {
                     const currentStock = Number(item.current_balance || 0)
+                    const isEditingRow = itemEditMode && editingItemId === item.id
                     const rowToneClass = currentStock === 0
                       ? 'bg-rose-50/60 border-rose-100 hover:bg-rose-100/60'
                       : currentStock >= 1 && currentStock <= 10
@@ -1688,15 +1976,101 @@ export default function InventoryPage() {
                         key={item.id}
                         className={cn('border-b animate-in fade-in slide-in-from-bottom-1 duration-300', rowToneClass)}
                       >
+                        {itemEditMode ? (
+                          <TableCell className="text-center">
+                            <Checkbox
+                              checked={selectedItemIdSet.has(item.id)}
+                              onCheckedChange={(checked) => toggleItemSelection(item.id, checked === true)}
+                              aria-label={`Select inventory item ${item.item_code}`}
+                              disabled={deletingItems || savingItemEdit}
+                              className="mx-auto"
+                            />
+                          </TableCell>
+                        ) : null}
                         <TableCell className="font-black text-slate-700">{item.item_code}</TableCell>
-                        <TableCell className="font-semibold text-slate-700">{item.item_name}</TableCell>
-                        <TableCell>{item.category}</TableCell>
+                        <TableCell className="font-semibold text-slate-700">
+                          {isEditingRow ? (
+                            <Input
+                              value={itemEditDraft?.item_name ?? ''}
+                              onChange={(e) => setItemEditDraft((prev) => ({ item_name: e.target.value, category: prev?.category ?? '' }))}
+                              className="h-8 rounded-sm"
+                              disabled={savingItemEdit || deletingItems}
+                            />
+                          ) : (
+                            item.item_name
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isEditingRow ? (
+                            <Input
+                              value={itemEditDraft?.category ?? ''}
+                              onChange={(e) => setItemEditDraft((prev) => ({ item_name: prev?.item_name ?? '', category: e.target.value }))}
+                              className="h-8 rounded-sm"
+                              disabled={savingItemEdit || deletingItems}
+                            />
+                          ) : (
+                            item.category
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
                           <Badge className={cn('rounded-sm border', getStockBadgeTone(currentStock))}>
                             {item.current_balance}
                           </Badge>
                         </TableCell>
                         <TableCell>{formatDate(item.last_updated)}</TableCell>
+                        {itemEditMode ? (
+                          <TableCell className="text-right">
+                            {isEditingRow ? (
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                  onClick={() => void saveEditedItem(item.id)}
+                                  disabled={savingItemEdit || deletingItems}
+                                >
+                                  {savingItemEdit ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
+                                  Save
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 px-3"
+                                  onClick={cancelEditItem}
+                                  disabled={savingItemEdit || deletingItems}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8 border-[#FFE5EC] text-[#A4163A] hover:bg-rose-50"
+                                  onClick={() => beginEditItem(item)}
+                                  disabled={deletingItems || (editingItemId !== null && editingItemId !== item.id)}
+                                  title="Edit item"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="outline"
+                                  className="h-8 w-8 border-rose-200 text-rose-700 hover:bg-rose-50"
+                                  onClick={() => queueItemDeletion([item.id])}
+                                  disabled={deletingItems || savingItemEdit}
+                                  title="Delete item"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        ) : null}
                       </TableRow>
                     )
                   })
@@ -2065,7 +2439,7 @@ export default function InventoryPage() {
                       <TableCell className="font-semibold text-slate-700">{row.item_code || '-'}</TableCell>
                       <TableCell className="font-semibold text-slate-700">{row.item_name || '-'}</TableCell>
                       <TableCell>{row.category || '-'}</TableCell>
-                      <TableCell>{row.department_name || '-'}</TableCell>
+                      <TableCell>{getTransactionDepartmentLabel(row)}</TableCell>
                       <TableCell className="text-right">{row.beginning_balance}</TableCell>
                       <TableCell className="text-right text-emerald-700 font-semibold">{row.quantity_in}</TableCell>
                       <TableCell className="text-right text-rose-700 font-semibold">{row.quantity_out}</TableCell>
@@ -2144,6 +2518,48 @@ export default function InventoryPage() {
             </p>
           </Card>
         )}
+
+        <AlertDialog
+          open={itemIdsToDelete.length > 0}
+          onOpenChange={(open) => {
+            if (!open) setItemIdsToDelete([])
+          }}
+        >
+          <AlertDialogContent size="sm">
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {itemIdsToDelete.length > 1 ? `Delete ${itemIdsToDelete.length} inventory items?` : 'Delete this inventory item?'}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {itemIdsToDelete.length > 1
+                  ? 'Selected items and their related inventory transactions will be permanently removed.'
+                  : 'This item and its related inventory transactions will be permanently removed.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel
+                onClick={() => setItemIdsToDelete([])}
+                disabled={deletingItems}
+              >
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-rose-600 hover:bg-rose-700 text-white"
+                onClick={() => void removeSelectedItems()}
+                disabled={deletingItems}
+              >
+                {deletingItems ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  itemIdsToDelete.length > 1 ? 'Delete Items' : 'Delete Item'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Dialog
           open={createItemConfirmOpen}

@@ -57,6 +57,9 @@ Route::put('/department-checklist-templates', [DepartmentChecklistTemplateContro
 // Office Supplies Inventory Routes
 Route::get('/office-supply/items', [OfficeSupplyInventoryController::class, 'indexItems']);
 Route::post('/office-supply/items', [OfficeSupplyInventoryController::class, 'storeItem']);
+Route::put('/office-supply/items/{id}', [OfficeSupplyInventoryController::class, 'updateItem']);
+Route::delete('/office-supply/items/batch', [OfficeSupplyInventoryController::class, 'destroyItemsBatch']);
+Route::delete('/office-supply/items/{id}', [OfficeSupplyInventoryController::class, 'destroyItem']);
 Route::get('/office-supply/transactions', [OfficeSupplyInventoryController::class, 'indexTransactions']);
 Route::post('/office-supply/transactions', [OfficeSupplyInventoryController::class, 'storeTransaction']);
 
@@ -153,4 +156,3 @@ Route::put('/hiring/job-offers/{id}', [HiringController::class, 'updateJobOffer'
 Route::get('/hiring/job-offer-candidates', [HiringController::class, 'jobOfferCandidates']);
 
 Route::get('/hiring/onboarded', [HiringController::class, 'onboarded']);
-

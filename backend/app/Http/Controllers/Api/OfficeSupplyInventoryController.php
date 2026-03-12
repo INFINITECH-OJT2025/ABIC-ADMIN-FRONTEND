@@ -15,6 +15,9 @@ use Illuminate\Validation\ValidationException;
 
 class OfficeSupplyInventoryController extends Controller
 {
+    private const NO_DEPARTMENT_ASSIGNED_LABEL = 'NO DEPARTMENT ASSIGNED';
+    private const REQUIRED_QUANTITY_IN_POSITION = 'admin supervisor/hr';
+
     public function indexItems(Request $request)
     {
         $validated = $request->validate([
@@ -62,7 +65,7 @@ class OfficeSupplyInventoryController extends Controller
             ->map(fn ($rows) => $rows->first());
 
         $latestTransactions = OfficeSupplyTransaction::query()
-            ->with(['requestedBy:id,first_name,last_name,status'])
+            ->with(['requestedBy:id,first_name,last_name,position,status'])
             ->whereYear('transaction_at', $selectedYear)
             ->whereIn('item_id', $itemIds)
             ->orderByDesc('transaction_at')
@@ -99,7 +102,7 @@ class OfficeSupplyInventoryController extends Controller
             ->with([
                 'item:id,item_code,item_name,category',
                 'department:id,name',
-                'requestedBy:id,first_name,last_name,status',
+                'requestedBy:id,first_name,last_name,position,status',
             ]);
 
         if (isset($validated['item_id'])) {
@@ -200,6 +203,117 @@ class OfficeSupplyInventoryController extends Controller
         ], 201);
     }
 
+    public function updateItem(Request $request, int $id)
+    {
+        $validated = $request->validate([
+            'item_name' => 'required|string|min:2|max:150',
+            'category' => 'required|string|min:2|max:100',
+        ]);
+
+        $item = OfficeSupplyItem::query()->find($id);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Inventory item not found.',
+            ], 404);
+        }
+
+        $itemName = trim((string) $validated['item_name']);
+        $category = trim((string) $validated['category']);
+        $itemNameNormalized = strtolower($itemName);
+
+        $duplicateItemNameExists = OfficeSupplyItem::query()
+            ->where('id', '!=', $item->id)
+            ->whereRaw('LOWER(item_name) = ?', [$itemNameNormalized])
+            ->exists();
+        if ($duplicateItemNameExists) {
+            throw ValidationException::withMessages([
+                'item_name' => ['An inventory item with this name already exists.'],
+            ]);
+        }
+
+        $item->update([
+            'item_name' => $itemName,
+            'category' => $category,
+        ]);
+
+        $item->load(['department:id,name', 'latestTransaction.requestedBy:id,first_name,last_name,position,status']);
+        $latest = $item->latestTransaction;
+        $monthStart = $latest?->transaction_at
+            ? Carbon::parse((string) $latest->transaction_at)->startOfMonth()->toDateString()
+            : Carbon::now()->startOfMonth()->toDateString();
+        $monthly = OfficeSupplyMonthlyBalance::query()
+            ->where('item_id', $item->id)
+            ->where('month_start', $monthStart)
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Inventory item updated successfully.',
+            'data' => $this->transformItem($item, $monthly, $latest),
+        ]);
+    }
+
+    public function destroyItem(int $id)
+    {
+        $item = OfficeSupplyItem::query()->find($id);
+        if (!$item) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Inventory item not found.',
+            ], 404);
+        }
+
+        $deletedMeta = [
+            'id' => (int) $item->id,
+            'item_code' => $item->item_code,
+            'item_name' => $item->item_name,
+        ];
+
+        DB::transaction(function () use ($item): void {
+            $item->delete();
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Inventory item deleted successfully.',
+            'data' => $deletedMeta,
+        ]);
+    }
+
+    public function destroyItemsBatch(Request $request)
+    {
+        $validated = $request->validate([
+            'item_ids' => 'required|array|min:1',
+            'item_ids.*' => 'required|integer|distinct|exists:office_supply_items,id',
+        ]);
+
+        $itemIds = array_map('intval', $validated['item_ids']);
+
+        $rows = OfficeSupplyItem::query()
+            ->whereIn('id', $itemIds)
+            ->get(['id', 'item_code', 'item_name']);
+        if ($rows->isEmpty()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No inventory items found for deletion.',
+            ], 404);
+        }
+
+        DB::transaction(function () use ($itemIds): void {
+            OfficeSupplyItem::query()->whereIn('id', $itemIds)->delete();
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Selected inventory items deleted successfully.',
+            'data' => [
+                'deleted_count' => $rows->count(),
+                'deleted_ids' => $rows->pluck('id')->values(),
+            ],
+        ]);
+    }
+
     public function storeTransaction(Request $request)
     {
         $validated = $request->validate([
@@ -222,23 +336,23 @@ class OfficeSupplyInventoryController extends Controller
             ]);
         }
 
-        $requester = Employee::query()->select('id', 'status', 'department')->find((string) $validated['requested_by_employee_id']);
+        $requester = Employee::query()->select('id', 'status', 'department', 'position')->find((string) $validated['requested_by_employee_id']);
         if (!$requester || strtolower((string) $requester->status) !== 'employed') {
             throw ValidationException::withMessages([
                 'requested_by_employee_id' => ['Requested by must reference an employed employee.'],
             ]);
         }
 
-        $requesterDepartment = trim((string) ($requester->department ?? ''));
-        if ($requesterDepartment === '') {
+        if ($quantityIn > 0 && $this->normalizePosition($requester->position) !== self::REQUIRED_QUANTITY_IN_POSITION) {
             throw ValidationException::withMessages([
-                'requested_by_employee_id' => ['The selected employee has no assigned department.'],
+                'requested_by_employee_id' => ['Quantity In requires an employed requester with position "Admin Supervisor/HR".'],
             ]);
         }
 
-        $resolvedDepartment = Department::query()
-            ->whereRaw('LOWER(name) = ?', [strtolower($requesterDepartment)])
-            ->first();
+        $requesterDepartment = trim((string) ($requester->department ?? ''));
+        $resolvedDepartment = $requesterDepartment === ''
+            ? $this->resolveNoDepartmentAssignedDepartment()
+            : Department::query()->whereRaw('LOWER(name) = ?', [strtolower($requesterDepartment)])->first();
         if (!$resolvedDepartment) {
             throw ValidationException::withMessages([
                 'requested_by_employee_id' => ['The selected employee department is not configured in departments.'],
@@ -286,8 +400,8 @@ class OfficeSupplyInventoryController extends Controller
             $item->update(['current_balance' => $currentBalance]);
             $monthly->update(['closing_balance' => $currentBalance]);
 
-            $item->load(['department:id,name', 'latestTransaction.requestedBy:id,first_name,last_name,status']);
-            $transaction->load(['item:id,item_code,item_name,category', 'department:id,name', 'requestedBy:id,first_name,last_name,status']);
+            $item->load(['department:id,name', 'latestTransaction.requestedBy:id,first_name,last_name,position,status']);
+            $transaction->load(['item:id,item_code,item_name,category', 'department:id,name', 'requestedBy:id,first_name,last_name,position,status']);
 
             return [$item, $monthly, $transaction];
         });
@@ -354,7 +468,7 @@ class OfficeSupplyInventoryController extends Controller
             'item_name' => $transaction->item?->item_name,
             'category' => $transaction->item?->category,
             'department_id' => $transaction->department_id,
-            'department_name' => $transaction->department?->name,
+            'department_name' => $this->resolveDepartmentName($transaction->department?->name),
             'beginning_balance' => (int) $transaction->beginning_balance,
             'quantity_in' => (int) $transaction->quantity_in,
             'quantity_out' => (int) $transaction->quantity_out,
@@ -363,6 +477,7 @@ class OfficeSupplyInventoryController extends Controller
             'issued_log' => $transaction->issued_log,
             'requested_by_employee_id' => $transaction->requested_by_employee_id,
             'requested_by_name' => $requesterName !== '' ? $requesterName : null,
+            'requested_by_position' => $requester?->position,
             'transaction_at' => optional($transaction->transaction_at)?->toISOString(),
             'updated_at' => optional($transaction->updated_at)?->toISOString(),
         ];
@@ -371,5 +486,34 @@ class OfficeSupplyInventoryController extends Controller
     private function formatItemCode(int $sequence): string
     {
         return 'OS-' . str_pad((string) $sequence, 3, '0', STR_PAD_LEFT);
+    }
+
+    private function normalizePosition(?string $value): string
+    {
+        $normalized = strtolower(trim((string) $value));
+        $normalized = preg_replace('/\s*\/\s*/', '/', $normalized) ?? $normalized;
+        $normalized = preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
+        return $normalized;
+    }
+
+    private function resolveNoDepartmentAssignedDepartment(): Department
+    {
+        $existing = Department::query()
+            ->whereRaw('LOWER(name) = ?', [strtolower(self::NO_DEPARTMENT_ASSIGNED_LABEL)])
+            ->first();
+        if ($existing) {
+            return $existing;
+        }
+
+        return Department::query()->create([
+            'name' => self::NO_DEPARTMENT_ASSIGNED_LABEL,
+            'is_custom' => false,
+        ]);
+    }
+
+    private function resolveDepartmentName(?string $departmentName): string
+    {
+        $normalized = trim((string) $departmentName);
+        return $normalized !== '' ? $normalized : self::NO_DEPARTMENT_ASSIGNED_LABEL;
     }
 }
