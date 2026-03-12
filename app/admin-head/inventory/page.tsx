@@ -129,6 +129,16 @@ type CreateItemConfirmDraft = {
   category: string
   opening_balance: number
 }
+type CreateItemFxStage = 'idle' | 'storing' | 'success' | 'error'
+type QuantityFxMode = 'in' | 'out'
+type TransactionFxStage = 'idle' | 'storing' | 'success' | 'error'
+type QuantityChangeFxState = {
+  active: boolean
+  mode: QuantityFxMode
+  amount: number
+  key: number
+  zeroHit: boolean
+}
 type InventoryItemEditDraft = {
   item_name: string
   category: string
@@ -137,6 +147,9 @@ type MovementType = 'in' | 'out'
 type TransactionDateMode = 'date' | 'month' | 'year'
 type VisualizationTopLimit = '5' | '8' | '10'
 const NO_DEPARTMENT_ASSIGNED_LABEL = 'NO DEPARTMENT ASSIGNED'
+const CREATE_ITEM_SUCCESS_FEEDBACK_MS = 850
+const QUANTITY_FX_VISIBLE_MS = 950
+const TRANSACTION_SUCCESS_FEEDBACK_MS = 800
 
 const initialItemDraft: ItemDraft = {
   item_name: '',
@@ -314,7 +327,20 @@ export default function InventoryPage() {
   const [loadingItems, setLoadingItems] = useState(false)
   const [loadingTransactions, setLoadingTransactions] = useState(false)
   const [savingItem, setSavingItem] = useState(false)
+  const [createItemFxStage, setCreateItemFxStage] = useState<CreateItemFxStage>('idle')
+  const [createItemFxError, setCreateItemFxError] = useState<string | null>(null)
   const [savingTransaction, setSavingTransaction] = useState(false)
+  const [transactionFxOpen, setTransactionFxOpen] = useState(false)
+  const [transactionFxStage, setTransactionFxStage] = useState<TransactionFxStage>('idle')
+  const [transactionFxError, setTransactionFxError] = useState<string | null>(null)
+  const [transactionFxPayload, setTransactionFxPayload] = useState<{ mode: QuantityFxMode; amount: number } | null>(null)
+  const [quantityChangeFx, setQuantityChangeFx] = useState<QuantityChangeFxState>({
+    active: false,
+    mode: 'in',
+    amount: 0,
+    key: 0,
+    zeroHit: false,
+  })
   const [savingItemEdit, setSavingItemEdit] = useState(false)
   const [deletingItems, setDeletingItems] = useState(false)
   const [createItemConfirmOpen, setCreateItemConfirmOpen] = useState(false)
@@ -347,6 +373,14 @@ export default function InventoryPage() {
   const [hoveredDepartmentLabel, setHoveredDepartmentLabel] = useState<string | null>(null)
   const inventoryTableRef = useRef<HTMLDivElement | null>(null)
   const transactionsSectionRef = useRef<HTMLDivElement | null>(null)
+  const isCreateItemFxVisible = createItemFxStage !== 'idle'
+  const isCreateItemStoring = createItemFxStage === 'storing'
+  const isCreateItemSuccess = createItemFxStage === 'success'
+  const isCreateItemError = createItemFxStage === 'error'
+  const isTransactionFxStoring = transactionFxStage === 'storing'
+  const isTransactionFxSuccess = transactionFxStage === 'success'
+  const isTransactionFxError = transactionFxStage === 'error'
+  const quantityFxTimeoutRef = useRef<number | null>(null)
 
   const adminSupervisorHrEmployee = useMemo(() => {
     return employees.find((employee) => normalizePosition(employee.position) === 'admin supervisor/hr') ?? null
@@ -804,14 +838,13 @@ export default function InventoryPage() {
     }
   }
 
-  const loadTransactions = async (year: number, itemId?: string) => {
+  const loadTransactions = async (year: number) => {
     try {
       setLoadingTransactions(true)
       const params = new URLSearchParams({
         year: String(year),
         limit: '200',
       })
-      if (itemId) params.set('item_id', itemId)
       const response = await fetch(`${getApiUrl()}/api/office-supply/transactions?${params.toString()}`, {
         headers: { Accept: 'application/json' },
       })
@@ -869,8 +902,8 @@ export default function InventoryPage() {
   }, [selectedYear])
 
   useEffect(() => {
-    void loadTransactions(transactionYearFilter, transactionDraft.item_id || undefined)
-  }, [transactionYearFilter, transactionDraft.item_id])
+    void loadTransactions(transactionYearFilter)
+  }, [transactionYearFilter])
 
   useEffect(() => {
     setTransactionDraft((prev) => {
@@ -920,7 +953,6 @@ export default function InventoryPage() {
     transactions.length,
     selectedYear,
     transactionDateMode,
-    transactionDraft.item_id,
     transactionDateFilter,
     transactionMonthFilter,
     transactionYearFilter,
@@ -1003,6 +1035,18 @@ export default function InventoryPage() {
     })
   }, [movementType, adminSupervisorHrEmployee?.id])
 
+  useEffect(() => {
+    return () => {
+      if (quantityFxTimeoutRef.current !== null) {
+        window.clearTimeout(quantityFxTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    setQuantityChangeFx((prev) => (prev.active ? { ...prev, active: false, amount: 0, zeroHit: false } : prev))
+  }, [transactionDraft.item_id])
+
   const handleMovementTypeChange = (nextType: MovementType) => {
     setMovementType(nextType)
     setTransactionDraft((prev) => ({
@@ -1013,13 +1057,39 @@ export default function InventoryPage() {
     }))
   }
 
+  const triggerQuantityChangeFx = (mode: QuantityFxMode, amount: number, zeroHit = false) => {
+    if (amount <= 0) return
+    setQuantityChangeFx((prev) => {
+      const mergeWithActive = prev.active && prev.mode === mode
+      return {
+        active: true,
+        mode,
+        amount: mergeWithActive ? prev.amount + amount : amount,
+        key: prev.key + 1,
+        zeroHit: mergeWithActive ? (prev.zeroHit || zeroHit) : zeroHit,
+      }
+    })
+    if (quantityFxTimeoutRef.current !== null) {
+      window.clearTimeout(quantityFxTimeoutRef.current)
+    }
+    quantityFxTimeoutRef.current = window.setTimeout(() => {
+      setQuantityChangeFx((prev) => ({ ...prev, active: false, amount: 0, zeroHit: false }))
+      quantityFxTimeoutRef.current = null
+    }, QUANTITY_FX_VISIBLE_MS)
+  }
+
   const executeCreateItem = async () => {
     if (!createItemConfirmDraft) return
     try {
+      setCreateItemFxError(null)
+      setCreateItemFxStage('storing')
       setSavingItem(true)
       if (!adminDepartment) {
+        const message = 'No Admin Department was found in departments. Please create it first.'
+        setCreateItemFxError(message)
+        setCreateItemFxStage('error')
         toast.error('Admin Department Missing', {
-          description: 'No Admin Department was found in departments. Please create it first.',
+          description: message,
         })
         return
       }
@@ -1045,11 +1115,19 @@ export default function InventoryPage() {
         ...initialItemDraft,
         department_id: String(adminDepartment.id),
       })
+      setCreateItemFxStage('success')
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, CREATE_ITEM_SUCCESS_FEEDBACK_MS)
+      })
       setCreateItemConfirmOpen(false)
       setCreateItemConfirmDraft(null)
+      setCreateItemFxStage('idle')
+      setCreateItemFxError(null)
       await loadItems(selectedYear)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create inventory item.'
+      setCreateItemFxError(message)
+      setCreateItemFxStage('error')
       toast.error('Create Item Failed', { description: message })
     } finally {
       setSavingItem(false)
@@ -1082,6 +1160,8 @@ export default function InventoryPage() {
       return
     }
 
+    setCreateItemFxStage('idle')
+    setCreateItemFxError(null)
     setCreateItemConfirmDraft({
       item_name: itemName,
       category,
@@ -1177,7 +1257,7 @@ export default function InventoryPage() {
       setItemEditDraft(null)
       await Promise.all([
         loadItems(selectedYear),
-        loadTransactions(transactionYearFilter, transactionDraft.item_id || undefined),
+        loadTransactions(transactionYearFilter),
       ])
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update inventory item.'
@@ -1206,8 +1286,6 @@ export default function InventoryPage() {
     const isSingleDelete = idsToDelete.length === 1
     const selectedTxItemId = Number(transactionDraft.item_id || 0)
     const shouldClearSelectedTxItem = selectedTxItemId > 0 && idsToDelete.includes(selectedTxItemId)
-    const nextTransactionItemId = shouldClearSelectedTxItem ? '' : transactionDraft.item_id
-
     try {
       setDeletingItems(true)
       const endpoint = isSingleDelete
@@ -1243,7 +1321,7 @@ export default function InventoryPage() {
 
       await Promise.all([
         loadItems(selectedYear),
-        loadTransactions(transactionYearFilter, nextTransactionItemId || undefined),
+        loadTransactions(transactionYearFilter),
       ])
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to delete inventory item(s).'
@@ -1298,6 +1376,13 @@ export default function InventoryPage() {
         })
         return
       }
+      setTransactionFxError(null)
+      setTransactionFxPayload({
+        mode: movementType,
+        amount: movementType === 'in' ? quantityInValue : quantityOutValue,
+      })
+      setTransactionFxStage('storing')
+      setTransactionFxOpen(true)
       const payload = {
         item_id: Number(transactionDraft.item_id),
         quantity_in: quantityInValue,
@@ -1317,16 +1402,34 @@ export default function InventoryPage() {
       })
 
       await ensureOkResponse(response, 'Unable to save inventory transaction.')
+      setTransactionFxStage('success')
       toast.success('Inventory transaction saved successfully.')
+      triggerQuantityChangeFx(
+        movementType,
+        movementType === 'in' ? quantityInValue : quantityOutValue,
+        movementType === 'out' && selectedItem
+          ? (Number(selectedItem.current_balance || 0) - quantityOutValue <= 0)
+          : false
+      )
       setTransactionDraft({
         ...initialTransactionDraft,
         item_id: transactionDraft.item_id,
         transaction_date: getCurrentIsoDate(),
       })
       setMovementType('in')
-      await Promise.all([loadItems(selectedYear), loadTransactions(transactionYearFilter, transactionDraft.item_id)])
+      await Promise.all([loadItems(selectedYear), loadTransactions(transactionYearFilter)])
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, TRANSACTION_SUCCESS_FEEDBACK_MS)
+      })
+      setTransactionFxOpen(false)
+      setTransactionFxStage('idle')
+      setTransactionFxError(null)
+      setTransactionFxPayload(null)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save inventory transaction.'
+      setTransactionFxError(message)
+      setTransactionFxStage('error')
+      setTransactionFxOpen(true)
       toast.error('Save Transaction Failed', { description: message })
     } finally {
       setSavingTransaction(false)
@@ -1384,7 +1487,7 @@ export default function InventoryPage() {
                 onClick={() => {
                   void Promise.all([
                     loadAll({ silent: true }),
-                    loadTransactions(transactionYearFilter, transactionDraft.item_id || undefined),
+                    loadTransactions(transactionYearFilter),
                   ])
                 }}
                 className="bg-white text-[#A4163A] hover:bg-rose-50 font-black rounded-lg"
@@ -1727,7 +1830,6 @@ export default function InventoryPage() {
                                   item_id: value,
                                 }))
                                 setItemPickerOpen(false)
-                                void loadTransactions(transactionYearFilter, value)
                               }}
                               className="py-2.5"
                             >
@@ -1753,13 +1855,38 @@ export default function InventoryPage() {
                 </Popover>
               </div>
               {selectedItem ? (
-                <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 flex items-center justify-between gap-3">
-                  <span className="font-semibold truncate">
+                <div
+                  className={cn(
+                    'quantity-slot rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 flex items-center justify-between gap-3',
+                    quantityChangeFx.active ? 'is-active' : '',
+                    quantityChangeFx.active && quantityChangeFx.mode === 'in' ? 'is-in' : '',
+                    quantityChangeFx.active && quantityChangeFx.mode === 'out' ? 'is-out' : '',
+                    quantityChangeFx.active && quantityChangeFx.zeroHit ? 'is-zero-hit' : ''
+                  )}
+                >
+                  <span className="font-semibold truncate relative z-[1]">
                     Selected: {selectedItem.item_code} - {selectedItem.item_name}
                   </span>
-                  <Badge className={cn('rounded-sm border', getStockBadgeTone(Number(selectedItem.current_balance || 0)))}>
+                  <Badge
+                    className={cn(
+                      'quantity-value-chip rounded-sm border relative z-[1]',
+                      getStockBadgeTone(Number(selectedItem.current_balance || 0))
+                    )}
+                  >
                     Balance {selectedItem.current_balance}
                   </Badge>
+                  {quantityChangeFx.active ? (
+                    <span
+                      key={`quantity-delta-${quantityChangeFx.key}`}
+                      className={cn(
+                        'quantity-delta-float',
+                        quantityChangeFx.mode === 'in' ? 'is-in' : 'is-out'
+                      )}
+                    >
+                      {quantityChangeFx.mode === 'in' ? '+' : '-'}{quantityChangeFx.amount}
+                    </span>
+                  ) : null}
+                  <span aria-hidden className="quantity-slot-hollow-flash" />
                 </div>
               ) : null}
               <div
@@ -2611,26 +2738,43 @@ export default function InventoryPage() {
             if (!open) setItemIdsToDelete([])
           }}
         >
-          <AlertDialogContent size="sm">
-            <AlertDialogHeader>
-              <AlertDialogTitle>
-                {itemIdsToDelete.length > 1 ? `Delete ${itemIdsToDelete.length} inventory items?` : 'Delete this inventory item?'}
-              </AlertDialogTitle>
-              <AlertDialogDescription>
-                {itemIdsToDelete.length > 1
-                  ? 'Selected items and their related inventory transactions will be permanently removed.'
-                  : 'This item and its related inventory transactions will be permanently removed.'}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
+          <AlertDialogContent
+            size="sm"
+            className="popup-surface border-2 border-rose-100 bg-white/95 backdrop-blur-sm rounded-2xl p-0 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200"
+          >
+            <div className="popup-top-strip bg-gradient-to-r from-rose-500 via-rose-600 to-rose-500" />
+            <div className="px-6 pt-6 pb-2">
+              <AlertDialogHeader className="space-y-3 text-left">
+                <div className="flex items-start gap-3">
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-rose-200 bg-rose-50 text-rose-700">
+                    <Trash2 className="h-5 w-5" />
+                  </span>
+                  <div className="space-y-1">
+                    <AlertDialogTitle className="text-xl font-black text-rose-800">
+                      {itemIdsToDelete.length > 1 ? `Delete ${itemIdsToDelete.length} inventory items?` : 'Delete this inventory item?'}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription className="text-sm font-medium text-rose-700/90">
+                      {itemIdsToDelete.length > 1
+                        ? 'Selected items and their related inventory transactions will be permanently removed.'
+                        : 'This item and its related inventory transactions will be permanently removed.'}
+                    </AlertDialogDescription>
+                  </div>
+                </div>
+                <div className="rounded-xl border border-rose-100 bg-rose-50/70 px-3 py-2 text-[12px] font-semibold text-rose-700">
+                  This action cannot be undone.
+                </div>
+              </AlertDialogHeader>
+            </div>
+            <AlertDialogFooter className="px-6 pb-6 flex flex-col sm:flex-row gap-3 mt-3">
               <AlertDialogCancel
                 onClick={() => setItemIdsToDelete([])}
                 disabled={deletingItems}
+                className="h-11 rounded-xl border-2 border-stone-100 text-stone-600 font-bold hover:bg-stone-50"
               >
                 Cancel
               </AlertDialogCancel>
               <AlertDialogAction
-                className="bg-rose-600 hover:bg-rose-700 text-white"
+                className="h-11 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold shadow-sm"
                 onClick={() => void removeSelectedItems()}
                 disabled={deletingItems}
               >
@@ -2648,17 +2792,143 @@ export default function InventoryPage() {
         </AlertDialog>
 
         <Dialog
+          open={transactionFxOpen}
+          onOpenChange={(open) => {
+            if (savingTransaction && isTransactionFxStoring) return
+            setTransactionFxOpen(open)
+            if (!open) {
+              setTransactionFxStage('idle')
+              setTransactionFxError(null)
+              setTransactionFxPayload(null)
+            }
+          }}
+        >
+          <DialogContent className="popup-surface bg-white/95 backdrop-blur-sm border-2 border-[#DCEEF7] rounded-2xl sm:max-w-md p-0 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200">
+            <div
+              className={cn(
+                'popup-top-strip',
+                transactionFxPayload?.mode === 'out'
+                  ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500'
+                  : 'bg-gradient-to-r from-cyan-500 via-sky-500 to-cyan-500'
+              )}
+            />
+            <div className="px-6 pt-6 pb-2">
+              <DialogHeader className="flex flex-col items-center gap-4 text-center">
+                <div
+                  className={cn(
+                    'transaction-fx-icon',
+                    transactionFxPayload?.mode === 'out' ? 'mode-out' : 'mode-in',
+                    isTransactionFxStoring ? 'is-storing' : '',
+                    isTransactionFxSuccess ? 'is-success' : '',
+                    isTransactionFxError ? 'is-error' : ''
+                  )}
+                >
+                  <span className="transaction-fx-ring" />
+                  <span className="transaction-fx-pulse" />
+                  <span className="transaction-fx-delta">
+                    {(transactionFxPayload?.mode ?? 'in') === 'in' ? '+' : '-'}{transactionFxPayload?.amount ?? 0}
+                  </span>
+                  <span className="transaction-fx-check" />
+                  <span className="transaction-fx-cross">x</span>
+                </div>
+                <div className="space-y-1">
+                  <DialogTitle className={cn(
+                    'text-2xl font-bold',
+                    isTransactionFxSuccess
+                      ? 'text-emerald-700'
+                      : isTransactionFxError
+                        ? 'text-rose-700'
+                        : (transactionFxPayload?.mode === 'out' ? 'text-amber-700' : 'text-sky-700')
+                  )}>
+                    {isTransactionFxSuccess
+                      ? 'Transaction Saved'
+                      : isTransactionFxError
+                        ? 'Transaction Failed'
+                        : `Processing Quantity ${(transactionFxPayload?.mode ?? 'in') === 'in' ? 'In' : 'Out'}`}
+                  </DialogTitle>
+                  <DialogDescription className={cn('font-medium', isTransactionFxError ? 'text-rose-700/90' : 'text-stone-500')}>
+                    {isTransactionFxSuccess
+                      ? `Applied ${(transactionFxPayload?.mode ?? 'in') === 'in' ? '+' : '-'}${transactionFxPayload?.amount ?? 0} successfully.`
+                      : isTransactionFxError
+                        ? (transactionFxError || 'Unable to save this stock movement. Please retry.')
+                        : 'Saving stock movement and updating item balance...'}
+                  </DialogDescription>
+                </div>
+              </DialogHeader>
+              <div
+                className={cn(
+                  'mt-4 rounded-xl border px-4 py-3 grid grid-cols-2 gap-3 text-left',
+                  (transactionFxPayload?.mode ?? 'in') === 'in'
+                    ? 'border-sky-100 bg-sky-50/60'
+                    : 'border-amber-100 bg-amber-50/60'
+                )}
+              >
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Movement</p>
+                  <p className="text-sm font-bold text-slate-800">
+                    {(transactionFxPayload?.mode ?? 'in') === 'in' ? 'Quantity In' : 'Quantity Out'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">Amount</p>
+                  <p className={cn(
+                    'text-sm font-black',
+                    (transactionFxPayload?.mode ?? 'in') === 'in' ? 'text-emerald-700' : 'text-amber-700'
+                  )}>
+                    {(transactionFxPayload?.mode ?? 'in') === 'in' ? '+' : '-'}{transactionFxPayload?.amount ?? 0}
+                  </p>
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="px-6 pb-6 flex flex-col sm:flex-row gap-3 mt-3">
+              {isTransactionFxError ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setTransactionFxOpen(false)
+                    setTransactionFxStage('idle')
+                    setTransactionFxError(null)
+                    setTransactionFxPayload(null)
+                  }}
+                  disabled={savingTransaction}
+                  className="flex-1 h-12 rounded-xl border-2 border-stone-100 text-stone-600 hover:bg-stone-50 font-bold"
+                >
+                  Close
+                </Button>
+              ) : null}
+              {isTransactionFxError ? (
+                <Button
+                  type="button"
+                  onClick={() => void createTransaction()}
+                  disabled={savingTransaction}
+                  className="flex-1 h-12 rounded-xl bg-gradient-to-r from-[#0F766E] to-[#0284C7] hover:from-[#0E8A80] hover:to-[#0B98DB] text-white font-bold shadow-md transition-all active:scale-95"
+                >
+                  {savingTransaction ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+                  Retry Save
+                </Button>
+              ) : null}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
           open={createItemConfirmOpen}
           onOpenChange={(open) => {
             if (savingItem) return
             setCreateItemConfirmOpen(open)
-            if (!open) setCreateItemConfirmDraft(null)
+            if (!open) {
+              setCreateItemConfirmDraft(null)
+              setCreateItemFxStage('idle')
+              setCreateItemFxError(null)
+            }
           }}
         >
-          <DialogContent className="bg-white border-2 border-[#FFE5EC] rounded-2xl sm:max-w-md p-0 overflow-hidden">
+          <DialogContent className="popup-surface bg-white/95 backdrop-blur-sm border-2 border-[#FFE5EC] rounded-2xl sm:max-w-md p-0 overflow-hidden animate-in fade-in-0 zoom-in-95 duration-200">
+            <div className="popup-top-strip bg-gradient-to-r from-[#A4163A] via-[#B61C4A] to-[#A4163A]" />
             <div className="px-6 pt-6 pb-2">
               <DialogHeader className="flex flex-col items-center gap-4 text-center">
-                <div className="p-4 bg-rose-50 rounded-full border border-rose-100">
+                <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100 shadow-sm">
                   <Plus className="w-7 h-7 text-[#A4163A]" />
                 </div>
                 <div className="space-y-1">
@@ -2668,7 +2938,7 @@ export default function InventoryPage() {
                   </DialogDescription>
                 </div>
               </DialogHeader>
-              <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50/50 p-4 space-y-2 text-left">
+              <div className="mt-4 rounded-xl border border-rose-100 bg-rose-50/50 p-4 space-y-2 text-left shadow-[inset_0_1px_0_0_rgba(255,255,255,0.6)]">
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-[11px] font-black uppercase tracking-wider text-slate-500">Item</span>
                   <span className="text-sm font-bold text-slate-800">{createItemConfirmDraft?.item_name || '-'}</span>
@@ -2682,6 +2952,50 @@ export default function InventoryPage() {
                   <span className="text-sm font-bold text-[#A4163A]">{createItemConfirmDraft?.opening_balance ?? 0}</span>
                 </div>
               </div>
+              <div
+                className={cn(
+                  'mt-4 rounded-xl border px-4 transition-all duration-300 overflow-hidden',
+                  isCreateItemFxVisible
+                    ? 'py-4 border-[#F7D1DB] bg-[#FFF7FA] opacity-100 translate-y-0 max-h-56'
+                    : 'py-0 border-transparent opacity-0 -translate-y-2 max-h-0 pointer-events-none'
+                )}
+                aria-live="polite"
+              >
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    'create-item-fx-icon',
+                    isCreateItemStoring ? 'is-storing' : '',
+                    isCreateItemSuccess ? 'is-success' : '',
+                    isCreateItemError ? 'is-error' : ''
+                  )}
+                  >
+                    <span className="create-item-fx-shell" />
+                    <span className="create-item-fx-fill" />
+                    <span className="create-item-fx-item" />
+                    <span className="create-item-fx-check" />
+                    <span className="create-item-fx-cross">x</span>
+                    <span className="create-item-fx-particle p1" />
+                    <span className="create-item-fx-particle p2" />
+                    <span className="create-item-fx-particle p3" />
+                    <span className="create-item-fx-particle p4" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className={cn(
+                      'text-sm font-black',
+                      isCreateItemSuccess ? 'text-emerald-700' : isCreateItemError ? 'text-rose-700' : 'text-[#A4163A]'
+                    )}>
+                      {isCreateItemSuccess ? 'Item stored successfully' : isCreateItemError ? 'Unable to store item' : 'Storing item in inventory'}
+                    </p>
+                    <p className={cn('text-[12px] font-medium', isCreateItemError ? 'text-rose-700/90' : 'text-slate-600')}>
+                      {isCreateItemSuccess
+                        ? 'The inventory record is now saved and ready to use.'
+                        : isCreateItemError
+                          ? (createItemFxError || 'The request was rejected. Review details and retry.')
+                          : 'Processing item details and writing them into your stock records.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
             </div>
             <DialogFooter className="px-6 pb-6 flex flex-col sm:flex-row gap-3 mt-3">
               <Button
@@ -2690,9 +3004,11 @@ export default function InventoryPage() {
                 onClick={() => {
                   setCreateItemConfirmOpen(false)
                   setCreateItemConfirmDraft(null)
+                  setCreateItemFxStage('idle')
+                  setCreateItemFxError(null)
                 }}
                 disabled={savingItem}
-                className="flex-1 border-2 border-stone-100 text-stone-600 hover:bg-stone-50 font-bold h-12 rounded-xl"
+                className="flex-1 h-12 rounded-xl border-2 border-stone-100 text-stone-600 hover:bg-stone-50 font-bold"
               >
                 Cancel
               </Button>
@@ -2700,9 +3016,24 @@ export default function InventoryPage() {
                 type="button"
                 onClick={() => void executeCreateItem()}
                 disabled={savingItem || !createItemConfirmDraft}
-                className="flex-1 bg-gradient-to-r from-[#4A081A] to-[#800020] hover:from-[#630C22] hover:to-[#A0153E] text-white font-bold h-12 rounded-xl shadow-md transition-all active:scale-95"
+                className="flex-1 h-12 rounded-xl bg-gradient-to-r from-[#4A081A] to-[#800020] hover:from-[#630C22] hover:to-[#A0153E] text-white font-bold shadow-md transition-all active:scale-95"
               >
-                {savingItem ? (
+                {isCreateItemStoring ? (
+                  <>
+                    <Boxes className="h-4 w-4 mr-2" />
+                    Storing...
+                  </>
+                ) : isCreateItemSuccess ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2" />
+                    Stored
+                  </>
+                ) : isCreateItemError ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry Add
+                  </>
+                ) : savingItem ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     Adding...
@@ -2714,6 +3045,723 @@ export default function InventoryPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        <style jsx>{`
+          .popup-surface {
+            box-shadow:
+              0 18px 45px rgba(15, 23, 42, 0.18),
+              0 2px 8px rgba(15, 23, 42, 0.08);
+          }
+
+          .popup-top-strip {
+            height: 4px;
+            width: 100%;
+          }
+
+          .create-item-fx-icon {
+            position: relative;
+            width: 68px;
+            height: 68px;
+            border-radius: 18px;
+            border: 1px solid #ffd4df;
+            background: linear-gradient(180deg, #ffffff 0%, #ffe6ee 100%);
+            overflow: hidden;
+            flex-shrink: 0;
+          }
+
+          .create-item-fx-shell {
+            position: absolute;
+            left: 16px;
+            right: 16px;
+            bottom: 14px;
+            height: 26px;
+            border-radius: 8px;
+            border: 2px solid #a4163a;
+            background: #ffffff;
+            transform-origin: center bottom;
+          }
+
+          .create-item-fx-fill {
+            position: absolute;
+            left: 18px;
+            right: 18px;
+            bottom: 16px;
+            height: 0;
+            border-radius: 6px;
+            background: linear-gradient(180deg, #fbd2dd, #f08aac);
+            opacity: 0;
+          }
+
+          .create-item-fx-item {
+            position: absolute;
+            left: 29px;
+            top: 8px;
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            background: #a4163a;
+            opacity: 0;
+          }
+
+          .create-item-fx-check {
+            position: absolute;
+            left: 29px;
+            top: 28px;
+            width: 12px;
+            height: 22px;
+            border-right: 3px solid #109867;
+            border-bottom: 3px solid #109867;
+            transform: rotate(45deg) scale(0.5);
+            opacity: 0;
+          }
+
+          .create-item-fx-cross {
+            position: absolute;
+            left: 28px;
+            top: 24px;
+            font-size: 18px;
+            line-height: 1;
+            font-weight: 900;
+            color: #dc2626;
+            opacity: 0;
+            transform: scale(0.5);
+          }
+
+          .create-item-fx-particle {
+            position: absolute;
+            left: 32px;
+            top: 34px;
+            width: 6px;
+            height: 6px;
+            border-radius: 9999px;
+            background: #f1779b;
+            opacity: 0;
+          }
+
+          .create-item-fx-particle.p1 {
+            --tx: -24px;
+            --ty: -18px;
+          }
+
+          .create-item-fx-particle.p2 {
+            --tx: 23px;
+            --ty: -16px;
+          }
+
+          .create-item-fx-particle.p3 {
+            --tx: -20px;
+            --ty: 15px;
+          }
+
+          .create-item-fx-particle.p4 {
+            --tx: 22px;
+            --ty: 17px;
+          }
+
+          .create-item-fx-icon.is-storing .create-item-fx-item {
+            animation: create-item-drop 1.1s cubic-bezier(0.23, 0.7, 0.3, 1) infinite;
+          }
+
+          .create-item-fx-icon.is-storing .create-item-fx-shell {
+            animation: create-item-shell-pulse 1.1s ease-in-out infinite;
+          }
+
+          .create-item-fx-icon.is-storing .create-item-fx-fill {
+            opacity: 0.9;
+            animation: create-item-fill-rise 1.1s ease-in-out infinite;
+          }
+
+          .create-item-fx-icon.is-success {
+            box-shadow: 0 0 0 0 rgba(16, 152, 103, 0.38);
+            animation: create-item-success-glow 650ms ease-out forwards;
+          }
+
+          .create-item-fx-icon.is-success .create-item-fx-shell {
+            border-color: #109867;
+            animation: create-item-shell-bulge 450ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+          }
+
+          .create-item-fx-icon.is-success .create-item-fx-fill {
+            height: 16px;
+            opacity: 0.32;
+            background: linear-gradient(180deg, #ccf8e5, #74d3ad);
+          }
+
+          .create-item-fx-icon.is-success .create-item-fx-item {
+            opacity: 0;
+          }
+
+          .create-item-fx-icon.is-success .create-item-fx-check {
+            animation: create-item-check-in 420ms ease-out 120ms forwards;
+          }
+
+          .create-item-fx-icon.is-success .create-item-fx-particle {
+            animation: create-item-particle-burst 480ms ease-out forwards;
+          }
+
+          .create-item-fx-icon.is-error {
+            border-color: #ffc6cc;
+            background: linear-gradient(180deg, #fff5f6 0%, #ffe9eb 100%);
+            animation: create-item-error-shake 440ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+          }
+
+          .create-item-fx-icon.is-error .create-item-fx-shell {
+            border-color: #dc2626;
+          }
+
+          .create-item-fx-icon.is-error .create-item-fx-fill {
+            opacity: 0.5;
+            height: 4px;
+            background: linear-gradient(180deg, #fecaca, #f87171);
+            animation: create-item-error-fill-pulse 760ms ease-in-out infinite;
+          }
+
+          .create-item-fx-icon.is-error .create-item-fx-item {
+            opacity: 1;
+            animation: create-item-eject 520ms ease-out forwards;
+          }
+
+          .create-item-fx-icon.is-error .create-item-fx-check {
+            opacity: 0;
+          }
+
+          .create-item-fx-icon.is-error .create-item-fx-cross {
+            animation: create-item-cross-in 240ms ease-out 120ms forwards;
+          }
+
+          .create-item-fx-icon.is-error .create-item-fx-particle {
+            background: #fb7185;
+            animation: create-item-particle-reject 420ms ease-out forwards;
+          }
+
+          @keyframes create-item-drop {
+            0% {
+              transform: translateY(-8px) scale(1);
+              opacity: 0;
+            }
+            15% {
+              opacity: 1;
+            }
+            62% {
+              transform: translateY(30px) scale(0.82);
+              opacity: 1;
+            }
+            80% {
+              transform: translateY(35px) scale(0.35);
+              opacity: 0.45;
+            }
+            100% {
+              transform: translateY(36px) scale(0);
+              opacity: 0;
+            }
+          }
+
+          @keyframes create-item-shell-pulse {
+            0%,
+            100% {
+              transform: scale(1);
+            }
+            50% {
+              transform: scale(1.06, 1.08);
+            }
+          }
+
+          @keyframes create-item-fill-rise {
+            0%,
+            100% {
+              height: 2px;
+            }
+            45% {
+              height: 9px;
+            }
+            70% {
+              height: 12px;
+            }
+          }
+
+          @keyframes create-item-shell-bulge {
+            0% {
+              transform: scale(1);
+            }
+            45% {
+              transform: scale(1.12, 1.08);
+            }
+            100% {
+              transform: scale(1);
+            }
+          }
+
+          @keyframes create-item-success-glow {
+            0% {
+              box-shadow: 0 0 0 0 rgba(16, 152, 103, 0.38);
+            }
+            100% {
+              box-shadow: 0 0 0 14px rgba(16, 152, 103, 0);
+            }
+          }
+
+          @keyframes create-item-check-in {
+            0% {
+              opacity: 0;
+              transform: rotate(45deg) scale(0.45);
+            }
+            100% {
+              opacity: 1;
+              transform: rotate(45deg) scale(1);
+            }
+          }
+
+          @keyframes create-item-particle-burst {
+            0% {
+              opacity: 0.9;
+              transform: translate(0, 0) scale(1);
+            }
+            100% {
+              opacity: 0;
+              transform: translate(var(--tx), var(--ty)) scale(0.12);
+            }
+          }
+
+          @keyframes create-item-error-shake {
+            0%,
+            100% {
+              transform: translateX(0);
+            }
+            20% {
+              transform: translateX(-4px);
+            }
+            40% {
+              transform: translateX(4px);
+            }
+            60% {
+              transform: translateX(-3px);
+            }
+            80% {
+              transform: translateX(3px);
+            }
+          }
+
+          @keyframes create-item-error-fill-pulse {
+            0%,
+            100% {
+              opacity: 0.38;
+            }
+            50% {
+              opacity: 0.72;
+            }
+          }
+
+          @keyframes create-item-eject {
+            0% {
+              transform: translateY(24px) scale(0.5);
+              opacity: 0.7;
+            }
+            50% {
+              transform: translateY(4px) scale(1.05);
+              opacity: 1;
+            }
+            100% {
+              transform: translateY(-8px) scale(0.8);
+              opacity: 0;
+            }
+          }
+
+          @keyframes create-item-cross-in {
+            0% {
+              opacity: 0;
+              transform: scale(0.5);
+            }
+            100% {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+
+          @keyframes create-item-particle-reject {
+            0% {
+              opacity: 0.8;
+              transform: translate(0, 0) scale(1);
+            }
+            100% {
+              opacity: 0;
+              transform: translate(calc(var(--tx) * 0.65), calc(var(--ty) * -0.35)) scale(0.15);
+            }
+          }
+
+          .transaction-fx-icon {
+            position: relative;
+            width: 74px;
+            height: 74px;
+            border-radius: 18px;
+            border: 1px solid #d1e9f7;
+            background: linear-gradient(180deg, #ffffff 0%, #eef9ff 100%);
+            overflow: hidden;
+          }
+
+          .transaction-fx-icon.mode-out {
+            border-color: #fde4c4;
+            background: linear-gradient(180deg, #ffffff 0%, #fff8ec 100%);
+          }
+
+          .transaction-fx-ring {
+            position: absolute;
+            inset: 14px;
+            border-radius: 9999px;
+            border: 2px solid #0284c7;
+          }
+
+          .transaction-fx-icon.mode-out .transaction-fx-ring {
+            border-color: #d97706;
+          }
+
+          .transaction-fx-pulse {
+            position: absolute;
+            inset: 18px;
+            border-radius: 9999px;
+            background: rgba(56, 189, 248, 0.25);
+            opacity: 0;
+          }
+
+          .transaction-fx-icon.mode-out .transaction-fx-pulse {
+            background: rgba(245, 158, 11, 0.25);
+          }
+
+          .transaction-fx-delta {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 20px;
+            line-height: 1;
+            font-weight: 900;
+            color: #0369a1;
+          }
+
+          .transaction-fx-icon.mode-out .transaction-fx-delta {
+            color: #b45309;
+          }
+
+          .transaction-fx-check {
+            position: absolute;
+            left: 30px;
+            top: 26px;
+            width: 13px;
+            height: 24px;
+            border-right: 3px solid #109867;
+            border-bottom: 3px solid #109867;
+            transform: rotate(45deg) scale(0.5);
+            opacity: 0;
+          }
+
+          .transaction-fx-cross {
+            position: absolute;
+            left: 31px;
+            top: 26px;
+            font-size: 20px;
+            line-height: 1;
+            font-weight: 900;
+            color: #dc2626;
+            opacity: 0;
+            transform: scale(0.5);
+          }
+
+          .transaction-fx-icon.is-storing .transaction-fx-pulse {
+            animation: transaction-fx-pulse 920ms ease-out infinite;
+          }
+
+          .transaction-fx-icon.is-storing.mode-in .transaction-fx-delta {
+            animation: transaction-fx-in-delta 920ms ease-in-out infinite;
+          }
+
+          .transaction-fx-icon.is-storing.mode-out .transaction-fx-delta {
+            animation: transaction-fx-out-delta 920ms ease-in-out infinite;
+          }
+
+          .transaction-fx-icon.is-success {
+            box-shadow: 0 0 0 0 rgba(16, 152, 103, 0.36);
+            animation: transaction-fx-success-glow 650ms ease-out forwards;
+          }
+
+          .transaction-fx-icon.is-success .transaction-fx-ring {
+            border-color: #109867;
+          }
+
+          .transaction-fx-icon.is-success .transaction-fx-delta {
+            opacity: 0;
+          }
+
+          .transaction-fx-icon.is-success .transaction-fx-check {
+            animation: transaction-fx-check-in 360ms ease-out forwards;
+          }
+
+          .transaction-fx-icon.is-error {
+            border-color: #ffc6cc;
+            background: linear-gradient(180deg, #fff5f6 0%, #ffe9eb 100%);
+            animation: transaction-fx-error-shake 450ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+          }
+
+          .transaction-fx-icon.is-error .transaction-fx-ring {
+            border-color: #dc2626;
+          }
+
+          .transaction-fx-icon.is-error .transaction-fx-delta {
+            opacity: 0;
+          }
+
+          .transaction-fx-icon.is-error .transaction-fx-cross {
+            animation: transaction-fx-cross-in 260ms ease-out forwards;
+          }
+
+          @keyframes transaction-fx-pulse {
+            0% {
+              transform: scale(0.7);
+              opacity: 0.65;
+            }
+            100% {
+              transform: scale(1.25);
+              opacity: 0;
+            }
+          }
+
+          @keyframes transaction-fx-in-delta {
+            0%,
+            100% {
+              transform: translate(-50%, -50%) scale(1);
+            }
+            45% {
+              transform: translate(-50%, -50%) scale(1.35);
+            }
+          }
+
+          @keyframes transaction-fx-out-delta {
+            0%,
+            100% {
+              transform: translate(-50%, -50%) scale(1);
+            }
+            40% {
+              transform: translate(-50%, -45%) scale(0.78);
+            }
+          }
+
+          @keyframes transaction-fx-success-glow {
+            0% {
+              box-shadow: 0 0 0 0 rgba(16, 152, 103, 0.36);
+            }
+            100% {
+              box-shadow: 0 0 0 15px rgba(16, 152, 103, 0);
+            }
+          }
+
+          @keyframes transaction-fx-check-in {
+            0% {
+              opacity: 0;
+              transform: rotate(45deg) scale(0.5);
+            }
+            100% {
+              opacity: 1;
+              transform: rotate(45deg) scale(1);
+            }
+          }
+
+          @keyframes transaction-fx-error-shake {
+            0%,
+            100% {
+              transform: translateX(0);
+            }
+            20% {
+              transform: translateX(-5px);
+            }
+            40% {
+              transform: translateX(5px);
+            }
+            60% {
+              transform: translateX(-4px);
+            }
+            80% {
+              transform: translateX(4px);
+            }
+          }
+
+          @keyframes transaction-fx-cross-in {
+            0% {
+              opacity: 0;
+              transform: scale(0.5);
+            }
+            100% {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+
+          .quantity-slot {
+            position: relative;
+            overflow: hidden;
+            transition: border-color 220ms ease, box-shadow 220ms ease;
+          }
+
+          .quantity-slot-hollow-flash {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            opacity: 0;
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0));
+          }
+
+          .quantity-slot.is-active.is-in {
+            border-color: #86efac;
+            box-shadow: 0 0 0 1px #bbf7d0;
+          }
+
+          .quantity-slot.is-active.is-out {
+            border-color: #fecaca;
+            box-shadow: 0 0 0 1px #fee2e2;
+          }
+
+          .quantity-slot.is-active.is-out .quantity-slot-hollow-flash {
+            animation: quantity-out-hollow 420ms ease-out;
+          }
+
+          .quantity-value-chip {
+            transform-origin: center;
+          }
+
+          .quantity-slot.is-active.is-in .quantity-value-chip {
+            animation: quantity-chip-pop 460ms cubic-bezier(0.2, 0.9, 0.2, 1);
+          }
+
+          .quantity-slot.is-active.is-out .quantity-value-chip {
+            animation: quantity-chip-dip 460ms ease-out;
+          }
+
+          .quantity-slot.is-active.is-zero-hit .quantity-value-chip {
+            animation: quantity-chip-empty-hit 420ms ease-out;
+          }
+
+          .quantity-delta-float {
+            position: absolute;
+            right: 10px;
+            top: 6px;
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 1;
+            pointer-events: none;
+            z-index: 2;
+          }
+
+          .quantity-delta-float.is-in {
+            color: #059669;
+            animation: quantity-delta-rise 760ms ease-out forwards;
+          }
+
+          .quantity-delta-float.is-out {
+            color: #dc2626;
+            animation: quantity-delta-fall 760ms ease-out forwards;
+          }
+
+          @keyframes quantity-chip-pop {
+            0% {
+              transform: scale(1);
+              color: inherit;
+            }
+            45% {
+              transform: scale(1.4);
+              color: #047857;
+            }
+            100% {
+              transform: scale(1);
+              color: inherit;
+            }
+          }
+
+          @keyframes quantity-chip-dip {
+            0% {
+              transform: translateY(0) scale(1);
+              color: inherit;
+            }
+            40% {
+              transform: translateY(2px) scale(0.86);
+              color: #dc2626;
+            }
+            100% {
+              transform: translateY(0) scale(1);
+              color: inherit;
+            }
+          }
+
+          @keyframes quantity-chip-empty-hit {
+            0%,
+            100% {
+              transform: scale(1);
+              box-shadow: none;
+            }
+            40% {
+              transform: scale(1.14);
+              box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.22);
+            }
+          }
+
+          @keyframes quantity-delta-rise {
+            0% {
+              opacity: 0;
+              transform: translateY(8px) scale(0.75);
+            }
+            20% {
+              opacity: 1;
+            }
+            100% {
+              opacity: 0;
+              transform: translateY(-16px) scale(1);
+            }
+          }
+
+          @keyframes quantity-delta-fall {
+            0% {
+              opacity: 0;
+              transform: translateY(-4px) translateX(0) scale(0.78);
+            }
+            20% {
+              opacity: 1;
+            }
+            100% {
+              opacity: 0;
+              transform: translateY(15px) translateX(6px) scale(1);
+            }
+          }
+
+          @keyframes quantity-out-hollow {
+            0% {
+              opacity: 0;
+              transform: translateX(-24%);
+            }
+            28% {
+              opacity: 1;
+            }
+            100% {
+              opacity: 0;
+              transform: translateX(24%);
+            }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .create-item-fx-icon,
+            .create-item-fx-shell,
+            .create-item-fx-item,
+            .create-item-fx-fill,
+            .create-item-fx-check,
+            .create-item-fx-particle,
+            .create-item-fx-cross,
+            .transaction-fx-icon,
+            .transaction-fx-pulse,
+            .transaction-fx-delta,
+            .transaction-fx-check,
+            .transaction-fx-cross,
+            .quantity-value-chip,
+            .quantity-delta-float,
+            .quantity-slot-hollow-flash {
+              animation: none !important;
+              transition: none !important;
+            }
+          }
+        `}</style>
       </main>
     </div>
   )
