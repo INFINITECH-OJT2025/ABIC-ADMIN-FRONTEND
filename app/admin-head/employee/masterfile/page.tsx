@@ -1641,6 +1641,7 @@ export default function MasterfilePage() {
                         const batchLabel =
                           batchLabelById[displayBatchId] || "Employee Details";
                         const unresolvedBatchStatus = `BATCH ${displayBatchId}: ${batchLabel.toUpperCase()}`;
+                        const isPendingDataEntry = checklistTasksComplete && !isComplete;
 
                         // For termination, it's not complete until status changes to 'terminated' or 'resigned' in the db
                         const displayStatus =
@@ -1850,16 +1851,18 @@ export default function MasterfilePage() {
                                   >
                                     {!checklistTasksComplete
                                       ? "PENDING: onboarding process"
-                                      : !isComplete
-                                        ? unresolvedBatchStatus
+                                      : isPendingDataEntry
+                                        ? "PENDING: EMPLOYEE DATA ENTRY"
                                         : isRehirePending
                                           ? "PENDING: COMPLETE & FINISH REHIRE"
                                           : "PENDING: ONBOARDING CHECKLIST"}
                                   </Badge>
                                   {employee.onboarding_tasks &&
-                                    !(checklistTasksComplete && !isComplete) && (
+                                    (isPendingDataEntry ||
+                                      (!checklistTasksComplete &&
+                                        !isPendingDataEntry)) && (
                                     <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap">
-                                      {checklistTasksComplete
+                                      {isPendingDataEntry
                                         ? `Batch ${displayBatchId}: ${batchLabel}`
                                         : `Tasks: ${employee.onboarding_tasks.done}/${employee.onboarding_tasks.total}`}
                                     </span>
