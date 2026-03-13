@@ -12,7 +12,6 @@ type ActivityLogRow = {
 	description: string;
 	user_name?: string | null;
 	user_email?: string | null;
-	metadata?: Record<string, unknown> | null;
 	created_at: string;
 	read_at?: string | null;
 };
