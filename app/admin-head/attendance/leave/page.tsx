@@ -1987,9 +1987,9 @@ export default function LeavePage() {
         >
           <div className="bg-white rounded-xl shadow-lg border border-rose-100 overflow-hidden ring-2 ring-rose-50/50">
             {/* Form Header */}
-            <div className="bg-gradient-to-r from-[#800020] to-[#4A081A] px-4 py-2 flex justify-between items-center">
-              <h2 className="text-white text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                <Plus className="w-3.5 h-3.5 text-rose-300" />
+            <div className="bg-rose-50 px-4 py-3 flex justify-between items-center border-b border-rose-100">
+              <h2 className="text-[#800020] text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
+                <Plus className="w-3.5 h-3.5 text-[#800020]" />
                 {inlineForm.id ? "Update Leave Record" : "Add Leave Record"}
               </h2>
               <div className="flex items-center gap-2">
@@ -1998,14 +1998,14 @@ export default function LeavePage() {
                     variant="ghost"
                     size="sm"
                     onClick={resetInlineForm}
-                    className="text-white hover:bg-white/10 h-6 px-2 text-[9px] font-bold uppercase tracking-widest rounded transition-all"
+                    className="text-[#800020] hover:bg-rose-100 h-6 px-2 text-[9px] font-bold uppercase tracking-widest rounded transition-all"
                   >
                     <Plus className="w-3 h-3 mr-1" /> New Entry
                   </Button>
                 )}
                 <button
                   onClick={() => setAddModalOpen(false)}
-                  className="text-white/40 hover:text-white transition-all p-1"
+                  className="text-rose-300 hover:text-[#800020] transition-all p-1"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -2016,32 +2016,32 @@ export default function LeavePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-3">
                 {/* Row 1: Employee Info */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-black text-black uppercase tracking-widest ml-1">
                     Employee ID
                   </label>
-                  <div className="h-8 border-b-2 border-slate-100 bg-slate-50/30 px-3 flex items-center text-[11px] text-slate-500 font-bold rounded-t-md">
+                  <div className="h-8 border-b-2 border-slate-300 bg-slate-100/50 px-3 flex items-center text-[11px] text-black font-bold rounded-t-md">
                     {inlineForm.employee_id || "Auto-filled"}
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1 relative">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-black text-black uppercase tracking-widest ml-1">
                     Employee Name
                   </label>
                   <Popover open={empOpen} onOpenChange={setEmpOpen}>
                     <PopoverTrigger asChild>
-                      <button className="flex items-center justify-between h-8 border-b-2 border-slate-100 bg-white px-3 text-[11px] text-left group hover:border-[#800020] transition-colors rounded-t-md shadow-sm">
+                      <button className="flex items-center justify-between h-8 border-b-2 border-slate-300 bg-white px-3 text-[11px] text-left group hover:border-[#800020] transition-colors rounded-t-md shadow-sm cursor-pointer">
                         <span
                           className={cn(
                             "truncate",
                             inlineForm.employee_name
-                              ? "text-slate-800 font-bold"
+                              ? "text-black font-bold"
                               : "text-slate-400 italic",
                           )}
                         >
                           {inlineForm.employee_name || "Select Employee"}
                         </span>
-                        <ChevronDown className="w-3 h-3 text-slate-300 group-hover:text-[#800020] transition-colors" />
+                        <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-[#800020] transition-colors" />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="p-0 w-[400px]">
@@ -2070,17 +2070,17 @@ export default function LeavePage() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-black text-black uppercase tracking-widest ml-1">
                     Category
                   </label>
                   <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
                     <PopoverTrigger asChild>
                       <button
                         className={cn(
-                          "flex items-center justify-between h-8 border-b-2 px-3 text-[11px] text-left group transition-colors rounded-t-md shadow-sm",
+                          "flex items-center justify-between h-8 border-b-2 px-3 text-[11px] text-left group transition-colors rounded-t-md shadow-sm cursor-pointer",
                           inlineForm.category
-                            ? "bg-rose-50 border-rose-200"
-                            : "bg-white border-slate-100 hover:border-[#800020]",
+                            ? "bg-rose-50 border-rose-300"
+                            : "bg-white border-slate-300 hover:border-[#800020]",
                         )}
                       >
                         <span
@@ -2131,21 +2131,21 @@ export default function LeavePage() {
                         className={cn(
                           "flex items-center justify-between h-8 border-b-2 px-3 text-[11px] text-left group transition-colors rounded-t-md shadow-sm",
                           inlineForm.category !== "half-day"
-                            ? "bg-slate-50 border-slate-50 opacity-40 cursor-not-allowed"
-                            : "bg-white border-slate-100 hover:border-[#800020]",
+                            ? "bg-slate-50 border-slate-200 opacity-40 cursor-not-allowed"
+                            : "bg-white border-slate-300 hover:border-[#800020] cursor-pointer",
                         )}
                       >
                         <span
                           className={cn(
                             "truncate",
                             inlineForm.shift
-                              ? "text-slate-800 font-bold"
+                              ? "text-black font-bold"
                               : "text-slate-400 italic",
                           )}
                         >
                           {inlineForm.shift || "N/A"}
                         </span>
-                        <ChevronDown className="w-3 h-3 text-slate-300 group-hover:text-[#800020] transition-colors" />
+                        <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-[#800020] transition-colors" />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="p-1 w-[300px]">
@@ -2167,32 +2167,71 @@ export default function LeavePage() {
 
                 {/* Row 2: Dates & Details */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-black text-black uppercase tracking-widest ml-1">
                     Start Date
                   </label>
                   <DatePicker
                     value={inlineForm.start_date}
-                    onChange={(date) =>
-                      setInlineForm((p) => ({
-                        ...p,
-                        start_date: date ? format(date, "yyyy-MM-dd") : "",
-                      }))
-                    }
-                    className="h-8 border-b-2 border-slate-100 bg-white px-3 text-[11px] font-bold text-slate-700 focus:outline-none focus:border-[#800020] transition-colors rounded-t-md shadow-sm"
+                    calendarProps={{
+                      captionLayout: "dropdown",
+                      fromYear: 2000,
+                      toYear: new Date().getFullYear() + 10,
+                    }}
+                    onChange={(date) => {
+                      const dateStr = date ? format(date, "yyyy-MM-dd") : "";
+                      setInlineForm((p) => {
+                        const next = { ...p, start_date: dateStr };
+                        // If end date is now before start date, or if it's half-day, sync them
+                        if (
+                          p.category === "half-day" ||
+                          (p.leave_end_date && dateStr > p.leave_end_date)
+                        ) {
+                          next.leave_end_date = dateStr;
+                        }
+                        return next;
+                      });
+                    }}
+                    className="h-8 border-b-2 border-slate-300 bg-white px-3 text-[11px] font-bold text-black focus:outline-none focus:border-[#800020] transition-colors rounded-t-md shadow-sm cursor-pointer"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-black text-black uppercase tracking-widest ml-1">
                     End Date
                   </label>
                   <DatePicker
-                    disabled={inlineForm.category === "half-day"}
+                    disabled={
+                      inlineForm.category === "half-day" ||
+                      !inlineForm.start_date
+                    }
                     value={
                       inlineForm.category === "half-day"
                         ? inlineForm.start_date
                         : inlineForm.leave_end_date
                     }
+                    placeholder={
+                      inlineForm.category === "half-day"
+                        ? "Matches Start Date"
+                        : "Select End Date"
+                    }
+                    calendarProps={{
+                      disabled: (() => {
+                        try {
+                          if (inlineForm.start_date) {
+                            const d = new Date(inlineForm.start_date);
+                            if (!isNaN(d.getTime())) {
+                              return {
+                                before: new Date(d.setHours(0, 0, 0, 0)),
+                              };
+                            }
+                          }
+                        } catch (e) {}
+                        return undefined;
+                      })(),
+                      captionLayout: "dropdown",
+                      fromYear: 2000,
+                      toYear: new Date().getFullYear() + 10,
+                    }}
                     onChange={(date) =>
                       setInlineForm((p) => ({
                         ...p,
@@ -2201,31 +2240,32 @@ export default function LeavePage() {
                     }
                     className={cn(
                       "h-8 border-b-2 px-3 text-[11px] font-bold focus:outline-none transition-colors rounded-t-md shadow-sm",
-                      inlineForm.category === "half-day"
-                        ? "bg-slate-50 border-slate-50 opacity-40 cursor-not-allowed text-slate-400"
-                        : "bg-white border-slate-100 text-slate-700 focus:border-[#800020]",
+                      inlineForm.category === "half-day" ||
+                        !inlineForm.start_date
+                        ? "bg-slate-50 border-slate-200 opacity-40 cursor-not-allowed text-slate-400 italic"
+                        : "bg-white border-slate-300 text-black focus:border-[#800020] cursor-pointer",
                     )}
                   />
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-black text-black uppercase tracking-widest ml-1">
                     Status/Approver
                   </label>
                   <Popover open={approvalOpen} onOpenChange={setApprovalOpen}>
                     <PopoverTrigger asChild>
-                      <button className="flex items-center justify-between h-8 border-b-2 border-slate-100 bg-white px-3 text-[11px] text-left group hover:border-[#800020] transition-colors rounded-t-md shadow-sm">
+                      <button className="flex items-center justify-between h-8 border-b-2 border-slate-300 bg-white px-3 text-[11px] text-left group hover:border-[#800020] transition-colors rounded-t-md shadow-sm cursor-pointer">
                         <span
                           className={cn(
                             "truncate",
                             inlineForm.approved_by
-                              ? "text-slate-800 font-bold"
+                              ? "text-black font-bold"
                               : "text-slate-400 italic",
                           )}
                         >
                           {inlineForm.approved_by || "Pending..."}
                         </span>
-                        <ChevronDown className="w-3 h-3 text-slate-300 group-hover:text-[#800020] transition-colors" />
+                        <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-[#800020] transition-colors" />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="p-1 w-[300px]">
@@ -2252,23 +2292,23 @@ export default function LeavePage() {
                 </div>
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-black text-black uppercase tracking-widest ml-1">
                     Leave Type
                   </label>
                   <Popover open={remarksOpen} onOpenChange={setRemarksOpen}>
                     <PopoverTrigger asChild>
-                      <button className="flex items-center justify-between h-8 border-b-2 border-slate-100 bg-white px-3 text-[11px] text-left group hover:border-[#800020] transition-colors rounded-t-md shadow-sm">
+                      <button className="flex items-center justify-between h-8 border-b-2 border-slate-300 bg-white px-3 text-[11px] text-left group hover:border-[#800020] transition-colors rounded-t-md shadow-sm cursor-pointer">
                         <span
                           className={cn(
                             "truncate",
                             inlineForm.remarks
-                              ? "text-[#800020] font-black tracking-widest uppercase"
-                              : "text-slate-400 italic font-medium",
+                              ? "text-black font-black tracking-widest uppercase"
+                              : "text-slate-500 italic font-medium",
                           )}
                         >
                           {inlineForm.remarks || "Select Type"}
                         </span>
-                        <ChevronDown className="w-3 h-3 text-slate-300 group-hover:text-[#800020] transition-colors" />
+                        <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-[#800020] transition-colors" />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="p-1 w-[300px]">
@@ -2290,10 +2330,10 @@ export default function LeavePage() {
 
                 {/* Row 3: Final Detail & Reason */}
                 <div className="flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-black text-black uppercase tracking-widest ml-1">
                     Days Counted
                   </label>
-                  <div className="h-10 border-b-2 border-rose-100 bg-rose-50/20 px-3 flex items-center justify-center text-[18px] text-[#800020] font-black rounded-md shadow-inner">
+                  <div className="h-10 border-b-2 border-rose-300 bg-rose-50/40 px-3 flex items-center justify-center text-[18px] text-[#800020] font-black rounded-md shadow-inner">
                     {inlineForm.number_of_days > 0
                       ? formatDays(
                           inlineForm.number_of_days,
@@ -2304,7 +2344,7 @@ export default function LeavePage() {
                 </div>
 
                 <div className="lg:col-span-3 flex flex-col gap-1">
-                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[9px] font-black text-black uppercase tracking-widest ml-1">
                     Detailed Reason
                   </label>
                   <div className="flex gap-3">
@@ -2317,8 +2357,8 @@ export default function LeavePage() {
                           cite_reason: e.target.value,
                         }))
                       }
-                      placeholder="Why is the employee taking leave?..."
-                      className="flex-1 h-10 border-b-2 border-slate-100 bg-white px-3 py-2.5 text-[11px] font-medium text-slate-700 focus:outline-none focus:border-[#800020] transition-all rounded-t-md shadow-sm resize-none"
+                      placeholder="Specify reason here"
+                      className="flex-1 h-10 border-b-2 border-slate-300 bg-white px-3 py-2.5 text-[11px] font-medium text-black focus:outline-none focus:border-[#800020] transition-all rounded-t-md shadow-sm resize-none placeholder:text-slate-400 placeholder:italic"
                     />
                     <div className="flex gap-2 shrink-0">
                       <Button
@@ -2439,45 +2479,46 @@ export default function LeavePage() {
         <section>
           <div className="rounded-xl overflow-hidden shadow border border-rose-100">
             {/* Table header banner */}
-            <div className="bg-gradient-to-r from-[#7B0F2B] to-[#A4163A] py-2 text-center text-white text-xs font-bold tracking-widest uppercase">
+            <div className="bg-rose-50 py-3 text-center text-[#800020] text-xs font-black tracking-widest uppercase border-b border-rose-100 flex items-center justify-center gap-2">
+              <Calendar className="w-3.5 h-3.5" />
               Leave Records • {MONTHS[calendarMonth]} {calendarYear}
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-xs border-collapse">
                 <thead>
-                  <tr className="bg-[#c0143c] text-white">
-                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-20">
+                  <tr className="bg-slate-50 text-slate-500">
+                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-20">
                       ID
                     </th>
-                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-left pl-4">
+                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-left pl-4">
                       Name
                     </th>
-                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-24">
+                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-24">
                       Category
                     </th>
-                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-20">
+                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-20">
                       Shift
                     </th>
-                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-24">
+                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-24">
                       Start
                     </th>
-                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-24">
+                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-24">
                       End
                     </th>
-                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-16">
+                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-16">
                       Days
                     </th>
-                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-20">
+                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-20">
                       Status
                     </th>
-                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-24">
+                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-24">
                       Type
                     </th>
-                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center">
+                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center">
                       Reason
                     </th>
-                    <th className="border border-[#7B0F2B] px-2 py-2 font-bold uppercase text-center w-20">
+                    <th className="border-b border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-20">
                       Action
                     </th>
                   </tr>
@@ -2584,8 +2625,8 @@ export default function LeavePage() {
                                       Reason
                                     </span>
                                   </div>
-                                  <div className="p-4 max-h-[250px] overflow-y-auto">
-                                    <p className="text-slate-700 text-sm italic">
+                                  <div className="p-4 max-h-[300px] overflow-y-auto custom-scrollbar">
+                                    <p className="text-slate-700 text-sm italic leading-relaxed whitespace-pre-wrap break-all">
                                       "{entry.cite_reason}"
                                     </p>
                                   </div>

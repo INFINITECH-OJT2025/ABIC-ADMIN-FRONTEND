@@ -1044,7 +1044,7 @@ function EmployeeSelector({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between gap-2 h-12 text-sm border-slate-200 hover:bg-stone-50 font-normal text-slate-500 rounded-xl shadow-none px-4"
+          className="w-full justify-between gap-2 h-9 text-xs border-slate-200 hover:bg-stone-50 font-normal text-slate-500 rounded-lg shadow-none px-4"
         >
           <span className="truncate shrink-0">
             {value
@@ -1210,8 +1210,8 @@ function SummarySheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full sm:max-w-2xl bg-white border-l-4 border-[#4A081A] text-slate-900 overflow-y-auto p-0">
-        <SheetHeader className="bg-gradient-to-r from-[#4A081A] via-[#630C22] to-[#7B0F2B] p-8 text-white relative">
+      <SheetContent className="w-full sm:max-w-2xl bg-white border-l-4 border-[#A4163A] text-slate-900 overflow-y-auto p-0">
+        <SheetHeader className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] p-8 text-white relative">
           <div className="flex justify-between items-start">
             <div>
               <SheetTitle className="text-3xl text-white font-bold flex items-center gap-2">
@@ -1230,8 +1230,8 @@ function SummarySheet({
             </button>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-4 mt-6">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#630C22]" />
+            <div className="relative flex-1 w-full text-slate-400">
+              <Search className="absolute left-3 top-2.5 h-4 w-4" />
               <Input
                 placeholder="Search employee..."
                 value={searchQuery}
@@ -1245,7 +1245,7 @@ function SummarySheet({
             <Button
               size="sm"
               onClick={handleExport}
-              className="bg-white text-[#4A081A] hover:bg-rose-50 border-0 text-sm h-10 px-6 flex items-center gap-2 font-bold shadow-lg transition-all duration-300 w-full sm:w-auto"
+              className="bg-white text-[#7B0F2B] hover:bg-rose-50 border-0 text-sm h-10 px-6 flex items-center gap-2 font-bold shadow-lg transition-all duration-300 w-full sm:w-auto"
             >
               <FileDown className="w-4 h-4" />
               Export
@@ -1256,13 +1256,13 @@ function SummarySheet({
         <div className="p-6 space-y-6">
           {/* Summary table - ONLY shows entries from this cutoff */}
           <Card className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4">
+            <CardHeader className="bg-rose-50/50 pb-3 border-b-2 border-[#A4163A] p-4">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-xl text-[#4A081A] font-bold">
+                <CardTitle className="text-xl text-[#7B0F2B] font-bold">
                   Employee Lates Summary
                 </CardTitle>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-[#630C22]">
+                  <p className="text-sm font-bold text-[#A4163A]">
                     {totalLateMinutes} mins / {totalOccurrences} occ /{" "}
                     <span className="text-red-600">
                       {totalWarnings} warnings
@@ -1270,7 +1270,7 @@ function SummarySheet({
                   </p>
                 </div>
               </div>
-              <CardDescription className="text-[#630C22]/70 text-xs font-medium">
+              <CardDescription className="text-slate-500 text-xs font-medium">
                 Minutes from Assigned Shift • Occurrences after 5min Grace
                 Period • {cutoffTitle} only
               </CardDescription>
@@ -2325,26 +2325,26 @@ export default function AttendanceDashboard() {
           )}
         >
           <div className="flex justify-center pt-2">
-            <div className="w-full bg-white border border-slate-100 shadow-sm rounded-xl p-8">
-              <div className="flex flex-col gap-8">
+            <div className="w-full bg-white border border-slate-100 shadow-sm rounded-xl p-5">
+              <div className="flex flex-col gap-6">
                 {/* Form Header */}
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-[#FFF1F3] rounded-full flex items-center justify-center">
-                    <Plus className="w-6 h-6 text-[#7B0F2B]" />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#FFF1F3] rounded-full flex items-center justify-center">
+                    <Plus className="w-5 h-5 text-[#7B0F2B]" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-black text-[#4A081A] uppercase tracking-tight">
+                    <h2 className="text-lg font-black text-[#4A081A] uppercase tracking-tight">
                       New Tardiness Entry
                     </h2>
-                    <p className="text-sm font-medium text-slate-400">
+                    <p className="text-[11px] font-medium text-slate-400">
                       Record a late arrival for today
                     </p>
                   </div>
                 </div>
 
                 {/* Form Grid */}
-                <div className="flex flex-wrap items-end gap-6">
-                  <div className="flex-1 min-w-[300px] flex flex-col gap-3">
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="flex-1 min-w-[300px] flex flex-col gap-1.5">
                     <label className="text-[11px] font-bold text-[#8A99AF] uppercase tracking-wider ml-1">
                       Select Employee
                     </label>
@@ -2355,30 +2355,30 @@ export default function AttendanceDashboard() {
                     />
                   </div>
 
-                  <div className="flex-1 min-w-[200px] flex flex-col gap-3">
+                  <div className="flex-1 min-w-[200px] flex flex-col gap-1.5">
                     <label className="text-[11px] font-bold text-[#8A99AF] uppercase tracking-wider ml-1">
                       Actual In Time
                     </label>
                     <div className="relative group">
-                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-[#7B0F2B] transition-colors" />
+                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-[#7B0F2B] transition-colors" />
                       <Input
                         id="time"
                         type="time"
                         value={newEntryTime}
                         onChange={(e) => setNewEntryTime(e.target.value)}
-                        className="bg-white border border-slate-200 text-slate-800 pl-11 pr-4 h-12 w-full rounded-xl text-base font-medium focus-visible:border-rose-200 focus-visible:ring-rose-100 shadow-none transition-all"
+                        className="bg-white border border-slate-200 text-slate-800 pl-10 pr-4 h-9 w-full rounded-lg text-xs font-medium focus-visible:border-rose-200 focus-visible:ring-rose-100 shadow-none transition-all"
                       />
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0 mb-0.5">
+                  <div className="flex items-center gap-2 shrink-0 mb-0.5">
                     <Button
                       variant="ghost"
                       onClick={() => {
                         setIsEntryFormOpen(false);
                         resetAddEntryFields();
                       }}
-                      className="h-12 px-6 text-xs font-bold text-[#7B0F2B] uppercase tracking-widest hover:bg-rose-50 rounded-xl transition-all"
+                      className="h-9 px-4 text-[10px] font-black text-[#7B0F2B] uppercase tracking-widest hover:bg-rose-50 rounded-lg transition-all"
                     >
                       Cancel
                     </Button>
@@ -2387,7 +2387,7 @@ export default function AttendanceDashboard() {
                       disabled={
                         isSaving || selectedYear !== new Date().getFullYear()
                       }
-                      className="h-12 px-10 text-xs font-bold text-white uppercase tracking-widest bg-[#7B0F2B] hover:bg-[#630C22] shadow-lg shadow-rose-900/20 rounded-xl min-w-[160px]"
+                      className="h-9 px-8 text-[10px] font-black text-white uppercase tracking-widest bg-[#7B0F2B] hover:bg-[#630C22] shadow-md shadow-rose-900/10 rounded-lg min-w-[130px]"
                     >
                       {isSaving ? (
                         <>
@@ -2558,26 +2558,26 @@ function CutoffTable({
 }) {
   return (
     <Card className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden h-full flex flex-col">
-      <CardHeader className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-1.5">
-          <CardTitle className="text-xl text-[#4A081A] font-bold">
+      <CardHeader className="bg-rose-50/40 pb-2.5 border-b border-rose-100 p-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+          <CardTitle className="text-lg text-[#7B0F2B] font-black uppercase tracking-tight">
             {title}
           </CardTitle>
           <div className="flex items-center gap-2 w-full md:w-auto">
             <Button
               size="sm"
               onClick={onSummaryClick}
-              className="bg-gradient-to-r from-[#4A081A] to-[#630C22] hover:shadow-lg text-white text-[11px] font-black uppercase tracking-widest h-10 px-6 flex items-center gap-2 shrink-0 transition-all duration-300 rounded-lg"
+              className="bg-gradient-to-r from-[#C9184A] to-[#A4163A] hover:shadow-md text-white text-[10px] font-black uppercase tracking-widest h-8 px-4 flex items-center gap-2 shrink-0 transition-all duration-300 rounded-md active:scale-95 translate-y-[-1px]"
             >
-              <FileDown className="w-4 h-4" />
+              <FileDown className="w-3.5 h-3.5" />
               Summary
             </Button>
           </div>
         </div>
-        <CardDescription className="text-[#A0153E]/70 flex items-center gap-2 text-xs font-medium mt-1">
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#C9184A]" />
+        <CardDescription className="text-slate-400 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider mt-0.5">
+          <span className="inline-block w-2 h-2 rounded-full bg-[#C9184A]" />
           <span>Minutes from Assigned Shift</span>
-          <span className="text-[#FFE5EC]">|</span>
+          <span>•</span>
           <span>{totalRecords} records</span>
         </CardDescription>
       </CardHeader>
@@ -2587,19 +2587,19 @@ function CutoffTable({
           <table className="w-full text-sm">
             <thead className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC]">
               <tr>
-                <th className="px-3 py-4 text-left font-bold text-[#800020] text-sm md:text-base uppercase tracking-wider w-[30%]">
+                <th className="px-4 py-2.5 text-left font-black text-[#800020] text-[10px] uppercase tracking-widest w-[35%]">
                   Employee Name
                 </th>
-                <th className="px-3 py-4 text-left font-bold text-[#800020] text-sm md:text-base uppercase tracking-wider w-[20%]">
+                <th className="px-4 py-2.5 text-left font-black text-[#800020] text-[10px] uppercase tracking-widest w-[15%]">
                   Date
                 </th>
-                <th className="px-3 py-4 text-left font-bold text-[#800020] text-sm md:text-base uppercase tracking-wider w-[20%]">
+                <th className="px-4 py-2.5 text-left font-black text-[#800020] text-[10px] uppercase tracking-widest w-[20%]">
                   Actual In
                 </th>
-                <th className="px-3 py-4 text-left font-bold text-[#800020] text-sm md:text-base uppercase tracking-wider w-[20%]">
+                <th className="px-4 py-2.5 text-left font-black text-[#800020] text-[10px] uppercase tracking-widest w-[15%]">
                   Minutes Late
                 </th>
-                <th className="px-3 py-4 text-left font-bold text-[#800020] text-sm md:text-base uppercase tracking-wider w-[10%]">
+                <th className="px-4 py-2.5 text-center font-black text-[#800020] text-[10px] uppercase tracking-widest w-[15%]">
                   Warning
                 </th>
               </tr>
@@ -2609,51 +2609,54 @@ function CutoffTable({
               {entries.map((entry) => (
                 <tr
                   key={entry.id}
-                  className="hover:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200"
+                  className="hover:bg-rose-50/50 border-b border-slate-100 transition-colors duration-200 group"
                 >
-                  <td className="px-3 py-5">
-                    <span className="font-bold text-slate-800 text-base md:text-lg">
+                  <td className="px-4 py-2.5">
+                    <span className="font-bold text-slate-800 text-sm">
                       {entry.employeeName}
                     </span>
                   </td>
 
-                  <td className="px-3 py-5 text-slate-600 text-sm md:text-base font-semibold">
+                  <td className="px-4 py-2.5 text-slate-500 text-[11px] font-bold tracking-tighter">
                     {entry.date || "—"}
                   </td>
-                  <td className="px-3 py-5">
-                    <Input
-                      type="time"
-                      value={to24h(entry.actual_in || entry.actualIn || "")}
-                      onChange={(e) => onUpdateTime(entry.id, e.target.value)}
-                      className="bg-white border-[#FFE5EC] text-slate-800 placeholder:text-slate-300 h-10 text-base md:text-lg w-32 font-bold focus:ring-2 focus:ring-[#A0153E] shadow-sm appearance-none"
-                    />
+                  <td className="px-4 py-2.5">
+                    <div className="relative w-max group/input">
+                      <Input
+                        type="time"
+                        value={to24h(entry.actual_in || entry.actualIn || "")}
+                        onChange={(e) => onUpdateTime(entry.id, e.target.value)}
+                        className="bg-white border-slate-200 text-slate-900 h-7 text-xs w-28 font-bold focus:ring-1 focus:ring-[#A4163A] rounded shadow-none px-2 transition-all group-hover/input:border-rose-300"
+                      />
+                      <Clock className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none group-hover/input:text-[#A4163A] transition-colors" />
+                    </div>
                   </td>
 
-                  <td className="px-2.5 py-5">
+                  <td className="px-4 py-2.5">
                     {entry.minutesLate > 0 ? (
                       <span
                         className={`
-                      inline-block px-4 py-1.5 rounded-full text-base md:text-lg font-bold border
+                      inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black border
                       ${
                         entry.late_occurrence === 2
-                          ? "bg-yellow-100 text-yellow-700 border-yellow-200"
+                          ? "bg-amber-50 text-amber-700 border-amber-200"
                           : entry.late_occurrence && entry.late_occurrence >= 3
-                            ? "bg-red-100 text-red-700 border-red-200 shadow-sm"
-                            : "bg-transparent text-slate-700 border-transparent"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-slate-50 text-slate-600 border-slate-200"
                       }
                     `}
                       >
                         {entry.minutesLate} min
                       </span>
                     ) : (
-                      <span className="text-stone-400 font-bold">—</span>
+                      <span className="text-slate-300 font-bold">—</span>
                     )}
                   </td>
-                  <td className="px-2.5 py-5">
+                  <td className="px-4 py-2.5 text-center">
                     {entry.warningLevel && entry.warningLevel > 0 ? (
-                      <div className="flex items-center gap-2 text-red-600">
-                        <AlertTriangle className="w-5 h-5" />
-                        <span className="text-base md:text-lg font-bold">
+                      <div className="flex items-center justify-center gap-1.5 text-rose-600 font-black text-xs">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <span>
                           {entry.warningLevel}
                           {entry.warningLevel === 1
                             ? "st"
@@ -2665,7 +2668,7 @@ function CutoffTable({
                         </span>
                       </div>
                     ) : (
-                      <span className="text-stone-400 font-bold">—</span>
+                      <span className="text-slate-300 font-bold">—</span>
                     )}
                   </td>
                 </tr>

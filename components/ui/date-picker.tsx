@@ -18,6 +18,7 @@ export interface DatePickerProps {
   disabled?: boolean;
   className?: string;
   placeholder?: string;
+  calendarProps?: Omit<React.ComponentProps<typeof Calendar>, "mode" | "selected" | "onSelect">;
 }
 
 export function DatePicker({
@@ -26,6 +27,7 @@ export function DatePicker({
   disabled,
   className,
   placeholder = "mm/dd/yyyy",
+  calendarProps,
 }: DatePickerProps) {
   const parsedDate: Date | undefined = (() => {
     if (!value) return undefined;
@@ -69,9 +71,7 @@ export function DatePicker({
           selected={parsedDate}
           onSelect={onChange}
           initialFocus
-          captionLayout="dropdown"
-          fromYear={1900}
-          toYear={2100}
+          {...calendarProps}
         />
       </PopoverContent>
     </Popover>
