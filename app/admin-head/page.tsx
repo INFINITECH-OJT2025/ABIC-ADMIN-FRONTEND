@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { RefreshCw, Trash2, CheckCheck, Bell, Search, ArrowUpDown, ListFilter, Eye, ChevronLeft } from "lucide-react";
+import { RefreshCw, Trash2, CheckCheck, Bell, Search, ArrowUpDown, ListFilter, Eye, ChevronLeft, Calendar, Users, UserCircle, FileText, GitBranch, Clock, UserPlus, Package, LayoutGrid, Filter } from "lucide-react";
 
 type ActivityLogRow = {
 	id: number;
@@ -54,6 +54,17 @@ function normalizeType(value: string) {
 	if (type.includes("inventory") || type.includes("office_supply") || type.includes("office-supply")) return "inventory";
 	return type;
 }
+
+const MODULE_ICONS: Record<string, any> = {
+	attendance: Calendar,
+	directory: Users,
+	employee: UserCircle,
+	forms: FileText,
+	hierarchy: GitBranch,
+	tardiness: Clock,
+	hiring: UserPlus,
+	inventory: Package,
+};
 
 export default function AdminHeadActivityLogsPage() {
 	const [logs, setLogs] = useState<ActivityLogRow[]>([]);
@@ -241,61 +252,129 @@ export default function AdminHeadActivityLogsPage() {
 
 	if (selectedLog) {
 		const selectedStatusClass = statusClassMap[selectedLog.status] || statusClassMap.info;
+		const DetailsIcon = MODULE_ICONS[normalizeType(selectedLog.activity_type)];
+
 		return (
-			<section className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-				<div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6">
-					<div className="w-full px-4 md:px-8 py-6">
-						<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+			<section className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-12">
+				<div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-xl relative overflow-hidden">
+					<div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
+					<div className="w-full px-4 md:px-8 py-10 relative z-10">
+						<div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
 							<div>
 								<button
 									type="button"
 									onClick={() => setSelectedLogId(null)}
-									className="mb-3 inline-flex items-center gap-1 rounded-lg border border-white/30 bg-white/10 px-3 py-1.5 text-sm font-semibold text-white hover:bg-white/20"
+									className="mb-6 inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-xs font-black text-white hover:bg-white/20 transition-all hover:-translate-x-1 active:scale-95 uppercase tracking-widest"
 								>
 									<ChevronLeft className="h-4 w-4" />
-									Back to activity logs
+									Back to Activity Logs
 								</button>
-								<h1 className="text-2xl md:text-3xl font-bold mb-2">Activity Log Details</h1>
-								<p className="text-white/80 text-sm md:text-base">Full information for the selected activity event.</p>
+								<div className="flex items-center gap-3 mb-2">
+									<div className="p-3 bg-white/15 rounded-2xl backdrop-blur-md border border-white/20">
+										{DetailsIcon ? <DetailsIcon className="h-8 w-8 text-white" /> : <Bell className="h-8 w-8 text-white" />}
+									</div>
+									<div>
+										<h1 className="text-3xl md:text-4xl font-black tracking-tight">Log Details</h1>
+										<p className="text-white/70 text-sm font-bold uppercase tracking-widest mt-1">Event Reference #{selectedLog.id}</p>
+									</div>
+								</div>
 							</div>
-							<span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white border border-white/20">
-								<Bell className="h-3.5 w-3.5" />
-								{unreadCount} unread
-							</span>
+							<div className="flex flex-wrap items-center gap-3">
+								<span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-black text-white border border-white/20 backdrop-blur-md shadow-inner">
+									<Bell className="h-4 w-4 text-amber-300 animate-pulse" />
+									{unreadCount} UNREAD
+								</span>
+							</div>
 						</div>
 					</div>
-					<div className="border-t border-white/10 bg-white/5 backdrop-blur-sm h-10" />
+					<div className="border-t border-white/10 bg-white/5 backdrop-blur-md h-12" />
 				</div>
 
-				<div className="mx-auto max-w-[1200px] px-4 pb-8 md:px-8 md:pb-12">
-					<div className="mt-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-						<div className="flex flex-wrap items-center gap-2">
-							<span className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase ${selectedStatusClass}`}>{selectedLog.status}</span>
-							<span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold uppercase text-slate-700">{normalizeType(selectedLog.activity_type)}</span>
-							<span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold uppercase text-slate-700">{selectedLog.action}</span>
-							<span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">#{selectedLog.id}</span>
+				<div className="mx-auto max-w-[1000px] px-4 -mt-6 relative z-20">
+					<div className="rounded-3xl border border-slate-200 bg-white p-8 md:p-10 shadow-2xl space-y-10">
+						<div className="flex flex-wrap items-center gap-3">
+							<span className={`rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${selectedStatusClass} border-current/10`}>
+								{selectedLog.status}
+							</span>
+							<span className="rounded-full bg-slate-100 border border-slate-200 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-2">
+								{DetailsIcon && <DetailsIcon className="h-3.5 w-3.5" />}
+								{normalizeType(selectedLog.activity_type)}
+							</span>
+							<span className="rounded-full bg-slate-900 border border-slate-800 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-white">
+								{selectedLog.action}
+							</span>
 						</div>
-						<h2 className="mt-4 text-2xl font-bold text-slate-900">{selectedLog.title}</h2>
-						<p className="mt-3 text-slate-700 leading-relaxed">{selectedLog.description}</p>
-						<div className="mt-6 grid gap-4 md:grid-cols-2">
-							<div className="rounded-lg border border-slate-200 p-4">
-								<p className="text-xs uppercase tracking-wide text-slate-500">Created At</p>
-								<p className="mt-1 text-sm font-semibold text-slate-900">{formatDate(selectedLog.created_at)}</p>
-							</div>
-							<div className="rounded-lg border border-slate-200 p-4">
-								<p className="text-xs uppercase tracking-wide text-slate-500">Read Status</p>
-								<p className="mt-1 text-sm font-semibold text-slate-900">{selectedLog.read_at ? `Viewed at ${formatDate(selectedLog.read_at)}` : "Unread"}</p>
-							</div>
-							<div className="rounded-lg border border-slate-200 p-4">
-								<p className="text-xs uppercase tracking-wide text-slate-500">Performed By</p>
-								<p className="mt-1 text-sm font-semibold text-slate-900">{selectedLog.user_name || "System"}</p>
-								<p className="text-xs text-slate-500">{selectedLog.user_email || "N/A"}</p>
-							</div>
-							<div className="rounded-lg border border-slate-200 p-4">
-								<p className="text-xs uppercase tracking-wide text-slate-500">Module</p>
-								<p className="mt-1 text-sm font-semibold text-slate-900">{normalizeType(selectedLog.activity_type)}</p>
+
+						<div>
+							<h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight">
+								{selectedLog.title}
+							</h2>
+							<div className="mt-6 p-6 rounded-2xl bg-slate-50 border border-slate-100 italic text-slate-700 text-lg leading-relaxed">
+								"{selectedLog.description}"
 							</div>
 						</div>
+
+						<div className="grid gap-6 md:grid-cols-2">
+							<div className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:border-[#9d1238]/20 hover:shadow-md">
+								<div className="flex items-center gap-3 mb-4">
+									<div className="p-2 bg-slate-100 rounded-lg group-hover:bg-[#9d1238]/10 group-hover:text-[#9d1238] transition-colors">
+										<Clock className="h-5 w-5" />
+									</div>
+									<p className="text-xs font-black uppercase tracking-widest text-slate-400">Time & Date</p>
+								</div>
+								<p className="text-lg font-bold text-slate-900">{formatDate(selectedLog.created_at)}</p>
+								<p className="text-xs text-slate-500 mt-1">System Timestamp</p>
+							</div>
+
+							<div className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:border-[#9d1238]/20 hover:shadow-md">
+								<div className="flex items-center gap-3 mb-4">
+									<div className="p-2 bg-slate-100 rounded-lg group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+										<Eye className="h-5 w-5" />
+									</div>
+									<p className="text-xs font-black uppercase tracking-widest text-slate-400">Read Receipt</p>
+								</div>
+								<p className="text-lg font-bold text-slate-900">
+									{selectedLog.read_at ? `Viewed at ${formatDate(selectedLog.read_at)}` : "Unread by Admin"}
+								</p>
+								<p className="text-xs text-slate-500 mt-1">Status Tracking</p>
+							</div>
+
+							<div className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:border-[#9d1238]/20 hover:shadow-md">
+								<div className="flex items-center gap-3 mb-4">
+									<div className="p-2 bg-slate-100 rounded-lg group-hover:bg-amber-100 group-hover:text-amber-600 transition-colors">
+										<UserCircle className="h-5 w-5" />
+									</div>
+									<p className="text-xs font-black uppercase tracking-widest text-slate-400">Initiated By</p>
+								</div>
+								<p className="text-lg font-bold text-slate-900">{selectedLog.user_name || "System Automated"}</p>
+								<p className="text-xs font-medium text-slate-500 mt-1 truncate">{selectedLog.user_email || "no-reply@system.log"}</p>
+							</div>
+
+							<div className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:border-[#9d1238]/20 hover:shadow-md">
+								<div className="flex items-center gap-3 mb-4">
+									<div className="p-2 bg-slate-100 rounded-lg group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
+										<LayoutGrid className="h-5 w-5" />
+									</div>
+									<p className="text-xs font-black uppercase tracking-widest text-slate-400">System Module</p>
+								</div>
+								<p className="text-lg font-bold text-slate-900 uppercase">{normalizeType(selectedLog.activity_type)}</p>
+								<p className="text-xs text-slate-500 mt-1">Contextual Namespace</p>
+							</div>
+						</div>
+						
+						{selectedLog.metadata && Object.keys(selectedLog.metadata).length > 0 && (
+							<div className="pt-6 border-t border-slate-100">
+								<h3 className="text-sm font-black uppercase tracking-widest text-slate-900 mb-4 flex items-center gap-2">
+									<Filter className="h-4 w-4" />
+									Extended Metadata
+								</h3>
+								<div className="bg-slate-950 rounded-2xl p-6 overflow-x-auto shadow-inner">
+									<pre className="text-emerald-400 font-mono text-sm leading-relaxed">
+										{JSON.stringify(selectedLog.metadata, null, 2)}
+									</pre>
+								</div>
+							</div>
+						)}
 					</div>
 				</div>
 			</section>
@@ -311,121 +390,149 @@ export default function AdminHeadActivityLogsPage() {
 							<h1 className="text-2xl md:text-3xl font-bold mb-2">Activity Logs</h1>
 							<p className="text-white/80 text-sm md:text-base">Track every insert, update, delete, terminate, and all system actions.</p>
 						</div>
-						<div className="flex flex-wrap items-center gap-2">
-							<span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-white border border-white/20">
-								<Bell className="h-3.5 w-3.5" />
-								{unreadCount} unread
+						<div className="flex flex-wrap items-center gap-3">
+							<span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-bold text-white border border-white/20 backdrop-blur-md shadow-inner">
+								<Bell className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+								{unreadCount} UNREAD
 							</span>
 							<button
 								type="button"
 								onClick={fetchLogs}
 								disabled={workingAction === "refresh"}
-								className="inline-flex items-center gap-2 rounded-lg border border-white/30 bg-white/10 px-3 py-2 text-sm font-semibold text-white hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-60"
+								className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-white/20 hover:border-white/50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 shadow-lg"
 							>
-								<RefreshCw className="h-4 w-4" />
-								Refresh
+								<RefreshCw className={`h-4 w-4 ${workingAction === "refresh" ? "animate-spin" : ""}`} />
+								REFRESH
 							</button>
 							<button
 								type="button"
 								onClick={markAllAsRead}
 								disabled={workingAction === "read"}
-								className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+								className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-emerald-600 hover:shadow-emerald-500/20 shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<CheckCheck className="h-4 w-4" />
-								Mark all as read
+								MARK ALL READ
 							</button>
 							<button
 								type="button"
 								onClick={deleteAllLogs}
 								disabled={workingAction === "delete"}
-								className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+								className="inline-flex items-center gap-2 rounded-xl bg-red-500/90 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-red-600 hover:shadow-red-500/20 shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
 							>
 								<Trash2 className="h-4 w-4" />
-								Delete all
+								DELETE ALL
 							</button>
 						</div>
 					</div>
 				</div>
 
-				<div className="border-t border-white/10 bg-white/5 backdrop-blur-sm">
-					<div className="w-full px-4 md:px-8 py-3">
-						<div className="flex flex-wrap items-center gap-3">
-							<div className="flex items-center bg-white p-1 rounded-lg border border-slate-200 gap-1 flex-wrap">
-								<button
-									type="button"
-									onClick={() => setTypeFilter("all")}
-									className={`px-4 py-2 rounded-md text-sm font-semibold transition ${typeFilter === "all" ? "bg-[#9d1238] text-white" : "text-slate-700 hover:bg-slate-100"}`}
-								>
-									All ({logs.length})
-								</button>
-								{MODULE_TYPES.map((module) => (
-									<button
-										key={module}
-										type="button"
-										onClick={() => setTypeFilter(module)}
-										className={`px-4 py-2 rounded-md text-sm font-semibold uppercase transition ${typeFilter === module ? "bg-[#9d1238] text-white" : "text-slate-700 hover:bg-slate-100"}`}
-									>
-										{module} ({moduleCounts[module] ?? 0})
-									</button>
-								))}
-						</div>
-
-						<div className="flex flex-wrap items-center gap-2 ml-auto">
-							<div className="flex items-center bg-white p-1 rounded-lg border border-slate-200 gap-1">
+				<div className="border-t border-white/10 bg-white/5 backdrop-blur-sm border-b border-white/5">
+					<div className="w-full px-4 md:px-8 py-4">
+						<div className="flex flex-col gap-5">
+							{/* Top Row: Module Filters */}
+							<div className="flex flex-wrap items-center gap-2">
+								<div className="text-xs font-bold uppercase tracking-wider text-white/50 mr-2 flex items-center gap-1.5">
+									<LayoutGrid className="h-3.5 w-3.5" />
+									Modules
+								</div>
+								<div className="flex flex-wrap items-center bg-black/20 p-1 rounded-xl border border-white/10 gap-1">
 									<button
 										type="button"
-										onClick={() => setReadFilter("all")}
-										className={`px-3 py-2 rounded-md text-sm font-semibold transition ${readFilter === "all" ? "bg-[#9d1238] text-white" : "text-slate-700 hover:bg-slate-100"}`}
+										onClick={() => setTypeFilter("all")}
+										className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${typeFilter === "all" ? "bg-white text-[#9d1238] shadow-lg scale-105" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
 									>
-										All
+										<span>All</span>
+										<span className={`px-1.5 py-0.5 rounded-md text-[10px] ${typeFilter === "all" ? "bg-[#9d1238]/10 text-[#9d1238]" : "bg-white/10 text-white/50"}`}>
+											{logs.length}
+										</span>
 									</button>
-									<button
-										type="button"
-										onClick={() => setReadFilter("unread")}
-										className={`px-3 py-2 rounded-md text-sm font-semibold transition ${readFilter === "unread" ? "bg-[#9d1238] text-white" : "text-slate-700 hover:bg-slate-100"}`}
-									>
-										Unread ({unreadCount})
-									</button>
-									<button
-										type="button"
-										onClick={() => setReadFilter("read")}
-										className={`px-3 py-2 rounded-md text-sm font-semibold transition ${readFilter === "read" ? "bg-[#9d1238] text-white" : "text-slate-700 hover:bg-slate-100"}`}
-									>
-										Viewed ({logs.length - unreadCount})
-									</button>
+									{MODULE_TYPES.map((module) => {
+										const Icon = MODULE_ICONS[module];
+										return (
+											<button
+												key={module}
+												type="button"
+												onClick={() => setTypeFilter(module)}
+												className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase transition-all duration-200 ${typeFilter === module ? "bg-white text-[#9d1238] shadow-lg scale-105" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+											>
+												{Icon && <Icon className="h-3.5 w-3.5" />}
+												<span>{module}</span>
+												<span className={`px-1.5 py-0.5 rounded-md text-[10px] ${typeFilter === module ? "bg-[#9d1238]/10 text-[#9d1238]" : "bg-white/10 text-white/50"}`}>
+													{moduleCounts[module] ?? 0}
+												</span>
+											</button>
+										);
+									})}
+								</div>
 							</div>
 
-							<div className="relative">
-									<Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-									<input
-										type="text"
-										value={searchQuery}
-										onChange={(event) => setSearchQuery(event.target.value)}
-										placeholder="Search activity..."
-										className="h-10 w-64 rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-[#9d1238]/20"
-									/>
+							{/* Bottom Row: Controls */}
+							<div className="flex flex-wrap items-center gap-4">
+								<div className="flex flex-wrap items-center gap-3">
+									<div className="flex items-center bg-black/20 p-1 rounded-xl border border-white/10 gap-1">
+										<button
+											type="button"
+											onClick={() => setReadFilter("all")}
+											className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${readFilter === "all" ? "bg-white text-[#9d1238]" : "text-white/70 hover:bg-white/10"}`}
+										>
+											ALL
+										</button>
+										<button
+											type="button"
+											onClick={() => setReadFilter("unread")}
+											className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${readFilter === "unread" ? "bg-white text-[#9d1238]" : "text-white/70 hover:bg-white/10"}`}
+										>
+											UNREAD
+											<span className={`px-1.5 py-0.5 rounded-md text-[10px] ${readFilter === "unread" ? "bg-[#9d1238]/10 text-[#9d1238]" : "bg-white/10 text-white/50"}`}>
+												{unreadCount}
+											</span>
+										</button>
+										<button
+											type="button"
+											onClick={() => setReadFilter("read")}
+											className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${readFilter === "read" ? "bg-white text-[#9d1238]" : "text-white/70 hover:bg-white/10"}`}
+										>
+											VIEWED
+										</button>
+									</div>
+
+									<div className="relative group">
+										<Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-white transition-colors" />
+										<input
+											type="text"
+											value={searchQuery}
+											onChange={(event) => setSearchQuery(event.target.value)}
+											placeholder="Search activities..."
+											className="h-10 w-64 rounded-xl border border-white/10 bg-black/20 pl-10 pr-4 text-sm text-white placeholder:text-white/30 outline-none focus:ring-2 focus:ring-white/20 transition-all focus:w-80"
+										/>
+									</div>
+								</div>
+
+								<div className="flex flex-wrap items-center gap-2 ml-auto">
+									<div className="flex items-center gap-2 bg-black/20 p-1 rounded-xl border border-white/10">
+										<Filter className="h-3.5 w-3.5 text-white/40 ml-2" />
+										<select
+											value={statusFilter}
+											onChange={(event) => setStatusFilter(event.target.value)}
+											className="h-8 bg-transparent text-sm font-bold text-white outline-none cursor-pointer pr-2"
+										>
+											<option value="all" className="text-slate-900">All Status</option>
+											{availableStatuses.map((status) => (
+												<option key={status} value={status} className="text-slate-900">{status.toUpperCase()}</option>
+											))}
+										</select>
+									</div>
+
+									<button
+										type="button"
+										onClick={() => setSortOrder((current) => (current === "recent" ? "oldest" : "recent"))}
+										className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-4 text-xs font-bold text-white transition-all hover:bg-white/10 active:scale-95"
+									>
+										<ArrowUpDown className="h-3.5 w-3.5 text-white/50" />
+										{sortOrder === "recent" ? "RECENT FIRST" : "OLDEST FIRST"}
+									</button>
+								</div>
 							</div>
-
-							<select
-									value={statusFilter}
-									onChange={(event) => setStatusFilter(event.target.value)}
-									className="h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 outline-none"
-								>
-									<option value="all">All Status</option>
-									{availableStatuses.map((status) => (
-										<option key={status} value={status}>{status}</option>
-									))}
-								</select>
-
-							<button
-									type="button"
-									onClick={() => setSortOrder((current) => (current === "recent" ? "oldest" : "recent"))}
-									className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700"
-								>
-									<ArrowUpDown className="h-4 w-4" />
-									{sortOrder === "recent" ? "Recent first" : "Oldest first"}
-								</button>
-						</div>
 						</div>
 					</div>
 				</div>
@@ -449,55 +556,75 @@ export default function AdminHeadActivityLogsPage() {
 								<article
 									key={log.id}
 									onClick={() => void onOpenCard(log.id)}
-									className="cursor-pointer rounded-xl border border-slate-200 bg-white p-4 shadow-sm transition hover:border-slate-300 hover:shadow-md"
+									className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:border-[#9d1238]/30 hover:shadow-xl hover:shadow-[#9d1238]/5 active:scale-[0.99] relative overflow-hidden"
 								>
-									<div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-										<div>
-											<div className="flex flex-wrap items-center gap-2">
-												<h2 className="text-base font-semibold text-slate-900">{log.title}</h2>
-												{!log.read_at ? (
-													<span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" title="Unread" />
-												) : null}
+									{!log.read_at && (
+										<div className="absolute left-0 top-0 h-full w-1 bg-[#9d1238]" />
+									)}
+									<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+										<div className="flex-1">
+											<div className="flex flex-wrap items-center gap-2 mb-1.5">
+												<h2 className={`text-lg font-bold transition-colors ${!log.read_at ? "text-[#9d1238]" : "text-slate-800 group-hover:text-[#9d1238]"}`}>
+													{log.title}
+												</h2>
+												{!log.read_at && (
+													<span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-600 tracking-tighter uppercase">
+														NEW
+													</span>
+												)}
 											</div>
-											<p className="mt-1 text-sm text-slate-700 line-clamp-1">{log.description}</p>
-											<p className="mt-2 text-xs text-slate-500">
-												By {log.user_name || "System"} ({log.user_email || "N/A"})
+											<p className="text-sm text-slate-600 line-clamp-2 leading-relaxed mb-3">
+												{log.description}
 											</p>
+											<div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-400">
+												<div className="flex items-center gap-1.5">
+													<UserCircle className="h-3.5 w-3.5" />
+													{log.user_name || "System"}
+												</div>
+												<div className="flex items-center gap-1.5">
+													<Clock className="h-3.5 w-3.5" />
+													{formatDate(log.created_at)}
+												</div>
+											</div>
 										</div>
-										<div className="flex flex-wrap items-center gap-2 md:justify-end">
-											<span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
+										<div className="flex flex-wrap items-center gap-2 md:justify-end shrink-0">
+											<span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${log.read_at ? "bg-slate-50 text-slate-500 border-slate-100" : "bg-blue-50 text-blue-600 border-blue-100"}`}>
 												<Eye className="h-3.5 w-3.5" />
-												{log.read_at ? "Viewed" : "Open"}
+												{log.read_at ? "Viewed" : "Unread"}
 											</span>
-											<span className={`rounded-full px-2.5 py-1 text-xs font-semibold uppercase ${statusClass}`}>
+											<span className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border ${statusClass} border-current/10`}>
 												{log.status}
 											</span>
-											<span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold uppercase text-slate-700">
+											<span className="rounded-full bg-slate-100 border border-slate-200 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1">
+												{(() => {
+													const LogIcon = MODULE_ICONS[normalizeType(log.activity_type)];
+													return LogIcon ? <LogIcon className="h-3 w-3" /> : null;
+												})()}
 												{normalizeType(log.activity_type)}
 											</span>
-											<span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold uppercase text-slate-700">
+											<span className="rounded-full bg-slate-900 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white">
 												{log.action}
 											</span>
 										</div>
 									</div>
-									<div className="mt-3 text-xs text-slate-500">{formatDate(log.created_at)}</div>
 								</article>
 							);
 						})}
 
 						{hasMore ? (
-							<div className="pt-2">
+							<div className="pt-4 flex justify-center">
 								<button
 									type="button"
 									onClick={() => setVisibleCount((current) => current + PAGE_STEP)}
-									className="inline-flex items-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+									className="group inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-8 py-4 text-sm font-black text-[#9d1238] hover:border-[#9d1238] hover:bg-[#9d1238] hover:text-white transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-[#9d1238]/20 active:scale-95"
 								>
-									Show more 15+15
+									<RefreshCw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />
+									LOAD MORE ACTIVITIES
 								</button>
 							</div>
 						) : (
-							<div className="rounded-xl border border-slate-200 bg-white/80 p-4 text-center text-sm text-slate-500">
-								You have reached the end of the activity logs.
+							<div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 p-6 text-center text-sm font-bold text-slate-400">
+								YOU HAVE REACHED THE END OF THE ACTIVITY SYSTEM LOGS
 							</div>
 						)}
 					</div>
