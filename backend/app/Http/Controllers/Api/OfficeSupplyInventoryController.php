@@ -11,6 +11,7 @@ use App\Models\OfficeSupplyTransaction;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class OfficeSupplyInventoryController extends Controller
@@ -135,7 +136,8 @@ class OfficeSupplyInventoryController extends Controller
         ]);
 
         $openingBalance = (int) ($validated['opening_balance'] ?? 0);
-        $itemName = trim((string) $validated['item_name']);
+        $itemName = Str::upper(trim((string) $validated['item_name']));
+        $category = Str::upper(trim((string) $validated['category']));
         $itemNameNormalized = strtolower($itemName);
 
         $duplicateItemNameExists = OfficeSupplyItem::query()
@@ -168,15 +170,15 @@ class OfficeSupplyInventoryController extends Controller
             ]);
         }
 
-        $created = DB::transaction(function () use ($validated, $openingBalance, $adminDepartment) {
+        $created = DB::transaction(function () use ($openingBalance, $adminDepartment, $itemName, $category) {
             $nextSequence = ((int) OfficeSupplyItem::query()->lockForUpdate()->max('code_sequence')) + 1;
             $itemCode = $this->formatItemCode($nextSequence);
 
             $item = OfficeSupplyItem::query()->create([
                 'code_sequence' => $nextSequence,
                 'item_code' => $itemCode,
-                'item_name' => trim((string) $validated['item_name']),
-                'category' => trim((string) $validated['category']),
+                'item_name' => $itemName,
+                'category' => $category,
                 'department_id' => (int) $adminDepartment->id,
                 'current_balance' => $openingBalance,
             ]);
@@ -218,8 +220,8 @@ class OfficeSupplyInventoryController extends Controller
             ], 404);
         }
 
-        $itemName = trim((string) $validated['item_name']);
-        $category = trim((string) $validated['category']);
+        $itemName = Str::upper(trim((string) $validated['item_name']));
+        $category = Str::upper(trim((string) $validated['category']));
         $itemNameNormalized = strtolower($itemName);
 
         $duplicateItemNameExists = OfficeSupplyItem::query()
