@@ -191,7 +191,7 @@ export default function AdminHeadSidebar() {
       {/* Navigation Menu - Alphabetically Ordered */}
       <nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar py-2">
         {/* ACTIVITY LOGS */}
-        <div className="group relative">
+        {/* <div className="group relative">
           <Link
             href="/admin-head"
             className={cn(
@@ -232,7 +232,7 @@ export default function AdminHeadSidebar() {
               </Link>
             </div>
           )}
-        </div>
+        </div> */}
 
         {/* ATTENDANCE with Dropdown */}
         <div className="group relative">

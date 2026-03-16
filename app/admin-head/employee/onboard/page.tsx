@@ -4286,15 +4286,30 @@ function OnboardPageContent() {
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-[220px,1fr] gap-6 items-start">
-                          <div className="h-[220px] w-[220px] rounded-2xl border border-slate-200 bg-white overflow-hidden flex items-center justify-center shadow-sm">
+                          <div className="relative h-[220px] w-[220px] rounded-2xl border border-slate-200 bg-white overflow-hidden flex items-center justify-center shadow-sm">
                             {progressionFormData.user_profile ? (
-                              <img
-                                src={toDirectoryImageUrl(
-                                  String(progressionFormData.user_profile),
-                                )}
-                                alt="Employee profile"
-                                className="h-full w-full object-cover"
-                              />
+                              <>
+                                <img
+                                  src={toDirectoryImageUrl(
+                                    String(progressionFormData.user_profile),
+                                  )}
+                                  alt="Employee profile"
+                                  className="h-full w-full object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setProgressionFormData((prev) => ({
+                                      ...prev,
+                                      user_profile: "",
+                                    }))
+                                  }
+                                  className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-slate-700 shadow-md transition hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#A4163A]/50"
+                                  aria-label="Remove photo"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </>
                             ) : (
                               <div className="text-center px-4">
                                 <ImagePlus className="h-10 w-10 mx-auto text-slate-400" />
@@ -4332,23 +4347,6 @@ function OnboardPageContent() {
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                   Uploading profile image...
                                 </div>
-                              )}
-
-                              {progressionFormData.user_profile && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  onClick={() =>
-                                    setProgressionFormData((prev) => ({
-                                      ...prev,
-                                      user_profile: "",
-                                    }))
-                                  }
-                                  className="h-9 px-4 text-xs font-bold uppercase tracking-widest border-slate-300"
-                                >
-                                  <X className="h-3.5 w-3.5 mr-1.5" />
-                                  Remove Photo
-                                </Button>
                               )}
                             </div>
                           </div>
