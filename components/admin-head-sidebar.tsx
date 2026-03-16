@@ -38,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { getApiUrl } from "@/lib/api";
 
 export default function AdminHeadSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -48,6 +49,7 @@ export default function AdminHeadSidebar() {
   const [logoError, setLogoError] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingEmployeeCount, setPendingEmployeeCount] = useState(0);
   const router = useRouter();
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
@@ -92,6 +94,59 @@ export default function AdminHeadSidebar() {
       window.removeEventListener("focus", handleFocus);
     };
   }, [fetchUnreadCount]);
+
+  const fetchPendingEmployeeCount = useCallback(async () => {
+    try {
+      const response = await fetch(`${getApiUrl()}/api/employees`, {
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      const result = await response.json();
+      if (!response.ok) return;
+
+      const rows = Array.isArray(result?.data)
+        ? result.data
+        : Array.isArray(result)
+          ? result
+          : [];
+      const pendingStatuses = new Set([
+        "pending",
+        "rehire_pending",
+        "termination_pending",
+        "resignation_pending",
+      ]);
+      const count = rows.filter((emp: any) =>
+        pendingStatuses.has(String(emp?.status ?? "").toLowerCase()),
+      ).length;
+      setPendingEmployeeCount(count);
+    } catch {
+      // Ignore sidebar counter failures.
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchPendingEmployeeCount();
+    const intervalId = setInterval(fetchPendingEmployeeCount, 10000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void fetchPendingEmployeeCount();
+      }
+    };
+
+    const handleFocus = () => {
+      void fetchPendingEmployeeCount();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [fetchPendingEmployeeCount]);
 
   useEffect(() => {
     const onUnreadChanged = (event: Event) => {
@@ -343,7 +398,14 @@ export default function AdminHeadSidebar() {
             <div className="flex items-center gap-3">
               <Users size={22} className="shrink-0" />
               {!isCollapsed && (
-                <span className="font-medium whitespace-nowrap">EMPLOYEE</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium whitespace-nowrap">EMPLOYEE</span>
+                  {pendingEmployeeCount > 0 && (
+                    <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold leading-none text-[#7B0F2B]">
+                      {pendingEmployeeCount > 99 ? "99+" : pendingEmployeeCount}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
             {!isCollapsed && (
@@ -353,6 +415,11 @@ export default function AdminHeadSidebar() {
               />
             )}
           </button>
+          {isCollapsed && pendingEmployeeCount > 0 && (
+            <span className="absolute right-4 top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1 py-0.5 text-[10px] font-bold leading-none text-[#7B0F2B]">
+              {pendingEmployeeCount > 99 ? "99+" : pendingEmployeeCount}
+            </span>
+          )}
 
           {/* Employee Dropdown Menu (Hover + Click) */}
           <div

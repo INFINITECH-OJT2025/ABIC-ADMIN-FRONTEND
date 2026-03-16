@@ -65,6 +65,7 @@ interface Employee {
     | "pending"
     | "employed"
     | "terminated"
+    | "resigned"
     | "rehire_pending"
     | "rehired_employee"
     | "termination_pending"
@@ -125,6 +126,7 @@ const statusBadgeColors = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
   employed: "bg-emerald-50 text-emerald-700 border-emerald-200",
   terminated: "bg-rose-50 text-rose-700 border-rose-200",
+  resigned: "bg-rose-50 text-rose-700 border-rose-200",
   rehire_pending: "bg-orange-50 text-orange-700 border-orange-200",
   rehired_employee: "bg-blue-50 text-blue-700 border-blue-200",
   termination_pending:
@@ -137,6 +139,7 @@ const statusLabels = {
   pending: "Pending",
   employed: "Employed",
   terminated: "Terminated",
+  resigned: "Resigned",
   rehire_pending: "Rehire Pending",
   rehired_employee: "Rehired Employee",
   termination_pending: "Pending Termination",
@@ -1499,7 +1502,7 @@ export default function MasterfilePage() {
     ),
   );
   const terminatedList = filterEmployees(
-    employees.filter((e) => e.status === "terminated"),
+    employees.filter((e) => e.status === "terminated" || e.status === "resigned"),
   );
   const pendingList = filterEmployees(
     employees.filter((e) =>
@@ -1718,8 +1721,9 @@ export default function MasterfilePage() {
                     >
                       Terminated (
                       {
-                        employees.filter((e) => e.status === "terminated")
-                          .length
+                        employees.filter(
+                          (e) => e.status === "terminated" || e.status === "resigned",
+                        ).length
                       }
                       )
                     </button>
