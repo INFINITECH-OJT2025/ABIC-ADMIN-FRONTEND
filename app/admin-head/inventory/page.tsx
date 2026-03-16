@@ -255,6 +255,7 @@ const getStockBadgeTone = (stock: number): string => {
 }
 
 const sanitizeIntegerInput = (value: string): string => value.replace(/[^\d]/g, '')
+const normalizeUppercaseInventoryText = (value: string): string => value.toUpperCase()
 
 const blockNonIntegerKey = (event: React.KeyboardEvent<HTMLInputElement>) => {
   if (['e', 'E', '+', '-', '.', ','].includes(event.key)) {
@@ -1094,8 +1095,8 @@ export default function InventoryPage() {
         return
       }
       const payload = {
-        item_name: createItemConfirmDraft.item_name,
-        category: createItemConfirmDraft.category,
+        item_name: normalizeUppercaseInventoryText(createItemConfirmDraft.item_name).trim(),
+        category: normalizeUppercaseInventoryText(createItemConfirmDraft.category).trim(),
         department_id: Number(adminDepartment.id),
         opening_balance: createItemConfirmDraft.opening_balance,
       }
@@ -1149,8 +1150,8 @@ export default function InventoryPage() {
       return
     }
 
-    const itemName = itemDraft.item_name.trim()
-    const category = itemDraft.category.trim()
+    const itemName = normalizeUppercaseInventoryText(itemDraft.item_name).trim()
+    const category = normalizeUppercaseInventoryText(itemDraft.category).trim()
     const openingBalance = Number(itemDraft.opening_balance || 0)
 
     if (!itemName || !category) {
@@ -1198,8 +1199,8 @@ export default function InventoryPage() {
   const beginEditItem = (item: InventoryRow) => {
     setEditingItemId(item.id)
     setItemEditDraft({
-      item_name: String(item.item_name || ''),
-      category: String(item.category || ''),
+      item_name: normalizeUppercaseInventoryText(String(item.item_name || '')),
+      category: normalizeUppercaseInventoryText(String(item.category || '')),
     })
   }
 
@@ -1217,8 +1218,8 @@ export default function InventoryPage() {
     }
     if (!itemEditDraft) return
 
-    const itemName = String(itemEditDraft.item_name || '').trim()
-    const category = String(itemEditDraft.category || '').trim()
+    const itemName = normalizeUppercaseInventoryText(String(itemEditDraft.item_name || '')).trim()
+    const category = normalizeUppercaseInventoryText(String(itemEditDraft.category || '')).trim()
 
     if (!itemName || !category) {
       toast.warning('Missing Item Details', {
@@ -1649,9 +1650,9 @@ export default function InventoryPage() {
                 <Label className="text-xs font-black uppercase tracking-wider text-slate-500">Item Name</Label>
                 <Input
                   value={itemDraft.item_name}
-                  onChange={(e) => setItemDraft((prev) => ({ ...prev, item_name: e.target.value }))}
+                  onChange={(e) => setItemDraft((prev) => ({ ...prev, item_name: normalizeUppercaseInventoryText(e.target.value) }))}
                   placeholder="Bond Paper A4"
-                  className={cn('rounded-sm h-10', isDuplicateItemName ? 'border-rose-400 focus-visible:ring-rose-500' : '')}
+                  className={cn('rounded-sm h-10 uppercase', isDuplicateItemName ? 'border-rose-400 focus-visible:ring-rose-500' : '')}
                   disabled={!canEditItemSetup}
                 />
                 {isDuplicateItemName ? (
@@ -1663,7 +1664,7 @@ export default function InventoryPage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-black uppercase tracking-wider text-slate-500">Category</Label>
-                <Input value={itemDraft.category} onChange={(e) => setItemDraft((prev) => ({ ...prev, category: e.target.value }))} placeholder="Stationery" className="rounded-sm h-10" disabled={!canEditItemSetup} />
+                <Input value={itemDraft.category} onChange={(e) => setItemDraft((prev) => ({ ...prev, category: normalizeUppercaseInventoryText(e.target.value) }))} placeholder="Stationery" className="rounded-sm h-10 uppercase" disabled={!canEditItemSetup} />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-wider text-slate-500">Category Quick Picks</Label>
@@ -1680,7 +1681,7 @@ export default function InventoryPage() {
                           size="sm"
                           variant="outline"
                           disabled={!canEditItemSetup}
-                          onClick={() => setItemDraft((prev) => ({ ...prev, category }))}
+                          onClick={() => setItemDraft((prev) => ({ ...prev, category: normalizeUppercaseInventoryText(category) }))}
                           className={cn(
                             'h-7 rounded-full px-3 text-[11px] font-bold',
                             isSelected ? 'border-[#A4163A]/40 bg-rose-50 text-[#A4163A]' : 'border-slate-200 text-slate-600'
@@ -2024,7 +2025,7 @@ export default function InventoryPage() {
               </div>
             </div>
 
-            <Button onClick={() => void createTransaction()} disabled={savingTransaction || !canEditTransactions || !movementType || exceedsSelectedStock} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-lg mt-auto">
+            <Button onClick={() => void createTransaction()} disabled={savingTransaction || !canEditTransactions || !movementType || exceedsSelectedStock} className="w-full bg-[#A4163A] hover:bg-[#8D1332] text-white font-black rounded-lg mt-auto">
               {savingTransaction ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <ArrowDownUp className="h-4 w-4 mr-2" />}
               Save Transaction
             </Button>
@@ -2185,8 +2186,8 @@ export default function InventoryPage() {
                           {isEditingRow ? (
                             <Input
                               value={itemEditDraft?.item_name ?? ''}
-                              onChange={(e) => setItemEditDraft((prev) => ({ item_name: e.target.value, category: prev?.category ?? '' }))}
-                              className="h-8 rounded-sm"
+                              onChange={(e) => setItemEditDraft((prev) => ({ item_name: normalizeUppercaseInventoryText(e.target.value), category: prev?.category ?? '' }))}
+                              className="h-8 rounded-sm uppercase"
                               disabled={savingItemEdit || deletingItems}
                             />
                           ) : (
@@ -2197,8 +2198,8 @@ export default function InventoryPage() {
                           {isEditingRow ? (
                             <Input
                               value={itemEditDraft?.category ?? ''}
-                              onChange={(e) => setItemEditDraft((prev) => ({ item_name: prev?.item_name ?? '', category: e.target.value }))}
-                              className="h-8 rounded-sm"
+                              onChange={(e) => setItemEditDraft((prev) => ({ item_name: prev?.item_name ?? '', category: normalizeUppercaseInventoryText(e.target.value) }))}
+                              className="h-8 rounded-sm uppercase"
                               disabled={savingItemEdit || deletingItems}
                             />
                           ) : (

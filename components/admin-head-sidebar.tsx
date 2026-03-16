@@ -115,6 +115,7 @@ export default function AdminHeadSidebar() {
       {/* Toggle Button - Only visible when expanded at the top right */}
       {!isCollapsed && (
         <button
+          suppressHydrationWarning
           onClick={toggleSidebar}
           className="absolute top-4 right-4 z-50 p-2 rounded-lg hover:bg-white/10 transition-colors flex items-center justify-center"
           title="Collapse Sidebar"
@@ -127,6 +128,7 @@ export default function AdminHeadSidebar() {
       {/* Logo / Toggle Area */}
       {isCollapsed ? (
         <button
+          suppressHydrationWarning
           onClick={toggleSidebar}
           className="flex justify-center mb-6 mt-2 px-1 relative group w-full focus:outline-none"
           title="Expand Sidebar"

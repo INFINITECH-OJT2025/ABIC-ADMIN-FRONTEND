@@ -1082,7 +1082,7 @@ function OnboardingChecklistPageContent() {
               <Button
                 onClick={() => setSaveConfirmOpen(true)}
                 disabled={saving || !employeeInfo}
-                className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-95 transition-all rounded-xl"
+                className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-[#A4163A] hover:bg-[#8D1332] text-white shadow-lg active:scale-95 transition-all rounded-xl"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
                 {saving ? 'UPDATING...' : 'SAVE CHECKLIST'}
@@ -1268,7 +1268,7 @@ function OnboardingChecklistPageContent() {
               <Button
                 onClick={() => setSaveConfirmOpen(true)}
                 disabled={saving || !employeeInfo}
-                className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-95 transition-all rounded-xl"
+                className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-[#A4163A] hover:bg-[#8D1332] text-white shadow-lg active:scale-95 transition-all rounded-xl"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
                 {saving ? 'UPDATING...' : 'SAVE CHECKLIST'}
@@ -1374,7 +1374,7 @@ function OnboardingChecklistPageContent() {
           <AlertDialogFooter className="flex-col sm:flex-row gap-3 mt-2">
             <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-emerald-600 text-white hover:bg-emerald-700"
+              className="bg-[#A4163A] text-white hover:bg-[#8D1332]"
               disabled={saving || resolvedSaveTargetDepartmentIds.length === 0}
               onClick={async () => {
                 setSaveConfirmOpen(false)

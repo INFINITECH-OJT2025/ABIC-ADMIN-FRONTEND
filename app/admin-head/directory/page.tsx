@@ -1588,8 +1588,7 @@ export default function GovernmentDirectoryPage() {
                   ) : (
                     <Button
                       onClick={startEditMode}
-                      variant="outline"
-                      className="border-white/30 rounded-lg text-white hover:bg-white/20 hover:text-white bg-transparent backdrop-blur-sm"
+                      className="bg-white text-[#A4163A] hover:bg-rose-50 font-black rounded-lg"
                     >
                       <Edit3 className="w-4 h-4 mr-2" />
                       UPDATE MODE

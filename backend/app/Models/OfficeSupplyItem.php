@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 class OfficeSupplyItem extends Model
 {
@@ -23,6 +24,16 @@ class OfficeSupplyItem extends Model
         'department_id' => 'integer',
         'current_balance' => 'integer',
     ];
+
+    public function setItemNameAttribute($value): void
+    {
+        $this->attributes['item_name'] = Str::upper(trim((string) $value));
+    }
+
+    public function setCategoryAttribute($value): void
+    {
+        $this->attributes['category'] = Str::upper(trim((string) $value));
+    }
 
     public function department(): BelongsTo
     {
