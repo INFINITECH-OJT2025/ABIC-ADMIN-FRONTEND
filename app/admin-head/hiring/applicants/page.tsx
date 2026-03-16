@@ -230,6 +230,10 @@ export default function ApplicantsForInterviewPage() {
 
   const saveInitial = async (row: InterviewRow) => {
     if (savingInitialId === row.id) return;
+    if (!row.date || !row.time) {
+      window.alert("Interview date and time are required.");
+      return;
+    }
     const apiUrl = getApiUrl();
     const rowKey = String(row.id);
     setInitialNameErrors((prev) => {
@@ -303,12 +307,7 @@ export default function ApplicantsForInterviewPage() {
 
       setInitialRows((prev) => prev.map((item) => (item.id === row.id ? saved : item)));
       setEditingInitialId(null);
-
-      const finalCandidatesRes = await fetch(`${apiUrl}/api/hiring/interviews/final-candidates`, {
-        headers: { Accept: "application/json" },
-      });
-      const finalCandidatesJson = await finalCandidatesRes.json();
-      setFinalCandidates(Array.isArray(finalCandidatesJson?.data) ? finalCandidatesJson.data : []);
+      await loadData();
     } finally {
       setSavingInitialId(null);
     }
@@ -316,6 +315,10 @@ export default function ApplicantsForInterviewPage() {
 
   const saveFinal = async (row: InterviewRow) => {
     if (savingFinalId === row.id) return;
+    if (!row.date || !row.time) {
+      window.alert("Interview date and time are required.");
+      return;
+    }
     const apiUrl = getApiUrl();
     const payload = {
       stage: "final",
@@ -373,15 +376,27 @@ export default function ApplicantsForInterviewPage() {
 
   const filteredInitialRows = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
-    if (!needle) return initialRows;
-    return initialRows.filter((row) => `${row.name} ${row.position}`.toLowerCase().includes(needle));
-  }, [initialRows, searchTerm]);
+    const visibleRows = initialRows.filter(
+      (row) =>
+        row.status !== "PASSED" ||
+        row.id === editingInitialId ||
+        row.id === savingInitialId,
+    );
+    if (!needle) return visibleRows;
+    return visibleRows.filter((row) => `${row.name} ${row.position}`.toLowerCase().includes(needle));
+  }, [initialRows, searchTerm, editingInitialId, savingInitialId]);
 
   const filteredFinalRows = useMemo(() => {
     const needle = searchTerm.trim().toLowerCase();
-    if (!needle) return finalRows;
-    return finalRows.filter((row) => `${row.name} ${row.position}`.toLowerCase().includes(needle));
-  }, [finalRows, searchTerm]);
+    const visibleRows = finalRows.filter(
+      (row) =>
+        row.status !== "PASSED" ||
+        row.id === editingFinalId ||
+        row.id === savingFinalId,
+    );
+    if (!needle) return visibleRows;
+    return visibleRows.filter((row) => `${row.name} ${row.position}`.toLowerCase().includes(needle));
+  }, [finalRows, searchTerm, editingFinalId, savingFinalId]);
 
   const isInitialEditable = (row: InterviewRow) => row.isNew || editingInitialId === row.id;
   const isFinalEditable = (row: InterviewRow) => row.isNew || editingFinalId === row.id;
@@ -465,6 +480,7 @@ export default function ApplicantsForInterviewPage() {
                 {filteredInitialRows.map((row) => {
                   const editable = isInitialEditable(row);
                   const isSaving = savingInitialId === row.id;
+                  const isMissingDateTime = !row.date || !row.time;
                   const rowNameError = initialNameErrors[String(row.id)] ?? "";
                   const rowPositionOptions = row.position && !positionOptions.includes(row.position)
                     ? [...positionOptions, row.position].sort((a, b) => a.localeCompare(b))
@@ -556,8 +572,8 @@ export default function ApplicantsForInterviewPage() {
                         {editable ? (
                           <button
                             onClick={() => saveInitial(row)}
-                            disabled={isSaving}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                            disabled={isSaving || isMissingDateTime}
+                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             <span>Save</span>
@@ -614,6 +630,7 @@ export default function ApplicantsForInterviewPage() {
                 {filteredFinalRows.map((row) => {
                   const editable = isFinalEditable(row);
                   const isSaving = savingFinalId === row.id;
+                  const isMissingDateTime = !row.date || !row.time;
                   return (
                     <TableRow
                       key={row.id}
@@ -672,8 +689,8 @@ export default function ApplicantsForInterviewPage() {
                         {editable ? (
                           <button
                             onClick={() => saveFinal(row)}
-                            disabled={isSaving}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                            disabled={isSaving || isMissingDateTime}
+                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             <span>Save</span>

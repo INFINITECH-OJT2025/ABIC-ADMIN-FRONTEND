@@ -354,6 +354,19 @@ export default function HiringReportPage() {
   const saveJobOffer = async (row: JobOfferRow) => {
     if (savingJobOfferId === row.id) return;
     const apiUrl = getApiUrl();
+    const needsResponseDate = row.status !== "Pending";
+    if (
+      !row.finalInterviewId ||
+      !row.name ||
+      !row.position ||
+      !row.salary ||
+      !row.offerSent ||
+      !row.startDate ||
+      (needsResponseDate && !row.responseDate)
+    ) {
+      toast.error("Complete all required fields before saving.");
+      return;
+    }
 
     const normalizedSalary = row.salary === null || row.salary === "" ? null : row.salary.replace(/,/g, "");
     if (normalizedSalary !== null) {
@@ -699,6 +712,15 @@ export default function HiringReportPage() {
                   const editable = row.isNew || editingJobOfferId === row.id;
                   const onboarded = isAlreadyOnboarded(row);
                   const isSaving = savingJobOfferId === row.id;
+                  const needsResponseDate = row.status !== "Pending";
+                  const isMissingRequired =
+                    !row.finalInterviewId ||
+                    !row.name ||
+                    !row.position ||
+                    !row.salary ||
+                    !row.offerSent ||
+                    !row.startDate ||
+                    (needsResponseDate && !row.responseDate);
 
                   return (
                     <TableRow
@@ -782,8 +804,8 @@ export default function HiringReportPage() {
                         {editable ? (
                           <button
                             onClick={() => saveJobOffer(row)}
-                            disabled={isSaving}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                            disabled={isSaving || isMissingRequired}
+                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                             <span>Save</span>
