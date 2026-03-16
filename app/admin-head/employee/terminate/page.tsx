@@ -489,45 +489,69 @@ function TerminatePageContent() {
     return historyFilter === 'resigned'
   })
   const selectedRecordIsResigned = selectedTermination?.exit_type === 'resigned'
-  const { superiors, otherEmployees } = React.useMemo(() => {
-    if (!selectedEmployeeId) return { superiors: [], otherEmployees: employees }
+  const superiors = React.useMemo(() => {
+    if (!selectedEmployeeId) return []
     const targetEmp = employees.find(e => e.id === selectedEmployeeId)
-    if (!targetEmp) return { superiors: [], otherEmployees: employees }
+    if (!targetEmp) return []
 
-    const empPosName = String(targetEmp.position || '').toLowerCase().trim()
-    
+    const normalize = (value: unknown) => String(value || '').toLowerCase().trim()
+    const normalizeRole = (value: unknown) => normalize(value)
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+    const empPosName = normalizeRole(targetEmp.position)
+
+    const hierarchyById = new Map(hierarchies.map(h => [String(h.id), h]))
+
     // Find hierarchy node for the employee's position
-    const node = hierarchies.find(h => String(h.position?.name || '').toLowerCase().trim() === empPosName)
+    const node = hierarchies.find(h => {
+      const name = h?.name ?? h?.position?.name
+      return normalizeRole(name) === empPosName
+    })
     const ancestorPositionNames = new Set<string>()
+    const coreRoles = hierarchies
+      .filter(h => h.department_id == null && (h.position?.name || h.name))
+      .map(h => normalizeRole(h.position?.name || h.name))
 
     if (!node) {
-      ancestorPositionNames.add('admin head')
-      ancestorPositionNames.add('admin supervisor')
-      ancestorPositionNames.add('executive officer')
+      // Fallback: allow core/top-level positions when hierarchy is missing
+      coreRoles.forEach(name => ancestorPositionNames.add(name))
+      hierarchies
+        .filter(h => !h.parent_id && (h.position?.name || h.name))
+        .forEach(h => ancestorPositionNames.add(normalizeRole(h.position?.name || h.name)))
     } else {
       let currentParentId = node.parent_id
       while (currentParentId) {
-        const parentNode = hierarchies.find(h => h.id === currentParentId)
+        const parentNode = hierarchyById.get(String(currentParentId))
         if (parentNode) {
-          if (parentNode.position?.name) ancestorPositionNames.add(String(parentNode.position.name).toLowerCase().trim())
+          const parentName = parentNode?.name ?? parentNode?.position?.name
+          if (parentName) ancestorPositionNames.add(normalizeRole(parentName))
           currentParentId = parentNode.parent_id
         } else {
           break
         }
       }
-      ancestorPositionNames.add('admin head')
-      ancestorPositionNames.add('executive officer')
+      // Non-core employees should also be recommended by core leadership
+      if (node.department_id != null) {
+        coreRoles.forEach(name => ancestorPositionNames.add(name))
+      }
     }
 
-    const superiorsList = employees.filter(emp => 
-      ancestorPositionNames.has(String(emp.position || '').toLowerCase().trim())
+    return employees.filter(emp =>
+      emp.id !== selectedEmployeeId &&
+      ancestorPositionNames.has(normalizeRole(emp.position))
     )
-    const othersList = employees.filter(emp => 
-      !ancestorPositionNames.has(String(emp.position || '').toLowerCase().trim())
-    )
-
-    return { superiors: superiorsList, otherEmployees: othersList }
   }, [selectedEmployeeId, employees, hierarchies])
+
+  useEffect(() => {
+    if (!selectedEmployeeId) return
+    const superiorNames = new Set(superiors.map(emp => `${emp.first_name} ${emp.last_name}`))
+    setFormData((prev) => ({
+      ...prev,
+      recommended_by: superiorNames.has(prev.recommended_by) ? prev.recommended_by : '',
+      reviewed_by: superiorNames.has(prev.reviewed_by) ? prev.reviewed_by : '',
+    }))
+  }, [selectedEmployeeId, superiors])
 
   const allCount = realtimeTerminations.length
   const terminatedCount = realtimeTerminations.filter((r) => !isRehiredRecord(r)).length
@@ -1389,24 +1413,18 @@ function TerminatePageContent() {
                         <SelectValue placeholder="Select recommender..." />
                       </SelectTrigger>
                       <SelectContent>
-                        {superiors.length > 0 && (
+                        {superiors.length > 0 ? (
                           <SelectGroup>
-                            <SelectLabel className="text-xs text-slate-500 bg-slate-50">Recommended (Superiors)</SelectLabel>
+                            <SelectLabel className="text-xs text-slate-500 bg-slate-50">Higher in Hierarchy</SelectLabel>
                             {superiors.map((emp) => (
                               <SelectItem key={`recommended-sup-${emp.id}`} value={`${emp.first_name} ${emp.last_name}`}>
                                 {emp.first_name} {emp.last_name} ({emp.position})
                               </SelectItem>
                             ))}
                           </SelectGroup>
-                        )}
-                        {otherEmployees.length > 0 && (
+                        ) : (
                           <SelectGroup>
-                            <SelectLabel className="text-xs text-slate-500 bg-slate-50">Other Employees</SelectLabel>
-                            {otherEmployees.map((emp) => (
-                              <SelectItem key={`recommended-oth-${emp.id}`} value={`${emp.first_name} ${emp.last_name}`}>
-                                {emp.first_name} {emp.last_name} ({emp.position})
-                              </SelectItem>
-                            ))}
+                            <SelectLabel className="text-xs text-slate-500 bg-slate-50">No higher roles found</SelectLabel>
                           </SelectGroup>
                         )}
                       </SelectContent>
@@ -1470,24 +1488,18 @@ function TerminatePageContent() {
                     <SelectValue placeholder="Select reviewer..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {superiors.length > 0 && (
+                    {superiors.length > 0 ? (
                       <SelectGroup>
-                        <SelectLabel className="text-xs text-slate-500 bg-slate-50">Recommended (Superiors)</SelectLabel>
+                        <SelectLabel className="text-xs text-slate-500 bg-slate-50">Higher in Hierarchy</SelectLabel>
                         {superiors.map((emp) => (
                           <SelectItem key={`reviewed-sup-${emp.id}`} value={`${emp.first_name} ${emp.last_name}`}>
                             {emp.first_name} {emp.last_name} ({emp.position})
                           </SelectItem>
                         ))}
                       </SelectGroup>
-                    )}
-                    {otherEmployees.length > 0 && (
+                    ) : (
                       <SelectGroup>
-                        <SelectLabel className="text-xs text-slate-500 bg-slate-50">Other Employees</SelectLabel>
-                        {otherEmployees.map((emp) => (
-                          <SelectItem key={`reviewed-oth-${emp.id}`} value={`${emp.first_name} ${emp.last_name}`}>
-                            {emp.first_name} {emp.last_name} ({emp.position})
-                          </SelectItem>
-                        ))}
+                        <SelectLabel className="text-xs text-slate-500 bg-slate-50">No higher roles found</SelectLabel>
                       </SelectGroup>
                     )}
                   </SelectContent>

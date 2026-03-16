@@ -489,6 +489,21 @@ export default function HiringReportPage() {
     return onboardedLookup.has(`np:${name}|${position}`);
   };
 
+  const remainingSlotsByPosition = useMemo(() => {
+    const map = new Map<string, number>();
+    summaryRows.forEach((row) => {
+      const key = normalizePosition(row.position || "");
+      if (!key) return;
+      map.set(key, Number(row.remaining ?? 0));
+    });
+    return map;
+  }, [summaryRows]);
+
+  const getRemainingSlots = (position: string): number => {
+    if (!position) return 0;
+    return remainingSlotsByPosition.get(normalizePosition(position)) ?? 0;
+  };
+
   const totalSummaryHC = filteredSummaryRows.reduce((sum, r) => sum + (r.requiredHeadcount || 0), 0);
   const totalSummaryHired = filteredSummaryRows.reduce((sum, r) => sum + (r.hired || 0), 0);
   const totalSummaryRemaining = filteredSummaryRows.reduce((sum, r) => sum + (r.remaining || 0), 0);
@@ -721,6 +736,7 @@ export default function HiringReportPage() {
                     !row.offerSent ||
                     !row.startDate ||
                     (needsResponseDate && !row.responseDate);
+                  const remainingSlots = getRemainingSlots(row.position);
 
                   return (
                     <TableRow
@@ -813,7 +829,7 @@ export default function HiringReportPage() {
                         ) : onboarded ? (
                           <span className="text-green-700 text-[11px] font-bold uppercase tracking-wide">Onboarded</span>
                         ) : row.status === "Accepted" ? (
-                          row.startDate ? (
+                          row.startDate && remainingSlots > 0 ? (
                             <Link href={buildOnboardHref(row)}>
                               <button
                                 title="Onboard this applicant"
@@ -822,6 +838,14 @@ export default function HiringReportPage() {
                                 Onboard Applicant
                               </button>
                             </Link>
+                          ) : remainingSlots <= 0 ? (
+                            <button
+                              disabled
+                              title="No remaining slots for this position. Increase headcount to onboard."
+                              className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-[#800020] text-[#800020] opacity-50 cursor-not-allowed"
+                            >
+                              No Slots
+                            </button>
                           ) : (
                             <button
                               disabled
