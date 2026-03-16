@@ -1,7 +1,7 @@
 //Side
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import {
   ChevronDown,
@@ -57,24 +57,41 @@ export default function AdminHeadSidebar() {
     router.push("/logout");
   };
 
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const response = await fetch('/api/laravel/api/activity-logs/unread-count', { cache: "no-store" });
+      const result = await response.json();
+      if (response.ok && result?.success) {
+        setUnreadCount(Number(result?.data?.count ?? 0));
+      }
+    } catch {
+      // Ignore sidebar counter failures.
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchUnreadCount = async () => {
-      try {
-        const response = await fetch('/api/laravel/api/activity-logs/unread-count');
-        const result = await response.json();
-        if (response.ok && result?.success) {
-          setUnreadCount(Number(result?.data?.count ?? 0));
-        }
-      } catch {
-        // Ignore sidebar counter failures.
+    void fetchUnreadCount();
+    const intervalId = setInterval(fetchUnreadCount, 1000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void fetchUnreadCount();
       }
     };
 
-    void fetchUnreadCount();
-    const intervalId = setInterval(fetchUnreadCount, 30000);
+    const handleFocus = () => {
+      void fetchUnreadCount();
+    };
 
-    return () => clearInterval(intervalId);
-  }, []);
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [fetchUnreadCount]);
 
   useEffect(() => {
     const onUnreadChanged = (event: Event) => {
