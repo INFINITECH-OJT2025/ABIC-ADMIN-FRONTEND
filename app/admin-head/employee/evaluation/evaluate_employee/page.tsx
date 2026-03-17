@@ -375,13 +375,16 @@ function EvaluateEmployeeForm() {
   const employeeDetails = useMemo(() => {
     if (!selectedEmployee) return null
     const deptObj = departments.find(d => String(d.id) === String(selectedEmployee.department) || d.name === selectedEmployee.department)
+    const officeId = deptObj?.office_id ?? (selectedEmployee as any)?.office_id
+    const officeObj = offices.find(o => String(o.id) === String(officeId))
     const hiredDate = selectedEmployee.date_hired ? new Date(selectedEmployee.date_hired) : null
     return {
       name: `${selectedEmployee.first_name} ${selectedEmployee.last_name}`,
       position: selectedEmployee.position,
       department: deptObj?.name || selectedEmployee.department || 'Not Assigned',
+      office: officeObj?.name || '',
     }
-  }, [selectedEmployee, departments])
+  }, [selectedEmployee, departments, offices])
 
   const totalScore = useMemo(() => {
     return Object.values(scores).reduce((acc, curr) => acc + (parseInt(curr) || 0), 0)
@@ -697,7 +700,9 @@ function EvaluateEmployeeForm() {
         {showFirstEvaluationPanel && (
           <div className="bg-white shadow-2xl p-[60px] text-[13px] leading-relaxed text-black border border-slate-300">
             <div className="text-center mb-10">
-              <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">INFINITECH ADVERTISING CORPORATION</h1>
+            <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">
+              {employeeDetails?.office ? employeeDetails.office.toUpperCase() : 'OFFICE NOT SET'}
+            </h1>
               <h2 className="font-bold text-lg uppercase tracking-wider">PERFORMANCE APPRAISAL</h2>
             </div>
 
@@ -896,7 +901,9 @@ function EvaluateEmployeeForm() {
         
         {/* Header */}
         <div className="text-center mb-10">
-          <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">INFINITECH ADVERTISING CORPORATION</h1>
+          <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">
+            {employeeDetails?.office ? employeeDetails.office.toUpperCase() : 'OFFICE NOT SET'}
+          </h1>
           <h2 className="font-bold text-lg uppercase tracking-wider">PERFORMANCE APPRAISAL</h2>
         </div>
 
