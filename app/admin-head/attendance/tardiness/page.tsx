@@ -214,8 +214,17 @@ let DEPT_TO_OFFICE_MAP: Record<string, string> = {};
 
 // Parse start time from shift option string (e.g., "8:00 AM – 12:00 PM" -> 8:00 AM)
 function extractStartTime(shiftOption: string): string {
-  // Support both en-dash (–) and hyphen (-)
-  const parts = shiftOption.split(/\s*[–-]\s*/);
+  if (!shiftOption) return "";
+
+  // 1. Priority Fallback: Robustly match the FIRST valid time pattern (e.g., HH:MM AM/PM)
+  // This is safer than splitting if the separator is unusual or missing
+  const timeMatch = shiftOption.match(/\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?/i);
+  if (timeMatch) {
+    return timeMatch[0].trim();
+  }
+
+  // 2. Secondary: Support en-dash (–), em-dash (—), hyphen (-), and the word "to"
+  const parts = shiftOption.split(/\s*[–—-]|(?:\s+to\s+)\s*/i);
   return parts[0].trim();
 }
 
@@ -522,11 +531,14 @@ function recalculateWarnings(
   entries: LateEntry[],
   leaves: LeaveEntry[],
 ): LateEntry[] {
-  // First, group by employee ONLY (to allow monthly cumulative counts)
+  // First, group by employee AND cutoff (to enforce separation between cutoffs)
   const entriesByEmployee = new Map<string | number, LateEntry[]>();
 
   entries.forEach((entry) => {
-    const key = entry.employee_id || entry.employee_name;
+    // Unique key per employee + cutoff to ensure counters reset every cutoff
+    const cutoff = entry.cutoffPeriod || entry.cutoff_period || "unknown";
+    const key = `${entry.employee_id || entry.employee_name}-${cutoff}`;
+
     if (!entriesByEmployee.has(key)) {
       entriesByEmployee.set(key, []);
     }
@@ -1056,7 +1068,10 @@ function EmployeeSelector({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between gap-2 h-9 text-xs border-slate-200 hover:bg-stone-50 font-normal text-slate-500 rounded-lg shadow-none px-4"
+          className={cn(
+            "w-full justify-between gap-2 h-9 text-xs border-slate-200 hover:bg-stone-50 rounded-lg shadow-none px-4 transition-all",
+            value ? "text-slate-900 font-bold" : "text-slate-500 font-normal",
+          )}
         >
           <span className="truncate shrink-0">
             {value
@@ -1090,14 +1105,26 @@ function EmployeeSelector({
                     onChange(currentValue === value ? "" : currentValue);
                     setOpen(false);
                   }}
+                  className="flex items-center justify-between py-2.5"
                 >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === employee.name ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  {employee.name}
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <Check
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        value === employee.name ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <div className="flex flex-col gap-0.5 overflow-hidden">
+                      <span className="font-bold text-slate-900 truncate shrink-0">
+                        {employee.name}
+                      </span>
+                      {employee.department && (
+                        <span className="text-[10px] text-slate-400 font-medium truncate uppercase tracking-tight">
+                          {employee.department}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -1440,14 +1467,20 @@ const CustomTimePicker = ({
           <span className="truncate">{value ? displayTime : "--:-- --"}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-3 bg-white border border-slate-200 shadow-xl rounded-xl" align="start">
+      <PopoverContent
+        className="w-auto p-3 bg-white border border-slate-200 shadow-xl rounded-xl"
+        align="start"
+      >
         <div className="flex items-center gap-2">
           {/* Hour Scroller */}
           <div className="flex flex-col gap-1">
             <span className="text-[10px] font-bold text-slate-500 uppercase text-center">
               Hour
             </span>
-            <div className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1" style={{ scrollbarWidth: "none" }}>
+            <div
+              className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1"
+              style={{ scrollbarWidth: "none" }}
+            >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => {
                 const sHour = h.toString().padStart(2, "0");
                 return (
@@ -1473,7 +1506,10 @@ const CustomTimePicker = ({
             <span className="text-[10px] font-bold text-slate-500 uppercase text-center">
               Min
             </span>
-            <div className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1" style={{ scrollbarWidth: "none" }}>
+            <div
+              className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1"
+              style={{ scrollbarWidth: "none" }}
+            >
               {Array.from({ length: 60 }, (_, i) => i).map((m) => {
                 const sMin = m.toString().padStart(2, "0");
                 return (
@@ -2197,6 +2233,12 @@ export default function AttendanceDashboard() {
     setActiveCutoffSummary(null);
   };
 
+  // Derive schedule for the selected employee in the "New Record" form as a guide
+  const selectedEmpForForm = employees.find((e) => e.name === newEntryEmployee);
+  const selectedEmpSchedule = selectedEmpForForm
+    ? getShiftSchedule(selectedEmpForForm.department)
+    : null;
+
   // ---------- RENDER ----------
 
   if (isLoading) {
@@ -2520,8 +2562,17 @@ export default function AttendanceDashboard() {
                   </div>
 
                   <div className="flex-1 min-w-[200px] flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-black uppercase tracking-wider ml-1">
-                      Actual In Time
+                    <label className="text-[11px] font-bold text-black uppercase tracking-wider ml-1 flex items-center justify-between">
+                      <span>Actual In Time</span>
+                      {selectedEmpSchedule && (
+                        <span className="text-[10px] text-[#A4163A] font-black lowercase tracking-normal flex items-center gap-1">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          Start Time:{" "}
+                          {extractStartTime(
+                            selectedEmpSchedule.displayName,
+                          ).replace(/\s+/g, "")}
+                        </span>
+                      )}
                     </label>
                     <div className="relative group/input">
                       <CustomTimePicker

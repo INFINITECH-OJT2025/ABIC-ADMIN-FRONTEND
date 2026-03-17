@@ -437,22 +437,27 @@ export default function WarningLetterPage() {
           };
         });
 
+        // Group by employee AND cutoff to ensure late counts reset every cutoff period
+        const entriesByEmployeeAndCutoff = new Map<string, any[]>();
         mappedEntries.forEach((entry: any) => {
-          const key = entry.employee_id;
-          if (!entriesByEmployee.has(key)) entriesByEmployee.set(key, []);
-          entriesByEmployee.get(key)?.push(entry);
+          const key = `${entry.employee_id}-${entry.cutoff}`;
+          if (!entriesByEmployeeAndCutoff.has(key)) entriesByEmployeeAndCutoff.set(key, []);
+          entriesByEmployeeAndCutoff.get(key)?.push(entry);
         });
 
         const lateGroups = new Map<string, any>();
-        entriesByEmployee.forEach((group) => {
+        entriesByEmployeeAndCutoff.forEach((group, key) => {
           group.sort(
             (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
           );
+          
           let lateCount = 0;
           group.forEach((entry) => {
             const isLate = entry.minutes_late > 0 || entry.minutesLate > 0;
             let currentWarningLevel = 0;
 
+            // If the entry already has a warning level from the database/recalc, respect it
+            // Otherwise calculate it based on the occurrences in THIS cutoff group
             if (entry.warning_level > 0) {
               currentWarningLevel = entry.warning_level;
               lateCount = Math.max(lateCount, entry.warning_level + 2);
@@ -464,7 +469,6 @@ export default function WarningLetterPage() {
             }
 
             if (currentWarningLevel > 0) {
-              const key = `${entry.employee_id}-${entry.cutoff}`;
               if (!lateGroups.has(key)) {
                 lateGroups.set(key, {
                   ...entry,
@@ -473,7 +477,7 @@ export default function WarningLetterPage() {
                 });
               } else {
                 const existing = lateGroups.get(key);
-                // Keep the highest warning level in the cutoff
+                // Keep the highest warning level reached in this cutoff
                 if (currentWarningLevel > existing.warning_level) {
                   existing.warning_level = currentWarningLevel;
                   existing.date = entry.date;
