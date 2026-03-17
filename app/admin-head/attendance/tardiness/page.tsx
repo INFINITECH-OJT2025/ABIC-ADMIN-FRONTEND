@@ -505,6 +505,18 @@ function formatDate(dateInput: any): string {
   return `${year}-${month}-${day}`;
 }
 
+// Format for display: mm/dd/yyyy
+function formatDisplayDate(dateInput: any): string {
+  if (!dateInput) return "";
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return String(dateInput);
+
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${month}/${day}/${year}`;
+}
+
 // Recalculate warnings for all entries
 function recalculateWarnings(
   entries: LateEntry[],
@@ -1363,6 +1375,156 @@ function SummarySheet({
   );
 }
 
+// ---------- CUSTOM TIME PICKER ----------
+const CustomTimePicker = ({
+  value,
+  onChange,
+  className,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+}) => {
+  const displayTime = value
+    ? new Date(`2000-01-01T${value}`).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "--:-- --";
+
+  const [hour, setHour] = useState("12");
+  const [minute, setMinute] = useState("00");
+  const [ampm, setAmpm] = useState("AM");
+
+  // Sync internal state with external value changes
+  useEffect(() => {
+    if (value) {
+      let h = parseInt(value.split(":")[0]);
+      let m = value.split(":")[1] || "00";
+      let ap = h >= 12 ? "PM" : "AM";
+      if (h === 0) h = 12;
+      else if (h > 12) h -= 12;
+
+      setHour(h.toString().padStart(2, "0"));
+      setMinute(m);
+      setAmpm(ap);
+    } else {
+      setHour("12");
+      setMinute("00");
+      setAmpm("AM");
+    }
+  }, [value]);
+
+  const handleUpdate = (h: string, m: string, ap: string) => {
+    setHour(h);
+    setMinute(m);
+    setAmpm(ap);
+
+    let hours = parseInt(h);
+    if (ap === "PM" && hours !== 12) hours += 12;
+    if (ap === "AM" && hours === 12) hours = 0;
+
+    onChange(`${hours.toString().padStart(2, "0")}:${m}`);
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className={cn(
+            "text-left bg-white border border-slate-200 text-black rounded-lg text-xs font-medium focus-visible:border-rose-200 focus-visible:ring-rose-100 shadow-none transition-all flex items-center gap-2",
+            className,
+          )}
+        >
+          <Clock className="w-4 h-4 text-slate-300 shrink-0 group-hover/input:text-[#A4163A] transition-colors" />
+          <span className="truncate">{value ? displayTime : "--:-- --"}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-3 bg-white border border-slate-200 shadow-xl rounded-xl" align="start">
+        <div className="flex items-center gap-2">
+          {/* Hour Scroller */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase text-center">
+              Hour
+            </span>
+            <div className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1" style={{ scrollbarWidth: "none" }}>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => {
+                const sHour = h.toString().padStart(2, "0");
+                return (
+                  <button
+                    key={h}
+                    onClick={() => handleUpdate(sHour, minute, ampm)}
+                    className={cn(
+                      "px-2 py-1.5 rounded text-xs font-bold transition-all",
+                      hour === sHour
+                        ? "bg-slate-200 text-black"
+                        : "hover:bg-slate-100 text-slate-700",
+                    )}
+                  >
+                    {sHour}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Minute Scroller */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase text-center">
+              Min
+            </span>
+            <div className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1" style={{ scrollbarWidth: "none" }}>
+              {Array.from({ length: 60 }, (_, i) => i).map((m) => {
+                const sMin = m.toString().padStart(2, "0");
+                return (
+                  <button
+                    key={m}
+                    onClick={() => handleUpdate(hour, sMin, ampm)}
+                    className={cn(
+                      "px-2 py-1.5 rounded text-xs font-bold transition-all",
+                      minute === sMin
+                        ? "bg-slate-200 text-black"
+                        : "hover:bg-slate-100 text-slate-700",
+                    )}
+                  >
+                    {sMin}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* AM/PM Toggles */}
+          <div className="flex flex-col gap-1 justify-start pt-[20px] h-full">
+            <button
+              onClick={() => handleUpdate(hour, minute, "AM")}
+              className={cn(
+                "w-14 py-2 rounded text-xs font-bold transition-all",
+                ampm === "AM"
+                  ? "bg-slate-200 text-black"
+                  : "hover:bg-slate-100 text-slate-700",
+              )}
+            >
+              AM
+            </button>
+            <button
+              onClick={() => handleUpdate(hour, minute, "PM")}
+              className={cn(
+                "w-14 py-2 rounded text-xs font-bold transition-all",
+                ampm === "PM"
+                  ? "bg-slate-200 text-black"
+                  : "hover:bg-slate-100 text-slate-700",
+              )}
+            >
+              PM
+            </button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 // ---------- MAIN DASHBOARD ----------
 export default function AttendanceDashboard() {
   // State for year & month selection
@@ -1412,7 +1574,9 @@ export default function AttendanceDashboard() {
         // 2. Fetch all required supporting data
         const [empRes, hierRes, deptRes, leavesRes, offRes] = await Promise.all(
           [
-            fetch("/api/admin-head/employees?status=employed,rehired,rehired_employee"),
+            fetch(
+              "/api/admin-head/employees?status=employed,rehired,rehired_employee",
+            ),
             fetch(`${getApiUrl()}/api/hierarchies`),
             fetch(`${getApiUrl()}/api/departments`),
             fetch(`${getApiUrl()}/api/leaves`),
@@ -2345,7 +2509,7 @@ export default function AttendanceDashboard() {
                 {/* Form Grid */}
                 <div className="flex flex-wrap items-end gap-4">
                   <div className="flex-1 min-w-[300px] flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-[#8A99AF] uppercase tracking-wider ml-1">
+                    <label className="text-[11px] font-bold text-black uppercase tracking-wider ml-1">
                       Select Employee
                     </label>
                     <EmployeeSelector
@@ -2356,17 +2520,14 @@ export default function AttendanceDashboard() {
                   </div>
 
                   <div className="flex-1 min-w-[200px] flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-[#8A99AF] uppercase tracking-wider ml-1">
+                    <label className="text-[11px] font-bold text-black uppercase tracking-wider ml-1">
                       Actual In Time
                     </label>
-                    <div className="relative group">
-                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-[#7B0F2B] transition-colors" />
-                      <Input
-                        id="time"
-                        type="time"
+                    <div className="relative group/input">
+                      <CustomTimePicker
                         value={newEntryTime}
-                        onChange={(e) => setNewEntryTime(e.target.value)}
-                        className="bg-white border border-slate-200 text-slate-800 pl-10 pr-4 h-9 w-full rounded-lg text-xs font-medium focus-visible:border-rose-200 focus-visible:ring-rose-100 shadow-none transition-all"
+                        onChange={setNewEntryTime}
+                        className="pl-4 pr-4 h-9 w-full"
                       />
                     </div>
                   </div>
@@ -2618,17 +2779,15 @@ function CutoffTable({
                   </td>
 
                   <td className="px-4 py-2.5 text-slate-500 text-[11px] font-bold tracking-tighter">
-                    {entry.date || "—"}
+                    {formatDisplayDate(entry.date) || "—"}
                   </td>
                   <td className="px-4 py-2.5">
                     <div className="relative w-max group/input">
-                      <Input
-                        type="time"
+                      <CustomTimePicker
                         value={to24h(entry.actual_in || entry.actualIn || "")}
-                        onChange={(e) => onUpdateTime(entry.id, e.target.value)}
-                        className="bg-white border-slate-200 text-slate-900 h-7 text-xs w-28 font-bold focus:ring-1 focus:ring-[#A4163A] rounded shadow-none px-2 transition-all group-hover/input:border-rose-300"
+                        onChange={(val) => onUpdateTime(entry.id, val)}
+                        className="h-7 w-[105px] px-2 font-bold group-hover/input:border-rose-300"
                       />
-                      <Clock className="w-3 h-3 absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none group-hover/input:text-[#A4163A] transition-colors" />
                     </div>
                   </td>
 
