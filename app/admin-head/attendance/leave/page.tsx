@@ -767,9 +767,9 @@ function CalendarView({
                     <span className="font-extrabold text-slate-800 text-base group-hover:text-[#A4163A] transition-colors">
                       {e.employee_name}
                     </span>
-                    <span
-                      className={cn(
-                        "text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider",
+                      <span
+                        className={cn(
+                          "text-[10px] font-extrabold px-3 py-1 rounded tracking-wider",
                         e.approved_by === "Declined"
                           ? "bg-red-100 text-red-700 border border-red-200"
                           : e.approved_by === "Pending"
@@ -781,7 +781,7 @@ function CalendarView({
                         ? "Declined"
                         : e.approved_by === "Pending"
                           ? "Pending"
-                          : "Approved/Completed"}
+                          : `Approved by ${e.approved_by}`}
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-600">
@@ -1678,9 +1678,9 @@ export default function LeavePage() {
       if (filterType && e.remarks !== filterType) return false;
       if (filterStatus) {
         const isApproved = !["Pending", "Declined"].includes(e.approved_by);
-        if (filterStatus === "Approved/Completed" && !isApproved) return false;
+        if (filterStatus === "Approved" && !isApproved) return false;
         if (
-          filterStatus !== "Approved/Completed" &&
+          filterStatus !== "Approved" &&
           e.approved_by !== filterStatus
         )
           return false;
@@ -1760,7 +1760,7 @@ export default function LeavePage() {
   const statusOptions = [
     { label: "All Status", value: "" },
     { label: "Pending", value: "Pending" },
-    { label: "Approved/Completed", value: "Approved/Completed" },
+    { label: "Approved", value: "Approved" },
     { label: "Declined", value: "Declined" },
   ];
 
@@ -2562,46 +2562,46 @@ export default function LeavePage() {
         <section>
           <div className="rounded-xl overflow-hidden shadow border border-rose-100">
             {/* Table header banner */}
-            <div className="bg-rose-50 py-3 text-center text-[#800020] text-xs font-black tracking-widest uppercase border-b border-rose-100 flex items-center justify-center gap-2">
-              <Calendar className="w-3.5 h-3.5" />
+            <div className="bg-rose-50 py-4 text-center text-[#800020] text-sm font-black tracking-widest uppercase border-b border-rose-100 flex items-center justify-center gap-2">
+              <Calendar className="w-4 h-4" />
               Leave Records • {MONTHS[calendarMonth]} {calendarYear}
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-xs border-collapse">
+              <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="bg-slate-50 text-slate-500">
-                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-20">
+                    <th className="border-b border-r border-slate-200 px-3 py-4 font-black uppercase text-xs tracking-wider text-center w-20">
                       ID
                     </th>
-                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-left pl-4">
+                    <th className="border-b border-r border-slate-200 px-3 py-4 font-black uppercase text-xs tracking-wider text-left pl-4 w-48">
                       Name
                     </th>
-                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-24">
+                    <th className="border-b border-r border-slate-200 px-3 py-4 font-black uppercase text-xs tracking-wider text-center w-28">
                       Category
                     </th>
-                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-20">
+                    <th className="border-b border-r border-slate-200 px-3 py-4 font-black uppercase text-xs tracking-wider text-center w-24">
                       Shift
                     </th>
-                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-24">
+                    <th className="border-b border-r border-slate-200 px-3 py-4 font-black uppercase text-xs tracking-wider text-center w-28">
                       Start
                     </th>
-                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-24">
+                    <th className="border-b border-r border-slate-200 px-3 py-4 font-black uppercase text-xs tracking-wider text-center w-28">
                       End
                     </th>
-                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-16">
+                    <th className="border-b border-r border-slate-200 px-3 py-4 font-black uppercase text-xs tracking-wider text-center w-20">
                       Days
                     </th>
-                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-20">
+                    <th className="border-b border-r border-slate-200 px-3 py-4 font-black uppercase text-xs tracking-wider text-center w-72">
                       Status
                     </th>
-                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-24">
+                    <th className="border-b border-r border-slate-200 px-3 py-4 font-black uppercase text-xs tracking-wider text-center w-28">
                       Type
                     </th>
-                    <th className="border-b border-r border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center">
+                    <th className="border-b border-r border-slate-200 px-3 py-4 font-black uppercase text-xs tracking-wider text-center w-56">
                       Reason
                     </th>
-                    <th className="border-b border-slate-200 px-2 py-3 font-black uppercase text-[10px] tracking-wider text-center w-20">
+                    <th className="border-b border-slate-200 px-3 py-4 font-black uppercase text-xs tracking-wider text-center w-24">
                       Action
                     </th>
                   </tr>
@@ -2625,42 +2625,45 @@ export default function LeavePage() {
                           idx % 2 === 0 ? "bg-white" : "bg-rose-50/20",
                         )}
                       >
-                        <td className="border border-rose-100 px-2 py-1.5 text-center text-slate-500 font-medium">
+                        <td className="border border-rose-100 px-3 py-2.5 text-center text-slate-500 font-semibold">
                           {entry.employee_id}
                         </td>
-                        <td className="border border-rose-100 px-4 py-1.5 font-bold text-slate-700">
+                        <td 
+                          className="border border-rose-100 px-4 py-1.5 font-bold text-slate-700 truncate max-w-[150px] whitespace-nowrap"
+                          title={entry.employee_name}
+                        >
                           {entry.employee_name}
                         </td>
-                        <td className="border border-rose-100 px-2 py-1.5 text-center">
+                        <td className="border border-rose-100 px-3 py-2.5 text-center">
                           <span
                             className={cn(
-                              "px-2 py-0.5 rounded text-[9px] font-black uppercase transition-all",
+                              "px-3 py-1 rounded text-xs font-black transition-all whitespace-nowrap",
                               entry.category === "half-day"
                                 ? "bg-amber-50 text-amber-600 border border-amber-100"
                                 : "bg-rose-50 text-rose-600 border border-rose-100",
                             )}
                           >
-                            {entry.category === "half-day" ? "Half" : "Whole"}
+                            {entry.category === "half-day" ? "Half-day" : "Whole-day"}
                           </span>
                         </td>
-                        <td className="border border-rose-100 px-2 py-1.5 text-center text-slate-500 italic">
+                        <td className="border border-rose-100 px-3 py-2.5 text-center text-slate-500 italic whitespace-nowrap font-medium">
                           {entry.category === "whole-day"
                             ? "—"
-                            : entry.shift || "—"}
+                            : (entry.shift || "—").replace(/\s+(?=\d|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/g, " - ")}
                         </td>
-                        <td className="border border-rose-100 px-2 py-1.5 text-center text-slate-600 font-medium whitespace-nowrap">
+                        <td className="border border-rose-100 px-3 py-2.5 text-center text-slate-600 font-bold whitespace-nowrap">
                           {formatDisplayDate(entry.start_date)}
                         </td>
-                        <td className="border border-rose-100 px-2 py-1.5 text-center text-slate-600 font-medium whitespace-nowrap">
+                        <td className="border border-rose-100 px-3 py-2.5 text-center text-slate-600 font-bold whitespace-nowrap">
                           {formatDisplayDate(entry.leave_end_date)}
                         </td>
-                        <td className="border border-rose-100 px-2 py-1.5 text-center font-bold text-[#4A081A]">
+                        <td className="border border-rose-100 px-3 py-2.5 text-center font-black text-[#4A081A]">
                           {formatDays(entry.number_of_days, entry.category)}
                         </td>
-                        <td className="border border-rose-100 px-2 py-1.5 text-center">
+                        <td className="border border-rose-100 px-3 py-2.5 text-center">
                           <span
                             className={cn(
-                              "px-2 py-0.5 rounded-full text-[9px] font-black uppercase transition-all",
+                              "px-3 py-1.5 rounded text-xs font-black transition-all inline-block max-w-[280px] truncate",
                               entry.approved_by === "Pending" &&
                                 "bg-orange-50 text-orange-600 border border-orange-100",
                               entry.approved_by === "Declined" &&
@@ -2670,32 +2673,33 @@ export default function LeavePage() {
                               ) &&
                                 "bg-green-50 text-green-600 border border-green-100",
                             )}
+                            title={!["Pending", "Declined"].includes(entry.approved_by) ? `Approved by ${entry.approved_by}` : undefined}
                           >
                             {entry.approved_by === "Pending"
-                              ? "Pend"
+                              ? "Pending"
                               : entry.approved_by === "Declined"
-                                ? "Decl"
-                                : "Appr"}
+                                ? "Declined"
+                                : `Approved by ${entry.approved_by}`}
                           </span>
                         </td>
-                        <td className="border border-rose-100 px-2 py-1.5 text-center">
-                          <span className="font-bold text-[#4A081A] text-[10px]">
+                        <td className="border border-rose-100 px-3 py-2.5 text-center">
+                          <span className="font-black text-[#4A081A] text-xs">
                             {entry.remarks}
                           </span>
                         </td>
-                        <td className="border border-rose-100 px-3 py-1.5 text-slate-500 max-w-[150px]">
+                        <td className="border border-rose-100 px-4 py-2.5 text-slate-500 max-w-[200px]">
                           {entry.cite_reason ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-3">
                               <p
-                                className="italic truncate flex-1 text-[11px]"
+                                className="italic truncate flex-1 text-xs"
                                 title={entry.cite_reason}
                               >
                                 {entry.cite_reason}
                               </p>
                               <Popover>
                                 <PopoverTrigger asChild>
-                                  <button className="p-1 hover:bg-rose-100 text-[#7B0F2B] rounded transition-all shrink-0">
-                                    <Eye className="w-3 h-3" />
+                                  <button className="p-1.5 hover:bg-rose-100 text-[#7B0F2B] rounded transition-all shrink-0">
+                                    <Eye className="w-4 h-4" />
                                   </button>
                                 </PopoverTrigger>
                                 <PopoverContent
@@ -2717,26 +2721,26 @@ export default function LeavePage() {
                               </Popover>
                             </div>
                           ) : (
-                            <span className="text-slate-300 italic text-[10px] text-center block w-full">
+                            <span className="text-slate-300 italic text-xs text-center block w-full">
                               —
                             </span>
                           )}
                         </td>
-                        <td className="border border-rose-100 px-2 py-1.5 text-center">
-                          <div className="flex items-center justify-center gap-1">
+                        <td className="border border-rose-100 px-3 py-2.5 text-center">
+                          <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleEdit(entry)}
-                              className="p-1 hover:bg-blue-50 text-blue-600 rounded transition-all"
+                              className="p-1.5 hover:bg-blue-50 text-blue-600 rounded transition-all border border-transparent hover:border-blue-100"
                               title="Edit"
                             >
-                              <Pencil className="w-3.5 h-3.5" />
+                              <Pencil className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(entry.id)}
-                              className="p-1 hover:bg-red-50 text-red-600 rounded transition-all"
+                              className="p-1.5 hover:bg-red-50 text-red-600 rounded transition-all border border-transparent hover:border-red-100"
                               title="Delete"
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
                         </td>

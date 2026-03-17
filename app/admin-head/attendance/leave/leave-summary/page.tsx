@@ -203,7 +203,7 @@ export default function LeaveSummaryPage() {
       if (val % 1 !== 0) {
         const days = Math.floor(val);
         const hours = (val % 1) * 8;
-        return days > 0 ? `${days}d ${hours}h` : `${hours}h`;
+        return days > 0 ? `${days}d ${hours}hrs` : `${hours}hrs`;
       }
       return val; // Whole number
     };
@@ -709,21 +709,23 @@ export default function LeaveSummaryPage() {
               <table className="w-full text-xs border-collapse">
                 <thead>
                   <tr className="bg-[#FFF1F3] text-[#7B0F2B] border-b border-rose-200 font-black uppercase text-[10px] tracking-wider">
-                    <th className="px-3 py-2 text-center border-r border-rose-200/50 w-20">
+                    <th className="px-3 py-4 text-center border-r border-rose-200/50 w-24">
                       ID Number
                     </th>
-                    <th className="px-3 py-2 text-left pl-6 min-w-[180px] border-r border-rose-200/50">
+                    <th className="px-4 py-4 text-left pl-6 w-64 border-r border-rose-100/50">
                       Name
                     </th>
                     {MONTHS.map((m) => (
                       <th
                         key={m}
-                        className="px-1 py-2 text-center w-10 border-r border-rose-200/50"
+                        className="px-2 py-4 text-center w-16 border-r border-rose-200/50"
                       >
                         {m}
                       </th>
                     ))}
-                    <th className="px-3 py-2 text-center w-24">Total</th>
+                    <th className="px-3 py-4 text-center w-32">
+                      Total Leave Taken
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -735,10 +737,13 @@ export default function LeaveSummaryPage() {
                         idx % 2 === 0 ? "bg-white" : "bg-[#FFF9FA]/50",
                       )}
                     >
-                      <td className="px-3 py-2 text-center text-slate-500 font-medium border-r border-rose-100/50">
+                      <td className="px-3 py-3 text-center text-slate-500 font-semibold border-r border-rose-100/50">
                         {record.employee.id}
                       </td>
-                      <td className="px-6 py-2 text-left text-sm font-bold text-slate-700 border-r border-rose-100/50">
+                      <td
+                        className="px-6 py-3 text-left text-sm font-bold text-slate-700 border-r border-rose-100/50 truncate max-w-[250px]"
+                        title={record.employee.name}
+                      >
                         {record.employee.name}
                       </td>
 
@@ -746,18 +751,18 @@ export default function LeaveSummaryPage() {
                         <td
                           key={mIdx}
                           className={cn(
-                            "px-1 py-2 text-center border-r border-rose-100/50",
+                            "px-2 py-3 text-center border-r border-rose-100/50",
                             val >= 3
                               ? "bg-rose-100 text-[#800020] font-black text-xs"
-                              : "text-slate-500 font-bold",
+                              : "text-slate-500 font-bold text-xs",
                           )}
                         >
                           {val > 0 ? (
                             val % 1 !== 0 ? (
                               Math.floor(val) > 0 ? (
-                                `${Math.floor(val)}d ${(val % 1) * 8}h`
+                                `${Math.floor(val)}d ${(val % 1) * 8}hrs`
                               ) : (
-                                `${val * 8}h`
+                                `${val * 8}hrs`
                               )
                             ) : (
                               val
@@ -768,13 +773,13 @@ export default function LeaveSummaryPage() {
                         </td>
                       ))}
 
-                      <td className="px-3 py-2 text-center font-black text-[#4A081A] bg-[#FFF5F6] text-sm">
+                      <td className="px-3 py-3 text-center font-black text-[#4A081A] bg-[#FFF5F6] text-sm">
                         {record.total > 0 ? (
                           record.total % 1 !== 0 ? (
                             Math.floor(record.total) > 0 ? (
-                              `${Math.floor(record.total)}d ${(record.total % 1) * 8}h`
+                              `${Math.floor(record.total)}d ${(record.total % 1) * 8}hrs`
                             ) : (
-                              `${record.total * 8}h`
+                              `${record.total * 8}hrs`
                             )
                           ) : (
                             record.total
