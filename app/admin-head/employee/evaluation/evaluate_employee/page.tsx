@@ -532,6 +532,10 @@ function EvaluateEmployeeForm() {
 
     setIsExportingPdf(true)
     try {
+      const templateForExport = {
+        ...evaluationTemplate,
+        companyName: employeeDetails?.office || evaluationTemplate.companyName
+      }
       const response = await fetch(
         `${getApiUrl()}/api/evaluations/${selectedEmployeeId}/pdf`,
         {
@@ -539,7 +543,7 @@ function EvaluateEmployeeForm() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             view: evaluationView,
-            template: evaluationTemplate
+            template: templateForExport
           })
         }
       )
@@ -560,7 +564,13 @@ function EvaluateEmployeeForm() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `evaluation_${selectedEmployeeId}.pdf`
+      const disposition = response.headers.get('content-disposition') || ''
+      const match = disposition.match(/filename\\*?=(?:UTF-8''|\"?)([^\";]+)\"?/i)
+      const fallbackName = selectedEmployee
+        ? `${selectedEmployee.last_name}, ${selectedEmployee.first_name}_${selectedEmployeeId}.pdf`
+        : `evaluation_${selectedEmployeeId}.pdf`
+      const filename = match ? decodeURIComponent(match[1]) : fallbackName
+      a.download = filename
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -581,12 +591,16 @@ function EvaluateEmployeeForm() {
 
     setIsEmailSending(true)
     try {
+      const templateForExport = {
+        ...evaluationTemplate,
+        companyName: employeeDetails?.office || evaluationTemplate.companyName
+      }
       const response = await fetch(`${getApiUrl()}/api/evaluations/${selectedEmployeeId}/email-pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           view: evaluationView,
-          template: evaluationTemplate
+          template: templateForExport
         })
       })
       const raw = await response.text()

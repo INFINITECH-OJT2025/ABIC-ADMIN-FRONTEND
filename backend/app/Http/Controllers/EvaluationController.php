@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\Department;
 use App\Models\Employee;
 use App\Models\Evaluation;
+use App\Models\Office;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -94,7 +96,7 @@ class EvaluationController extends Controller
 
         // A4 paper (portrait)
         $pdf = Pdf::loadView('pdf.evaluation', $payload)->setPaper('a4', 'portrait');
-        $filename = 'evaluation_' . $employee->id . '_' . now()->format('Ymd_His') . '.pdf';
+        $filename = $this->buildPdfFilename($employee);
 
         return $pdf->download($filename);
     }
@@ -123,7 +125,7 @@ class EvaluationController extends Controller
             // A4 paper (portrait)
             $pdf = Pdf::loadView('pdf.evaluation', $payload)->setPaper('a4', 'portrait');
             $pdfBinary = $pdf->output();
-            $filename = 'evaluation_' . $employee->id . '.pdf';
+            $filename = $this->buildPdfFilename($employee);
 
             Mail::send([], [], function ($message) use ($recipient, $employee, $pdfBinary, $filename) {
                 $fullName = trim((string) ($employee->first_name . ' ' . $employee->last_name));
@@ -157,6 +159,10 @@ class EvaluationController extends Controller
     {
         $defaultTemplate = $this->getDefaultTemplate();
         $template = $this->mergeTemplate($defaultTemplate, $template);
+        $officeName = $this->resolveOfficeName($employee);
+        if ($officeName) {
+            $template['companyName'] = $officeName;
+        }
 
         $criteriaDefaults = $this->getCriteriaDefaults();
         $criteriaOverrides = is_array($template['criteriaOverrides'] ?? null)
@@ -290,6 +296,44 @@ class EvaluationController extends Controller
     {
         $lines = array_map('trim', preg_split('/\r\n|\r|\n/', $value));
         return array_values(array_filter($lines, fn($line) => $line !== ''));
+    }
+
+    private function resolveOfficeName(Employee $employee): ?string
+    {
+        $deptValue = (string) ($employee->department ?? '');
+        if ($deptValue === '') {
+            return null;
+        }
+
+        $department = Department::query()
+            ->where('id', $deptValue)
+            ->orWhere('name', $deptValue)
+            ->first();
+
+        if (!$department) {
+            return null;
+        }
+
+        $office = Office::query()->find($department->office_id);
+        return $office?->name ? trim((string) $office->name) : null;
+    }
+
+    private function buildPdfFilename(Employee $employee): string
+    {
+        $lastName = trim((string) ($employee->last_name ?? ''));
+        $firstName = trim((string) ($employee->first_name ?? ''));
+        $idNumber = trim((string) ($employee->id ?? ''));
+
+        $base = trim($lastName . ', ' . $firstName . '_' . $idNumber, ' ,_');
+        if ($base === '') {
+            $base = 'evaluation';
+        }
+
+        $safe = preg_replace('/[\\\\\\/:"*?<>|]+/', '-', $base);
+        $safe = preg_replace('/\\s+/', ' ', $safe);
+        $safe = trim($safe, ' .');
+
+        return $safe . '.pdf';
     }
 
     private function normalizeBreakdown($breakdown, ?int $totalScore, array $criteria): array
