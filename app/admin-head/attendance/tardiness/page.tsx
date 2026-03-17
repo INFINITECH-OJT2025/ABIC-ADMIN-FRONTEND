@@ -73,6 +73,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { cn } from "@/lib/utils";
 import { getApiUrl } from "@/lib/api";
+import { useConfirmation } from "@/components/providers/confirmation-provider";
 
 // --- Skeleton Components ---
 const TardinessSkeleton = () => (
@@ -214,8 +215,17 @@ let DEPT_TO_OFFICE_MAP: Record<string, string> = {};
 
 // Parse start time from shift option string (e.g., "8:00 AM – 12:00 PM" -> 8:00 AM)
 function extractStartTime(shiftOption: string): string {
-  // Support both en-dash (–) and hyphen (-)
-  const parts = shiftOption.split(/\s*[–-]\s*/);
+  if (!shiftOption) return "";
+
+  // 1. Priority Fallback: Robustly match the FIRST valid time pattern (e.g., HH:MM AM/PM)
+  // This is safer than splitting if the separator is unusual or missing
+  const timeMatch = shiftOption.match(/\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?/i);
+  if (timeMatch) {
+    return timeMatch[0].trim();
+  }
+
+  // 2. Secondary: Support en-dash (–), em-dash (—), hyphen (-), and the word "to"
+  const parts = shiftOption.split(/\s*[–—-]|(?:\s+to\s+)\s*/i);
   return parts[0].trim();
 }
 
@@ -522,11 +532,14 @@ function recalculateWarnings(
   entries: LateEntry[],
   leaves: LeaveEntry[],
 ): LateEntry[] {
-  // First, group by employee ONLY (to allow monthly cumulative counts)
+  // First, group by employee AND cutoff (to enforce separation between cutoffs)
   const entriesByEmployee = new Map<string | number, LateEntry[]>();
 
   entries.forEach((entry) => {
-    const key = entry.employee_id || entry.employee_name;
+    // Unique key per employee + cutoff to ensure counters reset every cutoff
+    const cutoff = entry.cutoffPeriod || entry.cutoff_period || "unknown";
+    const key = `${entry.employee_id || entry.employee_name}-${cutoff}`;
+
     if (!entriesByEmployee.has(key)) {
       entriesByEmployee.set(key, []);
     }
@@ -1056,7 +1069,10 @@ function EmployeeSelector({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between gap-2 h-9 text-xs border-slate-200 hover:bg-stone-50 font-normal text-slate-500 rounded-lg shadow-none px-4"
+          className={cn(
+            "w-full justify-between gap-2 h-9 text-xs border-slate-200 hover:bg-stone-50 rounded-lg shadow-none px-4 transition-all",
+            value ? "text-slate-900 font-bold" : "text-slate-500 font-normal",
+          )}
         >
           <span className="truncate shrink-0">
             {value
@@ -1090,14 +1106,26 @@ function EmployeeSelector({
                     onChange(currentValue === value ? "" : currentValue);
                     setOpen(false);
                   }}
+                  className="flex items-center justify-between py-2.5"
                 >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === employee.name ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  {employee.name}
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <Check
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        value === employee.name ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <div className="flex flex-col gap-0.5 overflow-hidden">
+                      <span className="font-bold text-slate-900 truncate shrink-0">
+                        {employee.name}
+                      </span>
+                      {employee.department && (
+                        <span className="text-[10px] text-slate-400 font-medium truncate uppercase tracking-tight">
+                          {employee.department}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -1440,14 +1468,20 @@ const CustomTimePicker = ({
           <span className="truncate">{value ? displayTime : "--:-- --"}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-3 bg-white border border-slate-200 shadow-xl rounded-xl" align="start">
+      <PopoverContent
+        className="w-auto p-3 bg-white border border-slate-200 shadow-xl rounded-xl"
+        align="start"
+      >
         <div className="flex items-center gap-2">
           {/* Hour Scroller */}
           <div className="flex flex-col gap-1">
             <span className="text-[10px] font-bold text-slate-500 uppercase text-center">
               Hour
             </span>
-            <div className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1" style={{ scrollbarWidth: "none" }}>
+            <div
+              className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1"
+              style={{ scrollbarWidth: "none" }}
+            >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => {
                 const sHour = h.toString().padStart(2, "0");
                 return (
@@ -1473,7 +1507,10 @@ const CustomTimePicker = ({
             <span className="text-[10px] font-bold text-slate-500 uppercase text-center">
               Min
             </span>
-            <div className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1" style={{ scrollbarWidth: "none" }}>
+            <div
+              className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1"
+              style={{ scrollbarWidth: "none" }}
+            >
               {Array.from({ length: 60 }, (_, i) => i).map((m) => {
                 const sMin = m.toString().padStart(2, "0");
                 return (
@@ -1527,6 +1564,7 @@ const CustomTimePicker = ({
 
 // ---------- MAIN DASHBOARD ----------
 export default function AttendanceDashboard() {
+  const { confirm } = useConfirmation();
   // State for year & month selection
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(
@@ -1765,13 +1803,18 @@ export default function AttendanceDashboard() {
 
   // Pagination states for each table removed per user request
 
-  // New Year confirmation state
-  const [showNewYearConfirm, setShowNewYearConfirm] = useState(false);
+  // New Year state
   const [isAddingYear, setIsAddingYear] = useState(false);
 
   // Handler to add a new year after confirmation
   const handleAddNewYearConfirm = () => {
-    setShowNewYearConfirm(true);
+    confirm({
+      title: "Confirm New Year",
+      description: `Are you sure you want to initialize year ${Math.max(...yearsList) + 1}? This will add it to the selection menu.`,
+      icon: Calendar,
+      variant: "info",
+      onConfirm: addNewYear,
+    });
   };
 
   // Handler to undo year addition
@@ -1831,7 +1874,6 @@ export default function AttendanceDashboard() {
     // This allows the user to select the new year immediately and start adding records
     setYearsList((prev) => [...prev, nextYear].sort((a, b) => a - b));
     setSelectedYear(nextYear);
-    setShowNewYearConfirm(false);
 
     try {
       const res = await fetch("/api/admin-head/attendance/tardiness/years", {
@@ -2004,7 +2046,54 @@ export default function AttendanceDashboard() {
     setNewEntryTime("");
   };
 
-  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  // Navigation Guard: Prevent leaving with unsaved changes in the form
+  useEffect(() => {
+    const hasUnsavedChanges = (newEntryEmployee || newEntryTime) && !isSaving;
+
+    // Internal Navigation guard (Next.js links, Sidebar items)
+    const handleInternalNavigation = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest("a");
+
+      if (anchor && hasUnsavedChanges) {
+        // Only block if it looks like a real navigation link
+        const href = anchor.getAttribute("href");
+        if (!href || href === "#" || href.startsWith("javascript:")) return;
+
+        // Skip if it's just opening a new tab
+        if (anchor.target === "_blank") return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        confirm({
+          title: "Unsaved Changes",
+          description: (
+            <>
+              You have an unsaved entry for{" "}
+              <span className="text-[#4A081A] font-black">
+                {newEntryEmployee || "a selected employee"}
+              </span>
+              . Moving to another page will discard your progress.
+            </>
+          ),
+          confirmText: "Discard & Leave",
+          cancelText: "Stay Here",
+          variant: "warning",
+          onConfirm: () => {
+            // Use standard navigation since we are discarding state anyway
+            window.location.href = anchor.href;
+          },
+        });
+      }
+    };
+
+    document.addEventListener("click", handleInternalNavigation, true);
+
+    return () => {
+      document.removeEventListener("click", handleInternalNavigation, true);
+    };
+  }, [newEntryEmployee, newEntryTime, isSaving, confirm]);
 
   // Validation before opening confirmation
   const handleSaveClick = () => {
@@ -2072,7 +2161,18 @@ export default function AttendanceDashboard() {
     }
 
     // If validation passes, open confirmation modal
-    setShowSaveConfirm(true);
+    confirm({
+      title: "Confirm New Entry",
+      description: (
+        <>
+          Are you sure you want to add a late entry for{" "}
+          <span className="text-[#4A081A] font-bold">{newEntryEmployee}</span>{" "}
+          at <span className="text-[#4A081A] font-bold">{newEntryTime}</span>?
+        </>
+      ),
+      icon: Clock,
+      onConfirm: executeSaveEntry,
+    });
   };
 
   // Actual Save Logic (triggered by confirmation modal)
@@ -2173,7 +2273,6 @@ export default function AttendanceDashboard() {
         }
 
         resetAddEntryFields();
-        setShowSaveConfirm(false); // Close modal on success
       } else {
         toast.error(data.message || "Failed to save entry");
       }
@@ -2196,6 +2295,12 @@ export default function AttendanceDashboard() {
     setSummarySheetOpen(false);
     setActiveCutoffSummary(null);
   };
+
+  // Derive schedule for the selected employee in the "New Record" form as a guide
+  const selectedEmpForForm = employees.find((e) => e.name === newEntryEmployee);
+  const selectedEmpSchedule = selectedEmpForForm
+    ? getShiftSchedule(selectedEmpForForm.department)
+    : null;
 
   // ---------- RENDER ----------
 
@@ -2520,8 +2625,17 @@ export default function AttendanceDashboard() {
                   </div>
 
                   <div className="flex-1 min-w-[200px] flex flex-col gap-1.5">
-                    <label className="text-[11px] font-bold text-black uppercase tracking-wider ml-1">
-                      Actual In Time
+                    <label className="text-[11px] font-bold text-black uppercase tracking-wider ml-1 flex items-center justify-between">
+                      <span>Actual In Time</span>
+                      {selectedEmpSchedule && (
+                        <span className="text-[10px] text-[#A4163A] font-black lowercase tracking-normal flex items-center gap-1">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          Start Time:{" "}
+                          {extractStartTime(
+                            selectedEmpSchedule.displayName,
+                          ).replace(/\s+/g, "")}
+                        </span>
+                      )}
                     </label>
                     <div className="relative group/input">
                       <CustomTimePicker
@@ -2539,7 +2653,7 @@ export default function AttendanceDashboard() {
                         setIsEntryFormOpen(false);
                         resetAddEntryFields();
                       }}
-                      className="h-9 px-4 text-[10px] font-black text-[#7B0F2B] uppercase tracking-widest hover:bg-rose-50 rounded-lg transition-all"
+                      className="h-9 px-8 text-[10px] font-black text-[#7B0F2B] uppercase tracking-widest hover:bg-rose-50 rounded-lg transition-all min-w-[128px]"
                     >
                       Cancel
                     </Button>
@@ -2548,7 +2662,7 @@ export default function AttendanceDashboard() {
                       disabled={
                         isSaving || selectedYear !== new Date().getFullYear()
                       }
-                      className="h-9 px-8 text-[10px] font-black text-white uppercase tracking-widest bg-[#7B0F2B] hover:bg-[#630C22] shadow-md shadow-rose-900/10 rounded-lg min-w-[130px]"
+                      className="h-9 px-8 text-[10px] font-black text-white uppercase tracking-widest bg-[#7B0F2B] hover:bg-[#630C22] shadow-md shadow-rose-900/10 rounded-lg min-w-[128px]"
                     >
                       {isSaving ? (
                         <>
@@ -2556,7 +2670,7 @@ export default function AttendanceDashboard() {
                           <span>Saving...</span>
                         </>
                       ) : (
-                        "Save Record"
+                        "Save"
                       )}
                     </Button>
                   </div>
@@ -2622,83 +2736,6 @@ export default function AttendanceDashboard() {
           leaves={leaves}
         />
       )}
-
-      <Dialog open={showNewYearConfirm} onOpenChange={setShowNewYearConfirm}>
-        <DialogContent className="bg-white border-2 border-[#FFE5EC] rounded-2xl max-w-sm">
-          <DialogHeader className="flex flex-col items-center gap-4 text-center">
-            <div className="p-4 bg-red-50 rounded-full">
-              <Calendar className="w-8 h-8 text-[#4A081A]" />
-            </div>
-            <div className="space-y-2">
-              <DialogTitle className="text-2xl font-bold text-[#4A081A]">
-                Confirm New Year
-              </DialogTitle>
-              <DialogDescription className="text-stone-500 font-medium">
-                Are you sure you want to initialize year{" "}
-                {Math.max(...yearsList) + 1}? This will add it to the selection
-                menu.
-              </DialogDescription>
-            </div>
-          </DialogHeader>
-          <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setShowNewYearConfirm(false)}
-              disabled={isAddingYear}
-              className="flex-1 border-2 border-stone-100 text-stone-600 hover:bg-stone-50 font-bold h-12 rounded-xl"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={addNewYear}
-              disabled={isAddingYear}
-              className="flex-1 bg-gradient-to-r from-[#4A081A] to-[#800020] hover:from-[#630C22] hover:to-[#A0153E] text-white font-bold h-12 rounded-xl shadow-md transition-all active:scale-95"
-            >
-              {isAddingYear ? "Initializing..." : "Confirm"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
-        <DialogContent className="bg-white border-2 border-[#FFE5EC] rounded-2xl max-w-sm">
-          <DialogHeader className="flex flex-col items-center gap-4 text-center">
-            <div className="p-4 bg-red-50 rounded-full">
-              <Clock className="w-8 h-8 text-[#4A081A]" />
-            </div>
-            <div className="space-y-2">
-              <DialogTitle className="text-2xl font-bold text-[#4A081A]">
-                Confirm New Entry
-              </DialogTitle>
-              <DialogDescription className="text-stone-500 font-medium">
-                Are you sure you want to add a late entry for{" "}
-                <span className="text-[#4A081A] font-bold">
-                  {newEntryEmployee}
-                </span>{" "}
-                at{" "}
-                <span className="text-[#4A081A] font-bold">{newEntryTime}</span>
-                ?
-              </DialogDescription>
-            </div>
-          </DialogHeader>
-          <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setShowSaveConfirm(false)}
-              disabled={isSaving}
-              className="flex-1 border-2 border-stone-100 text-stone-600 hover:bg-stone-50 font-bold h-12 rounded-xl"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={executeSaveEntry}
-              disabled={isSaving}
-              className="flex-1 bg-gradient-to-r from-[#4A081A] to-[#800020] hover:from-[#630C22] hover:to-[#A0153E] text-white font-bold h-12 rounded-xl shadow-md transition-all active:scale-95"
-            >
-              {isSaving ? "Saving..." : "Confirm"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

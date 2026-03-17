@@ -248,17 +248,18 @@ export default function WarningLetterPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [empRes, leavesRes, entRes, evalRes, creditsRes] = await Promise.all([
-        fetch(
-          "/api/admin-head/employees?status=employed,rehired,rehired_employee",
-        ),
-        fetch(`${getApiUrl()}/api/leaves`),
-        fetch(
-          `${getApiUrl()}/api/admin-head/attendance/tardiness?month=${selectedMonth}&year=${selectedYear}`,
-        ),
-        fetch(`${getApiUrl()}/api/evaluations`),
-        fetch(`${getApiUrl()}/api/leaves/credits`),
-      ]);
+      const [empRes, leavesRes, entRes, evalRes, creditsRes] =
+        await Promise.all([
+          fetch(
+            "/api/admin-head/employees?status=employed,rehired,rehired_employee",
+          ),
+          fetch(`${getApiUrl()}/api/leaves`),
+          fetch(
+            `${getApiUrl()}/api/admin-head/attendance/tardiness?month=${selectedMonth}&year=${selectedYear}`,
+          ),
+          fetch(`${getApiUrl()}/api/evaluations`),
+          fetch(`${getApiUrl()}/api/leaves/credits`),
+        ]);
 
       const empData = await empRes.json();
       const leavesData = await leavesRes.json();
@@ -274,21 +275,29 @@ export default function WarningLetterPage() {
 
       const creditsMap = new Map<string, any>();
       if (creditsData.success) {
-        creditsData.data.forEach((c: any) => creditsMap.set(String(c.employee_id), c));
+        creditsData.data.forEach((c: any) =>
+          creditsMap.set(String(c.employee_id), c),
+        );
       }
 
       // Group and summarize leave entries for ALL months in the selected year to calculate warning levels
       // For SL and VL, we deduct from credits first if eligible
       const runningCredits = new Map<string, { vl: number; sl: number }>();
-      
+
       const allLeaveGroups = new Map<string, any>();
-      
+
       // Sort leaves chronologically to correctly deduct from annual credits
-      const sortedLeaves = [...currentLeaves].filter((entry: any) => {
-        const isApproved = entry.approved_by !== "Pending" && entry.approved_by !== "Declined";
-        const date = new Date(entry.start_date);
-        return isApproved && date.getFullYear() === selectedYear;
-      }).sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+      const sortedLeaves = [...currentLeaves]
+        .filter((entry: any) => {
+          const isApproved =
+            entry.approved_by !== "Pending" && entry.approved_by !== "Declined";
+          const date = new Date(entry.start_date);
+          return isApproved && date.getFullYear() === selectedYear;
+        })
+        .sort(
+          (a, b) =>
+            new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
+        );
 
       sortedLeaves.forEach((entry: any) => {
         const date = new Date(entry.start_date);
@@ -297,19 +306,19 @@ export default function WarningLetterPage() {
         const cutoff = day <= 15 ? "cutoff1" : "cutoff2";
         const key = `${entry.employee_id}-${months[m]}-${cutoff}`;
         const empId = String(entry.employee_id);
-        
+
         const creditInfo = creditsMap.get(empId);
         const isEligible = creditInfo?.has_one_year_regular;
-        
+
         let daysToCount = Number(entry.number_of_days);
-        
+
         if (isEligible) {
           if (!runningCredits.has(empId)) {
             runningCredits.set(empId, { vl: 15, sl: 15 });
           }
           const running = runningCredits.get(empId)!;
           const remarks = String(entry.remarks || "").toLowerCase();
-          
+
           if (remarks.includes("sick")) {
             const deduct = Math.min(daysToCount, running.sl);
             running.sl -= deduct;
@@ -335,10 +344,7 @@ export default function WarningLetterPage() {
           const existing = allLeaveGroups.get(key);
           existing.total_days += daysToCount;
           existing.actual_total_days += Number(entry.number_of_days);
-          if (
-            entry.remarks &&
-            !existing.remarks_list.includes(entry.remarks)
-          ) {
+          if (entry.remarks && !existing.remarks_list.includes(entry.remarks)) {
             existing.remarks_list.push(entry.remarks);
           }
           if (
@@ -437,22 +443,28 @@ export default function WarningLetterPage() {
           };
         });
 
+        // Group by employee AND cutoff to ensure late counts reset every cutoff period
+        const entriesByEmployeeAndCutoff = new Map<string, any[]>();
         mappedEntries.forEach((entry: any) => {
-          const key = entry.employee_id;
-          if (!entriesByEmployee.has(key)) entriesByEmployee.set(key, []);
-          entriesByEmployee.get(key)?.push(entry);
+          const key = `${entry.employee_id}-${entry.cutoff}`;
+          if (!entriesByEmployeeAndCutoff.has(key))
+            entriesByEmployeeAndCutoff.set(key, []);
+          entriesByEmployeeAndCutoff.get(key)?.push(entry);
         });
 
         const lateGroups = new Map<string, any>();
-        entriesByEmployee.forEach((group) => {
+        entriesByEmployeeAndCutoff.forEach((group, key) => {
           group.sort(
             (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
           );
+
           let lateCount = 0;
           group.forEach((entry) => {
             const isLate = entry.minutes_late > 0 || entry.minutesLate > 0;
             let currentWarningLevel = 0;
 
+            // If the entry already has a warning level from the database/recalc, respect it
+            // Otherwise calculate it based on the occurrences in THIS cutoff group
             if (entry.warning_level > 0) {
               currentWarningLevel = entry.warning_level;
               lateCount = Math.max(lateCount, entry.warning_level + 2);
@@ -464,7 +476,6 @@ export default function WarningLetterPage() {
             }
 
             if (currentWarningLevel > 0) {
-              const key = `${entry.employee_id}-${entry.cutoff}`;
               if (!lateGroups.has(key)) {
                 lateGroups.set(key, {
                   ...entry,
@@ -473,7 +484,7 @@ export default function WarningLetterPage() {
                 });
               } else {
                 const existing = lateGroups.get(key);
-                // Keep the highest warning level in the cutoff
+                // Keep the highest warning level reached in this cutoff
                 if (currentWarningLevel > existing.warning_level) {
                   existing.warning_level = currentWarningLevel;
                   existing.date = entry.date;
@@ -765,7 +776,7 @@ export default function WarningLetterPage() {
                       Warning Level
                     </TableHead>
                     <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center">
-                      Manage
+                      Letter
                     </TableHead>
                     <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center">
                       History
@@ -856,7 +867,7 @@ export default function WarningLetterPage() {
                             className="text-[#800020] hover:text-[#4A081A] hover:bg-rose-50 rounded-xl font-bold gap-1.5 text-xs h-8 px-3 border border-transparent hover:border-rose-100 transition-all cursor-pointer"
                           >
                             <History className="w-3.5 h-3.5" />
-                            View
+                            Sent
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -913,13 +924,10 @@ export default function WarningLetterPage() {
                       Employee
                     </TableHead>
                     <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center">
-                      Absence Days
-                    </TableHead>
-                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center">
                       Warning Level
                     </TableHead>
                     <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center">
-                      Manage
+                      Letter
                     </TableHead>
                     <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center">
                       History
@@ -958,20 +966,6 @@ export default function WarningLetterPage() {
                           </div>
                         </TableCell>
                         <TableCell className="py-4 px-6 text-center">
-                          <div className="font-bold text-[#A4163A] text-lg">
-                            {entry.number_of_days}
-                            <span className="text-[10px] ml-0.5 text-slate-400">
-                              D
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-slate-400 mt-0.5 whitespace-nowrap">
-                            {new Date(entry.start_date).toLocaleDateString(
-                              undefined,
-                              { month: "short", day: "numeric" },
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="py-4 px-6 text-center">
                           <div className="flex justify-center">
                             <span
                               className={cn(
@@ -1003,7 +997,7 @@ export default function WarningLetterPage() {
                             className="text-[#800020] hover:text-[#800020] hover:bg-rose-50/50 rounded-xl font-bold gap-2 text-xs h-10 px-6 border border-transparent hover:border-rose-100 transition-all shadow-none hover:shadow-sm cursor-pointer"
                           >
                             <FileText className="w-4 h-4 text-[#800020]" />
-                            View Form
+                            View Letter
                             <ChevronRight className="w-3 h-3 ml-auto opacity-30 group-hover/row:translate-x-1 transition-transform" />
                           </Button>
                         </TableCell>
@@ -1022,7 +1016,7 @@ export default function WarningLetterPage() {
                             className="text-[#800020] hover:text-[#4A081A] hover:bg-rose-50 rounded-xl font-bold gap-1.5 text-xs h-8 px-3 border border-transparent hover:border-rose-100 transition-all cursor-pointer"
                           >
                             <History className="w-3.5 h-3.5" />
-                            View
+                            Sent
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -1030,7 +1024,7 @@ export default function WarningLetterPage() {
                   ) : (
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={4}
                         className="py-20 text-center text-slate-400 italic text-xl"
                       >
                         No approved extended leave requests (3+ days) found for
@@ -1215,7 +1209,7 @@ export default function WarningLetterPage() {
                         className="h-8 px-3 text-[10px] font-bold uppercase tracking-wider text-[#A4163A] border-rose-200 hover:bg-rose-50 hover:text-[#7B0F2B]"
                       >
                         <FileText className="w-3.5 h-3.5 mr-1.5" />
-                        View Form
+                        View Letter
                       </Button>
                     </div>
                   </div>

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { ConfirmationProvider } from "@/components/providers/confirmation-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,21 +31,24 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          <ConfirmationProvider>{children}</ConfirmationProvider>
+        </QueryProvider>
         <Toaster
           position="top-right"
           richColors={false}
           expand={true}
           gap={10}
+          closeButton
           toastOptions={{
             unstyled: true,
             classNames: {
               toast: [
-                "flex items-center gap-4 w-full min-w-[360px] max-w-[440px]",
-                "rounded-2xl px-5 py-4 shadow-2xl",
+                "flex items-center gap-4 w-full min-w-[380px] max-w-[440px]",
+                "rounded-2xl pl-6 pr-14 py-4 shadow-2xl",
                 "border border-white/20",
                 "backdrop-blur-md",
-                "font-sans",
+                "font-sans relative",
               ].join(" "),
               // Default / Info — Clean White
               default: [
@@ -71,16 +75,18 @@ export default function RootLayout({
                 "[&_[data-icon]]:text-white/80",
               ].join(" "),
               title: "font-bold text-base leading-snug tracking-wide",
-              description: "text-stone-500 text-sm mt-1 leading-relaxed",
+              description: "text-stone-900 text-sm mt-1 leading-relaxed",
               icon: "mt-0.5 flex-shrink-0 [&>svg]:w-6 [&>svg]:h-6",
               closeButton: [
-                "!bg-white/20 !border-white/30 hover:!bg-white/30",
-                "!text-white rounded-full transition-all",
+                "!bg-transparent !border-none !shadow-none",
+                "!right-4 !left-auto !top-1/2 !-translate-y-1/2 absolute",
+                "!text-current opacity-90 hover:opacity-100 transition-all scale-150",
+                "flex items-center justify-center",
               ].join(" "),
               actionButton: [
                 "!bg-white/20 !text-white font-bold text-xs px-4 py-2",
                 "rounded-lg border border-white/30 hover:!bg-white/30 transition-all",
-                "whitespace-nowrap flex-shrink-0 ml-auto",
+                "whitespace-nowrap flex-shrink-0 ml-auto mr-2",
               ].join(" "),
               cancelButton: [
                 "!bg-white/10 !text-white/70 font-bold text-xs px-4 py-2",
