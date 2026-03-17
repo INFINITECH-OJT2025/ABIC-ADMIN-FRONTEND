@@ -556,6 +556,10 @@ function TerminatePageContent() {
   const allCount = realtimeTerminations.length
   const terminatedCount = realtimeTerminations.filter((r) => !isRehiredRecord(r)).length
   const rehiredCount = realtimeTerminations.filter((r) => isRehiredRecord(r)).length
+  const completedClearanceCount = Object.keys(completedClearanceTasks).length
+  const clearanceCompletionPercentage = clearanceTasks.length > 0
+    ? Math.round((completedClearanceCount / clearanceTasks.length) * 100)
+    : 0
 
   // Modal State
   const [confirmModal, setConfirmModal] = useState<{
@@ -1908,142 +1912,192 @@ function TerminatePageContent() {
       )}
 
       {view === 'checklist' && checklistEmployee && (
-          <div className="max-w-[1600px] mx-auto py-4 text-stone-900 animate-in fade-in zoom-in-95 duration-300">
-            <div className="mb-6">
-              <Button 
-                variant="ghost" 
-                onClick={() => setView('main')}
-                className="text-slate-600 hover:text-slate-900 -ml-4"
-              >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                Back to Records
-              </Button>
-            </div>
-            
-            <div className="rounded-2xl border-2 border-[#FFE5EC] shadow-2xl bg-white overflow-hidden mb-12">
-              <div className="bg-[#FFE5EC]/20 p-4 md:px-8 border-b border-[#FFE5EC]">
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="text-[11px] font-black text-[#800020] uppercase tracking-widest">
-                    Clearance Check Progress: {checklistEmployee.employee?.first_name} {checklistEmployee.employee?.last_name}
-                  </h3>
-                  <span className="text-sm font-black text-[#A4163A] bg-white px-3 py-0.5 rounded-full shadow-sm border border-[#FFE5EC]">
-                    {Object.keys(completedClearanceTasks).length} / {clearanceTasks.length > 0 ? clearanceTasks.length : 1} Completed
+        <div className="w-full pb-12 pt-2 px-4 md:px-6 text-stone-900 animate-in fade-in zoom-in-95 duration-500">
+          <div className="mb-4 md:mb-6">
+            <Button
+              variant="ghost"
+              onClick={() => setView('main')}
+              className="text-slate-600 hover:text-slate-900 -ml-4"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Back to Records
+            </Button>
+          </div>
+
+          <div className="relative bg-[#FCFBF7] shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-sm border border-stone-200 overflow-hidden before:content-[''] before:absolute before:inset-0 before:border-[16px] before:border-double before:border-stone-100/50 before:pointer-events-none">
+            <div className="mx-6 md:mx-8 mt-6 bg-gradient-to-r from-[#4A081A]/10 to-transparent border-b-2 border-[#630C22] p-4 flex justify-between items-center gap-4">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-black text-[#A0153E]/70 uppercase tracking-widest leading-none mb-1 text-left">
+                  Clearance Representative
+                </span>
+                <span className="text-lg md:text-xl font-black text-[#4A081A] leading-none text-left">
+                  {checklistEmployee.employee?.first_name} {checklistEmployee.employee?.last_name}
+                </span>
+              </div>
+              <div className="text-right flex flex-col items-end">
+                <span className="text-[10px] font-black text-[#630C22]/70 uppercase tracking-widest leading-none mb-1">
+                  Completion Index
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#C9184A]" />
+                  <span className="text-xl md:text-2xl font-black text-[#4A081A] leading-none">
+                    {clearanceCompletionPercentage}%
                   </span>
                 </div>
-                <div className="w-full bg-white h-2.5 rounded-full overflow-hidden border border-[#FFE5EC] shadow-inner p-0.5">
-                  <div
-                    className="bg-gradient-to-r from-[#A4163A] to-[#630C22] h-full rounded-full transition-all duration-1000 ease-out shadow-sm"
-                    style={{ width: clearanceTasks.length > 0 ? `${(Object.keys(completedClearanceTasks).length / clearanceTasks.length) * 100}%` : '100%' }}
-                  />
-                </div>
               </div>
+            </div>
 
-              <Table>
-                <TableHeader className="bg-[#FFE5EC]/40">
-                  <TableRow className="border-b border-[#FFE5EC] hover:bg-transparent">
-                    <TableHead className="w-[200px] text-center font-black text-[#800020] uppercase tracking-[0.12em] text-[9px] py-3">Completed Date</TableHead>
-                    <TableHead className="w-[100px] text-center font-black text-[#800020] uppercase tracking-[0.12em] text-[9px] py-3">Status</TableHead>
-                    <TableHead className="font-black text-[#800020] uppercase tracking-[0.12em] text-[9px] py-3">
-                      <div className="flex items-center justify-between">
-                        <span>Tasks for {checklistEmployee.employee?.department || 'Department'}</span>
-                        <button 
-                          onClick={toggleAllClearanceTasks}
-                          className="text-[8px] normal-case bg-white/50 hover:bg-rose-50 text-[#800020] px-2 py-1 rounded-md border border-[#FFE5EC] transition-all font-black shadow-sm"
-                        >
-                          {clearanceTasks.length > 0 && clearanceTasks.every(task => completedClearanceTasks[task]) ? 'UNCHECK ALL' : 'CHECK ALL'}
-                        </button>
-                      </div>
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loadingTasks ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="py-8 text-center">
-                        <div className="flex flex-col items-center justify-center text-slate-400">
-                           <History className="h-6 w-6 animate-spin mb-2" />
-                           <span className="text-xs font-medium">Loading clearance tasks...</span>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ) : clearanceTasks.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="py-8 text-center text-slate-500 text-sm font-medium">
-                        No clearance tasks found for this department.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    clearanceTasks.map((task, index) => (
-                    <TableRow 
-                      key={index} 
-                      className="border-b border-rose-50/30 last:border-0 hover:bg-[#FFE5EC]/5 transition-colors group cursor-pointer"
-                      onClick={() => toggleClearanceTask(task)}
-                    >
-                      <TableCell className="text-center py-2.5 font-mono text-[10px] font-bold text-slate-400">
-                        {completedClearanceTasks[task] || '-'}
-                      </TableCell>
-                      <TableCell className="py-2.5">
-                        <div className="flex justify-center">
-                          <div className={cn(
-                            "w-5 h-5 rounded flex items-center justify-center transition-all border-2",
-                              completedClearanceTasks[task]
-                                ? (savedClearanceTasks.has(task) ? "bg-emerald-700 border-emerald-700 opacity-60 cursor-not-allowed" : "bg-emerald-500 border-emerald-500 text-white shadow-sm")
-                                : "border-slate-200 bg-white hover:border-[#A4163A]"
-                          )}>
-                            {completedClearanceTasks[task] && <Check className="h-3.5 w-3.5" />}
+            <div className="px-6 md:px-8 pt-4 pb-2">
+              <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden border border-stone-200">
+                <div
+                  className="h-full bg-[#A4163A] transition-all duration-1000 shadow-[0_0_10px_rgba(164,22,58,0.4)]"
+                  style={{ width: `${clearanceCompletionPercentage}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="px-6 md:px-8 py-4">
+              <div className="border border-stone-300 rounded-sm">
+                <Table>
+                  <TableHeader className="bg-stone-50 border-b border-stone-300">
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="w-[200px] font-black text-stone-500 uppercase tracking-widest text-[10px] py-3 text-center border-r border-stone-200">
+                        Complete Date
+                      </TableHead>
+                      <TableHead className="w-[100px] font-black text-stone-500 uppercase tracking-widest text-[10px] py-3 text-center border-r border-stone-200">
+                        Status
+                      </TableHead>
+                      <TableHead className="font-black text-stone-500 uppercase tracking-widest text-[10px] py-3 text-left px-6">
+                        <div className="flex items-center justify-between w-full">
+                          <span>Tasks for {checklistEmployee.employee?.department || 'Department'}</span>
+                          <div className="flex items-center pr-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                toggleAllClearanceTasks()
+                              }}
+                              className="h-7 px-3 border-[#A4163A]/20 bg-white hover:bg-[#A4163A]/5 text-[#A4163A] font-black text-[9px] uppercase tracking-widest rounded transition-all shadow-sm flex items-center gap-2"
+                            >
+                              <Check className="h-3 w-3" />
+                              {clearanceTasks.length > 0 && clearanceTasks.every((task) => completedClearanceTasks[task])
+                                ? 'Uncheck All'
+                                : 'Check All'}
+                            </Button>
                           </div>
                         </div>
-                      </TableCell>
-                      <TableCell className="py-2.5">
-                        <span className={cn(
-                          "text-sm font-bold transition-all duration-300",
-                          completedClearanceTasks[task] ? "text-slate-300 line-through" : "text-slate-700"
-                        )}>
-                          {task}
-                        </span>
-                      </TableCell>
+                      </TableHead>
                     </TableRow>
-                  )))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {loadingTasks ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="py-10 text-center text-stone-400 italic">
+                          Retrieving clearance records...
+                        </TableCell>
+                      </TableRow>
+                    ) : clearanceTasks.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={3} className="py-10 text-center text-stone-400 italic text-lg">
+                          No required tasks identified
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      clearanceTasks.map((task, index) => {
+                        const isSavedLocked = Boolean(completedClearanceTasks[task]) && savedClearanceTasks.has(task)
+                        return (
+                          <TableRow
+                            key={index}
+                            onClick={() => {
+                              if (!isSavedLocked) toggleClearanceTask(task)
+                            }}
+                            className={cn(
+                              'border-b border-dashed border-stone-200 last:border-0 transition-colors group',
+                              isSavedLocked
+                                ? 'cursor-not-allowed bg-stone-50/70'
+                                : 'hover:bg-stone-50 cursor-pointer',
+                            )}
+                          >
+                            <TableCell className="text-center py-2 text-[11px] font-medium text-stone-400">
+                              {completedClearanceTasks[task] || 'PENDING'}
+                            </TableCell>
+                            <TableCell className="py-2">
+                              <div className="flex justify-center">
+                                <div
+                                  className={cn(
+                                    'w-6 h-6 rounded-full border-[1.5px] flex items-center justify-center transition-all',
+                                    completedClearanceTasks[task]
+                                      ? 'border-[#A4163A] bg-[#A4163A]/10 text-[#A4163A] scale-110 shadow-sm'
+                                      : 'border-stone-300 group-hover:border-[#A4163A]',
+                                  )}
+                                >
+                                  {completedClearanceTasks[task] && <Check className="h-4 w-4 stroke-[3px]" />}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell className="py-2 px-6">
+                              <span
+                                className={cn(
+                                  'text-sm font-medium transition-all duration-500',
+                                  completedClearanceTasks[task]
+                                    ? 'text-stone-300 line-through'
+                                    : 'text-stone-700',
+                                )}
+                              >
+                                {task}
+                              </span>
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
 
-              <div className="p-4 md:px-8 bg-slate-50/50 border-t border-[#FFE5EC] flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] italic">
-                    CLEARANCE FRAMEWORK • ABIC HR
-                  </p>
-                </div>
-                
-                <div className="flex gap-3">
-                  <Button
-                    onClick={async () => {
-                      const success = await handleSaveClearance(true)
-                      if (success) {
-                        router.push('/admin-head/employee/masterfile')
-                      }
-                    }}
-                    disabled={Object.keys(completedClearanceTasks).length < clearanceTasks.length || isSavingChecklist}
-                    className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-95 transition-all rounded-xl disabled:opacity-50"
-                  >
-                    {isSavingChecklist ? 'SAVING...' : 'COMPLETE CLEARANCE'}
-                  </Button>
-                  <Button 
-                    onClick={async () => {
-                      const success = await handleSaveClearance(false)
-                      if (success) {
-                        router.push('/admin-head/employee/masterfile')
-                      }
-                    }} 
-                    disabled={isSavingChecklist}
-                    className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-[#A4163A] hover:bg-[#800020] text-white shadow-lg active:scale-95 transition-all rounded-xl"
-                  >
-                    {isSavingChecklist ? 'SAVING...' : 'SAVE PROGRESS'}
-                  </Button>
-                </div>
+            <div className="mt-2 px-6 md:px-8 pb-6 pt-4 border-t border-dashed border-stone-300 mx-6 md:mx-8 flex flex-col md:flex-row justify-between items-center gap-6">
+              <div className="flex flex-col items-center md:items-start">
+                <p className="text-[9px] font-black tracking-widest text-[#A4163A]/60 uppercase mb-0.5 font-sans">
+                  Authenticated by
+                </p>
+                <p className="text-lg font-bold text-stone-800 font-sans tracking-tight">
+                  ABIC Administration
+                </p>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  onClick={async () => {
+                    const success = await handleSaveClearance(false)
+                    if (success) {
+                      router.push('/admin-head/employee/masterfile')
+                    }
+                  }}
+                  disabled={isSavingChecklist}
+                  variant="outline"
+                  className="h-10 px-6 border-stone-300 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-stone-50 transition-all shadow-sm font-sans"
+                >
+                  {isSavingChecklist ? 'Saving...' : 'Save Progress'}
+                </Button>
+                <Button
+                  onClick={async () => {
+                    const success = await handleSaveClearance(true)
+                    if (success) {
+                      router.push('/admin-head/employee/masterfile')
+                    }
+                  }}
+                  disabled={completedClearanceCount < clearanceTasks.length || isSavingChecklist}
+                  className="h-10 px-6 bg-[#A4163A] hover:bg-[#800020] text-white rounded-lg font-bold text-[10px] uppercase tracking-wider shadow-md transform active:scale-95 transition-all font-sans"
+                >
+                  Complete Clearance
+                </Button>
               </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
       </div>
 
       {/* Termination Detail View Modal */}
