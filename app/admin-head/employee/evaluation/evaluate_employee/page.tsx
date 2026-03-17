@@ -101,6 +101,36 @@ const CRITERIA = [
   { id: 'communication', label: '10. COMMUNICATION SKILLS', desc: 'How successful is he in expressing himself orally, verbally and in written form?' }
 ] as const
 
+const DEFAULT_EVALUATION_TEMPLATE = {
+  companyName: "ABIC REALTY & CONSULTANCY CORPORATION",
+  title: "PERFORMANCE APPRAISAL",
+  metaNameLabel: "NAME",
+  metaDepartmentLabel: "DEPARTMENT/JOB TITLE",
+  metaRatingPeriodLabel: "RATING PERIOD",
+  criteriaHeader: "CRITERIA",
+  ratingHeader: "RATING",
+  criteriaOverrides: Object.fromEntries(
+    CRITERIA.map((item) => [
+      item.id,
+      { label: item.label, desc: item.desc },
+    ]),
+  ),
+  agreementText:
+    "The above appraisal was discussed with me by my superior and I",
+  ratingScaleTitle: "EMPLOYEE SHALL BE RATED AS FOLLOWS:",
+  ratingScaleLines:
+    "1 - Poor\n2 - Needs Improvement\n3 - Meets Minimum Requirement\n4 - Very Satisfactory\n5 - Outstanding",
+  interpretationTitle: "INTERPRETATION OF TOTAL RATING SCORE:",
+  interpretationLines:
+    "50 - 41 Highly suitable to the position\n40 - 31 Suitable to the position\n30 - 16 Fails to meet minimum requirements of the job\n15 - 0 Employee advise to resign",
+  recommendationLabel: "RECOMMENDATION: REGULAR EMPLOYMENT",
+  remarksLabel: "COMMENTS / REMARKS:",
+  managerSignaturesTitle: "Manager Approval Signatures",
+  ratedByLabel: "Rated by:",
+  reviewedByLabel: "Reviewed by:",
+  approvedByLabel: "Approved by:",
+}
+
 const EMPTY_SCORES: Record<CriteriaId, string> = {
   work_attitude: '',
   job_knowledge: '',
@@ -157,6 +187,7 @@ function EvaluateEmployeeForm() {
   const [departments, setDepartments] = useState<Department[]>([])
   const [offices, setOffices] = useState<Office[]>([])
   const [loading, setLoading] = useState(true)
+  const [evaluationTemplate, setEvaluationTemplate] = useState(DEFAULT_EVALUATION_TEMPLATE)
   
   // Form State
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(searchParams?.get('id') || '')
@@ -179,6 +210,23 @@ function EvaluateEmployeeForm() {
 
   useEffect(() => {
     fetchInitialData()
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const saved = localStorage.getItem('warning_letter_templates')
+    if (!saved) return
+    try {
+      const parsed = JSON.parse(saved)
+      if (parsed?.evaluation) {
+        setEvaluationTemplate({
+          ...DEFAULT_EVALUATION_TEMPLATE,
+          ...parsed.evaluation
+        })
+      }
+    } catch {
+      // Ignore malformed template cache.
+    }
   }, [])
 
   useEffect(() => {
@@ -390,6 +438,29 @@ function EvaluateEmployeeForm() {
     return Object.values(scores).reduce((acc, curr) => acc + (parseInt(curr) || 0), 0)
   }, [scores])
 
+  const ratingScaleLines = useMemo(() => {
+    return String(evaluationTemplate.ratingScaleLines || '')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+  }, [evaluationTemplate])
+
+  const interpretationLines = useMemo(() => {
+    return String(evaluationTemplate.interpretationLines || '')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+  }, [evaluationTemplate])
+
+  const displayCriteria = useMemo(() => {
+    const overrides = evaluationTemplate.criteriaOverrides || {}
+    return CRITERIA.map((criterion) => ({
+      ...criterion,
+      label: overrides[criterion.id]?.label || criterion.label,
+      desc: overrides[criterion.id]?.desc || criterion.desc,
+    }))
+  }, [evaluationTemplate])
+
   useEffect(() => {
     const hasScores = Object.values(scores).some(s => s !== '')
     if (hasScores) {
@@ -462,7 +533,15 @@ function EvaluateEmployeeForm() {
     setIsExportingPdf(true)
     try {
       const response = await fetch(
-        `${getApiUrl()}/api/evaluations/${selectedEmployeeId}/pdf?view=${evaluationView}`
+        `${getApiUrl()}/api/evaluations/${selectedEmployeeId}/pdf`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            view: evaluationView,
+            template: evaluationTemplate
+          })
+        }
       )
       if (!response.ok) {
         throw new Error('Failed to export PDF')
@@ -505,7 +584,10 @@ function EvaluateEmployeeForm() {
       const response = await fetch(`${getApiUrl()}/api/evaluations/${selectedEmployeeId}/email-pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ view: evaluationView })
+        body: JSON.stringify({
+          view: evaluationView,
+          template: evaluationTemplate
+        })
       })
       const raw = await response.text()
       let data: any = null
@@ -703,12 +785,14 @@ function EvaluateEmployeeForm() {
             <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">
               {employeeDetails?.office ? employeeDetails.office.toUpperCase() : 'OFFICE NOT SET'}
             </h1>
-              <h2 className="font-bold text-lg uppercase tracking-wider">PERFORMANCE APPRAISAL</h2>
+              <h2 className="font-bold text-lg uppercase tracking-wider">
+                {evaluationTemplate.title}
+              </h2>
             </div>
 
             <div className="space-y-2 mb-10">
               <div className="flex gap-2">
-                <span className="font-bold whitespace-nowrap">NAME</span>
+                <span className="font-bold whitespace-nowrap">{evaluationTemplate.metaNameLabel}</span>
                 <span className="relative inline-flex max-w-full border-b border-black pr-1">
                   <span className="text-[#D32F2F] font-bold">
                     {selectedEmployee ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}` : ''}
@@ -716,7 +800,7 @@ function EvaluateEmployeeForm() {
                 </span>
               </div>
               <div className="flex gap-2">
-                <span className="font-bold whitespace-nowrap">DEPARTMENT/JOB TITLE</span>
+                <span className="font-bold whitespace-nowrap">{evaluationTemplate.metaDepartmentLabel}</span>
                 <span className="relative inline-flex max-w-full border-b border-black pr-1">
                   <span className="text-[#D32F2F] font-bold">
                     {selectedEmployee ? `${employeeDetails?.department} / ${employeeDetails?.position}` : ''}
@@ -724,7 +808,7 @@ function EvaluateEmployeeForm() {
                 </span>
               </div>
               <div className="flex gap-2">
-                <span className="font-bold whitespace-nowrap">RATING PERIOD</span>
+                <span className="font-bold whitespace-nowrap">{evaluationTemplate.metaRatingPeriodLabel}</span>
                 <span className="relative inline-flex max-w-full border-b border-black pr-1">
                   <span className="text-[#D32F2F] font-bold">
                     {selectedEmployee && (
@@ -739,12 +823,12 @@ function EvaluateEmployeeForm() {
             </div>
 
             <div className="grid grid-cols-12 mb-4 border-b-2 border-transparent relative">
-              <div className="col-span-10 text-center font-bold underline">CRITERIA</div>
-              <div className="col-span-2 text-center font-bold underline">RATING</div>
+              <div className="col-span-10 text-center font-bold underline">{evaluationTemplate.criteriaHeader}</div>
+              <div className="col-span-2 text-center font-bold underline">{evaluationTemplate.ratingHeader}</div>
             </div>
 
             <div className="space-y-6 mb-10">
-              {CRITERIA.map((criterion) => {
+              {displayCriteria.map((criterion) => {
                 const criterionId = criterion.id as CriteriaId
                 const criterionScore = firstDisplayBreakdown?.[criterionId]
                 return (
@@ -780,7 +864,7 @@ function EvaluateEmployeeForm() {
 
             <div className="mb-10 text-[12px]">
               <div className="flex flex-wrap items-center gap-x-2">
-                <span>The above appraisal was discussed with me by my superior and I</span>
+                <span>{evaluationTemplate.agreementText}</span>
                 <span className="flex items-center gap-1">
                   <span className="w-3 h-3 border border-black rounded-full flex items-center justify-center">
                     {firstEvaluationAgreement === 'agree' && <div className="w-1.5 h-1.5 bg-black rounded-full" />}
@@ -820,28 +904,25 @@ function EvaluateEmployeeForm() {
             </div>
 
             <div className="mb-8">
-              <div className="font-bold uppercase mb-2">EMPLOYEE SHALL BE RATED AS FOLLOWS:</div>
+              <div className="font-bold uppercase mb-2">{evaluationTemplate.ratingScaleTitle}</div>
               <div className="ml-10 space-y-0 text-[12px]">
-                <div>1 - Poor</div>
-                <div>2 - Needs Improvement</div>
-                <div>3 - Meets Minimum Requirement</div>
-                <div>4 - Very Satisfactory</div>
-                <div>5 - Outstanding</div>
+                {ratingScaleLines.map((line) => (
+                  <div key={line}>{line}</div>
+                ))}
               </div>
             </div>
 
             <div className="mb-10">
-              <div className="font-bold uppercase mb-2">INTERPRETATION OF TOTAL RATING SCORE:</div>
+              <div className="font-bold uppercase mb-2">{evaluationTemplate.interpretationTitle}</div>
               <div className="space-y-0 text-[12px]">
-                <div>50 - 41 Highly suitable to the position</div>
-                <div>40 - 31 Suitable to the position</div>
-                <div>30 - 16 Fails to meet minimum requirements of the job</div>
-                <div>15 - 0 Employee advise to resign</div>
+                {interpretationLines.map((line) => (
+                  <div key={line}>{line}</div>
+                ))}
               </div>
             </div>
 
             <div className="mb-10 font-bold flex items-center gap-6">
-              <span>RECOMMENDATION: REGULAR EMPLOYMENT</span>
+              <span>{evaluationTemplate.recommendationLabel}</span>
               <div className="flex items-center gap-2">
                 <div className={`w-5 h-5 border-2 border-black flex items-center justify-center ${firstEvaluationPassed ? 'bg-[#D32F2F] border-[#D32F2F]' : 'bg-transparent'}`}>
                   {firstEvaluationPassed && <Check className="w-4 h-4 text-white font-bold" />}
@@ -857,7 +938,7 @@ function EvaluateEmployeeForm() {
             </div>
 
             <div className="mb-20">
-              <div className="font-bold uppercase mb-2">COMMENTS / REMARKS:</div>
+              <div className="font-bold uppercase mb-2">{evaluationTemplate.remarksLabel}</div>
               <Textarea
                 placeholder="Write your comments here..."
                 className="w-full border-b border-black rounded-none shadow-none focus:ring-0 min-h-[100px] resize-none p-0 text-[13px] leading-relaxed italic"
@@ -868,7 +949,7 @@ function EvaluateEmployeeForm() {
 
             <div className="grid grid-cols-2 gap-x-20 gap-y-2">
               <div className="flex gap-2">
-                <span className="min-w-[80px]">Rated by:</span>
+                <span className="min-w-[80px]">{evaluationTemplate.ratedByLabel}</span>
                 <div className="flex-1 border-b border-black"></div>
               </div>
               <div className="flex gap-2">
@@ -876,7 +957,7 @@ function EvaluateEmployeeForm() {
                 <div className="flex-1 border-b border-black"></div>
               </div>
               <div className="flex gap-2">
-                <span className="min-w-[80px]">Reviewed by:</span>
+                <span className="min-w-[80px]">{evaluationTemplate.reviewedByLabel}</span>
                 <div className="flex-1 border-b border-black"></div>
               </div>
               <div className="flex gap-2">
@@ -884,7 +965,7 @@ function EvaluateEmployeeForm() {
                 <div className="flex-1 border-b border-black"></div>
               </div>
               <div className="flex gap-2">
-                <span className="min-w-[80px]">Approved by:</span>
+                <span className="min-w-[80px]">{evaluationTemplate.approvedByLabel}</span>
                 <div className="flex-1 border-b border-black"></div>
               </div>
               <div className="flex gap-2">
@@ -904,13 +985,15 @@ function EvaluateEmployeeForm() {
           <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">
             {employeeDetails?.office ? employeeDetails.office.toUpperCase() : 'OFFICE NOT SET'}
           </h1>
-          <h2 className="font-bold text-lg uppercase tracking-wider">PERFORMANCE APPRAISAL</h2>
+          <h2 className="font-bold text-lg uppercase tracking-wider">
+            {evaluationTemplate.title}
+          </h2>
         </div>
 
         {/* Metadata section */}
         <div className="space-y-2 mb-10">
           <div className="flex gap-2">
-            <span className="font-bold whitespace-nowrap">NAME</span>
+            <span className="font-bold whitespace-nowrap">{evaluationTemplate.metaNameLabel}</span>
             <span className={`${isViewDetailsMode ? 'relative inline-flex max-w-full border-b border-black pr-1' : 'w-full relative border-b border-black'}`}>
               <span className={`${isViewDetailsMode ? 'text-[#D32F2F] font-bold' : 'absolute left-0 -top-1 w-full text-[#D32F2F] font-bold'}`}>
                 {isViewDetailsMode ? (
@@ -933,7 +1016,7 @@ function EvaluateEmployeeForm() {
             </span>
           </div>
           <div className="flex gap-2">
-            <span className="font-bold whitespace-nowrap">DEPARTMENT/JOB TITLE</span>
+            <span className="font-bold whitespace-nowrap">{evaluationTemplate.metaDepartmentLabel}</span>
             <span className="relative inline-flex max-w-full border-b border-black pr-1">
               <span className="text-[#D32F2F] font-bold">
                 {selectedEmployee ? `${employeeDetails?.department} / ${employeeDetails?.position}` : ''}
@@ -941,7 +1024,7 @@ function EvaluateEmployeeForm() {
             </span>
           </div>
           <div className="flex gap-2">
-            <span className="font-bold whitespace-nowrap">RATING PERIOD</span>
+            <span className="font-bold whitespace-nowrap">{evaluationTemplate.metaRatingPeriodLabel}</span>
             <span className="relative inline-flex max-w-full border-b border-black pr-1">
               <span className="text-[#D32F2F] font-bold">
                 {selectedEmployee && (
@@ -970,13 +1053,13 @@ function EvaluateEmployeeForm() {
 
         {/* Criteria Header */}
         <div className="grid grid-cols-12 mb-4 border-b-2 border-transparent relative">
-          <div className="col-span-10 text-center font-bold underline">CRITERIA</div>
-          <div className="col-span-2 text-center font-bold underline">RATING</div>
+          <div className="col-span-10 text-center font-bold underline">{evaluationTemplate.criteriaHeader}</div>
+          <div className="col-span-2 text-center font-bold underline">{evaluationTemplate.ratingHeader}</div>
         </div>
 
         {/* Criteria List */}
         <div className="space-y-6 mb-10">
-          {CRITERIA.map((criterion) => (
+          {displayCriteria.map((criterion) => (
             <div key={criterion.id} className="grid grid-cols-12 gap-4 items-start">
               <div className="col-span-9">
                 <div className="font-bold">{criterion.label}</div>
@@ -1009,7 +1092,7 @@ function EvaluateEmployeeForm() {
         {/* Agreement Text */}
         <div className="mb-10 text-[12px]">
           <div className="flex flex-wrap items-center gap-x-2">
-            <span>The above appraisal was discussed with me by my superior and I</span>
+            <span>{evaluationTemplate.agreementText}</span>
             <span className={`flex items-center gap-1 ${isEditMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`} onClick={() => isEditMode && setAgreement('agree')}>
               <span className={`w-3 h-3 border border-black rounded-full flex items-center justify-center`}>
                 {agreement === 'agree' && <div className="w-1.5 h-1.5 bg-black rounded-full"/>}
@@ -1043,30 +1126,27 @@ function EvaluateEmployeeForm() {
 
         {/* Rating Instructions */}
         <div className="mb-8">
-          <div className="font-bold uppercase mb-2">EMPLOYEE SHALL BE RATED AS FOLLOWS:</div>
+          <div className="font-bold uppercase mb-2">{evaluationTemplate.ratingScaleTitle}</div>
           <div className="ml-10 space-y-0 text-[12px]">
-            <div>1 – Poor</div>
-            <div>2 – Needs Improvement</div>
-            <div>3 – Meets Minimum Requirement</div>
-            <div>4 – Very Satisfactory</div>
-            <div>5 – Outstanding</div>
+            {ratingScaleLines.map((line) => (
+              <div key={line}>{line}</div>
+            ))}
           </div>
         </div>
 
         {/* Interpretation */}
         <div className="mb-10">
-          <div className="font-bold uppercase mb-2">INTERPRETATION OF TOTAL RATING SCORE:</div>
+          <div className="font-bold uppercase mb-2">{evaluationTemplate.interpretationTitle}</div>
           <div className="space-y-0 text-[12px]">
-            <div>50 – 41 Highly suitable to the position</div>
-            <div>40 – 31 Suitable to the position</div>
-            <div>30 – 16 Fails to meet minimum requirements of the job</div>
-            <div>15 – 0 Employee advise to resign</div>
+            {interpretationLines.map((line) => (
+              <div key={line}>{line}</div>
+            ))}
           </div>
         </div>
 
         {/* Recommendation */}
         <div className="mb-10 font-bold flex items-center gap-6">
-          <span>RECOMMENDATION: REGULAR EMPLOYMENT</span>
+          <span>{evaluationTemplate.recommendationLabel}</span>
           <div className={`flex items-center gap-2 ${isEditMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`} onClick={() => isEditMode && setRecommendation('yes')}>
             <div className={`w-5 h-5 border-2 border-black flex items-center justify-center ${recommendation === 'yes' ? 'bg-[#D32F2F] border-[#D32F2F]' : 'bg-transparent'}`}>
               {recommendation === 'yes' && <Check className="w-4 h-4 text-white font-bold" />}
@@ -1083,7 +1163,7 @@ function EvaluateEmployeeForm() {
 
         {/* Comment Lines / Remarks Section */}
         <div className="mb-20">
-          <div className="font-bold uppercase mb-2">COMMENTS / REMARKS:</div>
+          <div className="font-bold uppercase mb-2">{evaluationTemplate.remarksLabel}</div>
           <Textarea 
             placeholder="Write your comments here..."
             className="w-full border-b border-black rounded-none shadow-none focus:ring-0 min-h-[100px] resize-none p-0 text-[13px] leading-relaxed italic"
@@ -1103,10 +1183,10 @@ function EvaluateEmployeeForm() {
 
         {/* Manager Signatures */}
         <div className="mb-10">
-          <div className="font-bold uppercase mb-2 text-[12px]">Manager Approval Signatures</div>
+          <div className="font-bold uppercase mb-2 text-[12px]">{evaluationTemplate.managerSignaturesTitle}</div>
           <div className="grid grid-cols-2 gap-x-20 gap-y-2 bg-slate-50 border border-slate-200 p-4">
             <div className="flex gap-2 items-center">
-              <span className="min-w-[80px] font-semibold">Rated by:</span>
+              <span className="min-w-[80px] font-semibold">{evaluationTemplate.ratedByLabel}</span>
               <input 
                 type="text" 
                 className="flex-1 border-b border-black bg-transparent outline-none disabled:text-slate-500 disabled:cursor-not-allowed text-[13px]"
@@ -1122,7 +1202,7 @@ function EvaluateEmployeeForm() {
             </div>
             
             <div className="flex gap-2 items-center">
-              <span className="min-w-[80px] font-semibold">Reviewed by:</span>
+              <span className="min-w-[80px] font-semibold">{evaluationTemplate.reviewedByLabel}</span>
               <input 
                 type="text" 
                 className="flex-1 border-b border-black bg-transparent outline-none disabled:text-slate-500 disabled:cursor-not-allowed text-[13px]"
@@ -1138,7 +1218,7 @@ function EvaluateEmployeeForm() {
             </div>
             
             <div className="flex gap-2 items-center">
-              <span className="min-w-[80px] font-semibold">Approved by:</span>
+              <span className="min-w-[80px] font-semibold">{evaluationTemplate.approvedByLabel}</span>
               <input 
                 type="text" 
                 className="flex-1 border-b border-black bg-transparent outline-none disabled:text-slate-500 disabled:cursor-not-allowed text-[13px]"
@@ -1169,3 +1249,7 @@ export default function EvaluateEmployeePage() {
     </Suspense>
   )
 }
+
+
+
+

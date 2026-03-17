@@ -77,26 +77,27 @@
     $deptTitle = trim(($employee->department ?? '-') . ' / ' . ($employee->position ?? '-'));
     $firstResult = $evaluation->remarks_1 ?? 'N/A';
     $secondResult = $evaluation->remarks_2 ?? 'N/A';
+    $template = $template ?? [];
 @endphp
 
 @if($showFirst)
     <div class="doc">
         <div class="header">
-            <div class="company">INFINITECH ADVERTISING CORPORATION</div>
-            <div class="title">PERFORMANCE APPRAISAL</div>
+            <div class="company">{{ $template['companyName'] ?? 'Company Name' }}</div>
+            <div class="title">{{ $template['title'] ?? 'PERFORMANCE APPRAISAL' }}</div>
         </div>
 
         <div class="meta">
             <div class="meta-row">
-                <span class="meta-label">NAME</span>
+                <span class="meta-label">{{ $template['metaNameLabel'] ?? 'NAME' }}</span>
                 <span class="meta-value-line"><span class="meta-value">{{ $fullName }}</span></span>
             </div>
             <div class="meta-row">
-                <span class="meta-label">DEPARTMENT/JOB TITLE</span>
+                <span class="meta-label">{{ $template['metaDepartmentLabel'] ?? 'DEPARTMENT/JOB TITLE' }}</span>
                 <span class="meta-value-line"><span class="meta-value">{{ $deptTitle }}</span></span>
             </div>
             <div class="meta-row">
-                <span class="meta-label">RATING PERIOD</span>
+                <span class="meta-label">{{ $template['metaRatingPeriodLabel'] ?? 'RATING PERIOD' }}</span>
                 <span class="meta-value-line">
                     <span class="meta-value">{{ $firstEvalDate }}</span>
                     <span class="eval-tag">(1st Evaluation)</span>
@@ -107,18 +108,15 @@
         <table class="criteria">
             <thead>
                 <tr>
-                    <th style="width:70%;">CRITERIA</th>
-                    <th style="width:30%;">RATING</th>
+                    <th style="width:70%;">{{ $template['criteriaHeader'] ?? 'CRITERIA' }}</th>
+                    <th style="width:30%;">{{ $template['ratingHeader'] ?? 'RATING' }}</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($criteria as $criterion)
-                    @php
-                        $criterionLabel = preg_replace('/^\d+\.\s*/', '', $criterion['label']);
-                    @endphp
                     <tr>
                         <td>
-                            <div class="criterion-title">{{ $loop->iteration }}. {{ $criterionLabel }}</div>
+                            <div class="criterion-title">{{ $criterion['label'] }}</div>
                             <div class="criterion-desc">{{ $criterion['desc'] }}</div>
                         </td>
                         <td class="rating-cell">
@@ -137,7 +135,7 @@
         </table>
 
         <div class="agreement">
-            The above appraisal was discussed with me by my superior and I
+            {{ $template['agreementText'] ?? 'The above appraisal was discussed with me by my superior and I' }}
             <span class="{{ ($evaluation->agreement_1 ?? '') === 'agree' ? 'box checked' : 'box' }}"></span> agree
             <span class="{{ ($evaluation->agreement_1 ?? '') === 'disagree' ? 'box checked' : 'box' }}"></span> disagree on the following items:
         </div>
@@ -155,44 +153,41 @@
             </tr>
         </table>
 
-        <div class="subhead">EMPLOYEE SHALL BE RATED AS FOLLOWS:</div>
+        <div class="subhead">{{ $template['ratingScaleTitle'] ?? 'EMPLOYEE SHALL BE RATED AS FOLLOWS:' }}</div>
         <div class="list">
-            <div>1 - Poor</div>
-            <div>2 - Needs Improvement</div>
-            <div>3 - Meets Minimum Requirement</div>
-            <div>4 - Very Satisfactory</div>
-            <div>5 - Outstanding</div>
+            @foreach($ratingScaleLines ?? [] as $line)
+                <div>{{ $line }}</div>
+            @endforeach
         </div>
 
-        <div class="subhead" style="margin-top:6px;">INTERPRETATION OF TOTAL RATING SCORE:</div>
+        <div class="subhead" style="margin-top:6px;">{{ $template['interpretationTitle'] ?? 'INTERPRETATION OF TOTAL RATING SCORE:' }}</div>
         <div class="list" style="margin-left:0;">
-            <div>50 - 41 Highly suitable to the position</div>
-            <div>40 - 31 Suitable to the position</div>
-            <div>30 - 16 Fails to meet minimum requirements of the job</div>
-            <div>15 - 0 Employee advise to resign</div>
+            @foreach($interpretationLines ?? [] as $line)
+                <div>{{ $line }}</div>
+            @endforeach
         </div>
 
         <div class="recommend">
-            RECOMMENDATION: REGULAR EMPLOYMENT
+            {{ $template['recommendationLabel'] ?? 'RECOMMENDATION: REGULAR EMPLOYMENT' }}
             <span class="{{ $firstResult === 'Passed' ? 'box checked' : 'box' }}"></span> YES
             <span class="{{ $firstResult === 'Failed' ? 'box checked' : 'box' }}"></span> NO
         </div>
 
         <div class="bottom-block">
-            <div class="comments-title">COMMENTS / REMARKS:</div>
+            <div class="comments-title">{{ $template['remarksLabel'] ?? 'COMMENTS / REMARKS:' }}</div>
             <div class="comments-line">{{ ($firstResult ?? 'N/A') . ': ' . ($evaluation->comment_1 ?? '-') }}</div>
 
             <table class="manager">
                 <tr>
-                    <td class="manager-field"><span class="manager-label">Rated by:</span><span class="manager-line"><span class="manager-name">{{ $evaluation->rated_by ? substr($evaluation->rated_by, 0, 25) : '' }}</span></span></td>
+                    <td class="manager-field"><span class="manager-label">{{ $template['ratedByLabel'] ?? 'Rated by:' }}</span><span class="manager-line"><span class="manager-name">{{ $evaluation->rated_by ? substr($evaluation->rated_by, 0, 25) : '' }}</span></span></td>
                     <td class="manager-field"><span class="manager-date-label">Date:</span><span class="manager-line manager-date-line"></span></td>
                 </tr>
                 <tr>
-                    <td class="manager-field"><span class="manager-label">Reviewed by:</span><span class="manager-line"><span class="manager-name">{{ $evaluation->reviewed_by ? substr($evaluation->reviewed_by, 0, 25) : '' }}</span></span></td>
+                    <td class="manager-field"><span class="manager-label">{{ $template['reviewedByLabel'] ?? 'Reviewed by:' }}</span><span class="manager-line"><span class="manager-name">{{ $evaluation->reviewed_by ? substr($evaluation->reviewed_by, 0, 25) : '' }}</span></span></td>
                     <td class="manager-field"><span class="manager-date-label">Date:</span><span class="manager-line manager-date-line"></span></td>
                 </tr>
                 <tr>
-                    <td class="manager-field"><span class="manager-label">Approved by:</span><span class="manager-line"><span class="manager-name">{{ $evaluation->approved_by ? substr($evaluation->approved_by, 0, 25) : '' }}</span></span></td>
+                    <td class="manager-field"><span class="manager-label">{{ $template['approvedByLabel'] ?? 'Approved by:' }}</span><span class="manager-line"><span class="manager-name">{{ $evaluation->approved_by ? substr($evaluation->approved_by, 0, 25) : '' }}</span></span></td>
                     <td class="manager-field"><span class="manager-date-label">Date:</span><span class="manager-line manager-date-line"></span></td>
                 </tr>
             </table>
@@ -203,21 +198,21 @@
 @if($showSecond)
     <div class="doc {{ $showFirst ? 'page-break' : '' }}">
         <div class="header">
-            <div class="company">INFINITECH ADVERTISING CORPORATION</div>
-            <div class="title">PERFORMANCE APPRAISAL</div>
+            <div class="company">{{ $template['companyName'] ?? 'Company Name' }}</div>
+            <div class="title">{{ $template['title'] ?? 'PERFORMANCE APPRAISAL' }}</div>
         </div>
 
         <div class="meta">
             <div class="meta-row">
-                <span class="meta-label">NAME</span>
+                <span class="meta-label">{{ $template['metaNameLabel'] ?? 'NAME' }}</span>
                 <span class="meta-value-line"><span class="meta-value">{{ $fullName }}</span></span>
             </div>
             <div class="meta-row">
-                <span class="meta-label">DEPARTMENT/JOB TITLE</span>
+                <span class="meta-label">{{ $template['metaDepartmentLabel'] ?? 'DEPARTMENT/JOB TITLE' }}</span>
                 <span class="meta-value-line"><span class="meta-value">{{ $deptTitle }}</span></span>
             </div>
             <div class="meta-row">
-                <span class="meta-label">RATING PERIOD</span>
+                <span class="meta-label">{{ $template['metaRatingPeriodLabel'] ?? 'RATING PERIOD' }}</span>
                 <span class="meta-value-line">
                     <span class="meta-value">{{ $secondEvalDate }}</span>
                     <span class="eval-tag">(2nd Evaluation)</span>
@@ -228,18 +223,15 @@
         <table class="criteria">
             <thead>
                 <tr>
-                    <th style="width:70%;">CRITERIA</th>
-                    <th style="width:30%;">RATING</th>
+                    <th style="width:70%;">{{ $template['criteriaHeader'] ?? 'CRITERIA' }}</th>
+                    <th style="width:30%;">{{ $template['ratingHeader'] ?? 'RATING' }}</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($criteria as $criterion)
-                    @php
-                        $criterionLabel = preg_replace('/^\d+\.\s*/', '', $criterion['label']);
-                    @endphp
                     <tr>
                         <td>
-                            <div class="criterion-title">{{ $loop->iteration }}. {{ $criterionLabel }}</div>
+                            <div class="criterion-title">{{ $criterion['label'] }}</div>
                             <div class="criterion-desc">{{ $criterion['desc'] }}</div>
                         </td>
                         <td class="rating-cell">
@@ -258,7 +250,7 @@
         </table>
 
         <div class="agreement">
-            The above appraisal was discussed with me by my superior and I
+            {{ $template['agreementText'] ?? 'The above appraisal was discussed with me by my superior and I' }}
             <span class="{{ ($evaluation->agreement_2 ?? '') === 'agree' ? 'box checked' : 'box' }}"></span> agree
             <span class="{{ ($evaluation->agreement_2 ?? '') === 'disagree' ? 'box checked' : 'box' }}"></span> disagree on the following items:
         </div>
@@ -276,44 +268,41 @@
             </tr>
         </table>
 
-        <div class="subhead">EMPLOYEE SHALL BE RATED AS FOLLOWS:</div>
+        <div class="subhead">{{ $template['ratingScaleTitle'] ?? 'EMPLOYEE SHALL BE RATED AS FOLLOWS:' }}</div>
         <div class="list">
-            <div>1 - Poor</div>
-            <div>2 - Needs Improvement</div>
-            <div>3 - Meets Minimum Requirement</div>
-            <div>4 - Very Satisfactory</div>
-            <div>5 - Outstanding</div>
+            @foreach($ratingScaleLines ?? [] as $line)
+                <div>{{ $line }}</div>
+            @endforeach
         </div>
 
-        <div class="subhead" style="margin-top:6px;">INTERPRETATION OF TOTAL RATING SCORE:</div>
+        <div class="subhead" style="margin-top:6px;">{{ $template['interpretationTitle'] ?? 'INTERPRETATION OF TOTAL RATING SCORE:' }}</div>
         <div class="list" style="margin-left:0;">
-            <div>50 - 41 Highly suitable to the position</div>
-            <div>40 - 31 Suitable to the position</div>
-            <div>30 - 16 Fails to meet minimum requirements of the job</div>
-            <div>15 - 0 Employee advise to resign</div>
+            @foreach($interpretationLines ?? [] as $line)
+                <div>{{ $line }}</div>
+            @endforeach
         </div>
 
         <div class="recommend">
-            RECOMMENDATION: REGULAR EMPLOYMENT
+            {{ $template['recommendationLabel'] ?? 'RECOMMENDATION: REGULAR EMPLOYMENT' }}
             <span class="{{ $secondResult === 'Passed' ? 'box checked' : 'box' }}"></span> YES
             <span class="{{ $secondResult === 'Failed' ? 'box checked' : 'box' }}"></span> NO
         </div>
 
         <div class="bottom-block">
-            <div class="comments-title">COMMENTS / REMARKS:</div>
+            <div class="comments-title">{{ $template['remarksLabel'] ?? 'COMMENTS / REMARKS:' }}</div>
             <div class="comments-line">{{ ($secondResult ?? 'N/A') . ': ' . ($evaluation->comment_2 ?? '-') }}</div>
 
             <table class="manager">
                 <tr>
-                    <td class="manager-field"><span class="manager-label">Rated by:</span><span class="manager-line"><span class="manager-name">{{ $evaluation->rated_by_2 ? substr($evaluation->rated_by_2, 0, 25) : '' }}</span></span></td>
+                    <td class="manager-field"><span class="manager-label">{{ $template['ratedByLabel'] ?? 'Rated by:' }}</span><span class="manager-line"><span class="manager-name">{{ $evaluation->rated_by_2 ? substr($evaluation->rated_by_2, 0, 25) : '' }}</span></span></td>
                     <td class="manager-field"><span class="manager-date-label">Date:</span><span class="manager-line manager-date-line"></span></td>
                 </tr>
                 <tr>
-                    <td class="manager-field"><span class="manager-label">Reviewed by:</span><span class="manager-line"><span class="manager-name">{{ $evaluation->reviewed_by_2 ? substr($evaluation->reviewed_by_2, 0, 25) : '' }}</span></span></td>
+                    <td class="manager-field"><span class="manager-label">{{ $template['reviewedByLabel'] ?? 'Reviewed by:' }}</span><span class="manager-line"><span class="manager-name">{{ $evaluation->reviewed_by_2 ? substr($evaluation->reviewed_by_2, 0, 25) : '' }}</span></span></td>
                     <td class="manager-field"><span class="manager-date-label">Date:</span><span class="manager-line manager-date-line"></span></td>
                 </tr>
                 <tr>
-                    <td class="manager-field"><span class="manager-label">Approved by:</span><span class="manager-line"><span class="manager-name">{{ $evaluation->approved_by_2 ? substr($evaluation->approved_by_2, 0, 25) : '' }}</span></span></td>
+                    <td class="manager-field"><span class="manager-label">{{ $template['approvedByLabel'] ?? 'Approved by:' }}</span><span class="manager-line"><span class="manager-name">{{ $evaluation->approved_by_2 ? substr($evaluation->approved_by_2, 0, 25) : '' }}</span></span></td>
                     <td class="manager-field"><span class="manager-date-label">Date:</span><span class="manager-line manager-date-line"></span></td>
                 </tr>
             </table>
@@ -323,4 +312,3 @@
 
 </body>
 </html>
-

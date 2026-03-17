@@ -90,6 +90,7 @@ Route::get('/activity-logs/{id}', [ActivityLogController::class, 'show']);
 Route::get('/evaluations', [EvaluationController::class, 'index']);
 Route::post('/evaluations', [EvaluationController::class, 'store']);
 Route::get('/evaluations/{employeeId}/pdf', [EvaluationController::class, 'downloadPdf']);
+Route::post('/evaluations/{employeeId}/pdf', [EvaluationController::class, 'downloadPdf']);
 Route::post('/evaluations/{employeeId}/email-pdf', [EvaluationController::class, 'emailPdf']);
 
 

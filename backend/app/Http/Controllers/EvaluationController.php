@@ -89,7 +89,8 @@ class EvaluationController extends Controller
             $viewMode = 'current';
         }
 
-        $payload = $this->buildPdfPayload($employee, $evaluation, $viewMode);
+        $template = $this->extractTemplate($request);
+        $payload = $this->buildPdfPayload($employee, $evaluation, $viewMode, $template);
 
         // A4 paper (portrait)
         $pdf = Pdf::loadView('pdf.evaluation', $payload)->setPaper('a4', 'portrait');
@@ -117,7 +118,8 @@ class EvaluationController extends Controller
                 $viewMode = 'current';
             }
 
-            $payload = $this->buildPdfPayload($employee, $evaluation, $viewMode);
+            $template = $this->extractTemplate($request);
+            $payload = $this->buildPdfPayload($employee, $evaluation, $viewMode, $template);
             // A4 paper (portrait)
             $pdf = Pdf::loadView('pdf.evaluation', $payload)->setPaper('a4', 'portrait');
             $pdfBinary = $pdf->output();
@@ -151,20 +153,25 @@ class EvaluationController extends Controller
         }
     }
 
-    private function buildPdfPayload(Employee $employee, Evaluation $evaluation, string $viewMode): array
+    private function buildPdfPayload(Employee $employee, Evaluation $evaluation, string $viewMode, ?array $template = null): array
     {
-        $criteria = [
-            ['id' => 'work_attitude', 'label' => '1. WORK ATTITUDE', 'desc' => 'How does an employee feel about his/her job? Is he/she interested in his/her work? Does the employee work hard? Is he alert and resourceful?'],
-            ['id' => 'job_knowledge', 'label' => '2. KNOWLEDGE OF THE JOB', 'desc' => 'Does he know the requirements of the job he is working on?'],
-            ['id' => 'quality_of_work', 'label' => '3. QUALITY OF WORK', 'desc' => 'Is he accurate, thorough and neat? Consider working habits. Extent to which decision and action are based on facts and sound reasoning and weighing of outcome?'],
-            ['id' => 'handle_workload', 'label' => '4. ABILITY TO HANDLE ASSIGNED WORKLOAD', 'desc' => 'Consider working habits. Is work completed on time? Do you have to follow up?'],
-            ['id' => 'work_with_supervisor', 'label' => '5. ABILITY TO WORK WITH SUPERVISOR', 'desc' => 'Consider working relationship / Interaction with superior?'],
-            ['id' => 'work_with_coemployees', 'label' => '6. ABILITY TO WORK WITH CO-EMPLOYEE', 'desc' => 'Can he work harmoniously with others?'],
-            ['id' => 'attendance', 'label' => '7. ATTENDANCE (ABSENCES/TARDINESS/UNDERTIME)', 'desc' => 'Is he regular and punctual in his attendance? What is his attitude towards time lost?'],
-            ['id' => 'compliance', 'label' => '8. COMPLIANCE WITH COMPANY RULES AND REGULATIONS', 'desc' => 'Does the employee follow the company\'s rules and regulations at all times?'],
-            ['id' => 'grooming', 'label' => '9. GROOMING AND APPEARANCE', 'desc' => 'Does he wear his uniform completely and neatly? Is he clean and neat?'],
-            ['id' => 'communication', 'label' => '10. COMMUNICATION SKILLS', 'desc' => 'How successful is he in expressing himself orally, verbally and in written form?'],
-        ];
+        $defaultTemplate = $this->getDefaultTemplate();
+        $template = $this->mergeTemplate($defaultTemplate, $template);
+
+        $criteriaDefaults = $this->getCriteriaDefaults();
+        $criteriaOverrides = is_array($template['criteriaOverrides'] ?? null)
+            ? $template['criteriaOverrides']
+            : [];
+
+        $criteria = [];
+        foreach ($criteriaDefaults as $criterion) {
+            $override = $criteriaOverrides[$criterion['id']] ?? [];
+            $criteria[] = [
+                'id' => $criterion['id'],
+                'label' => $override['label'] ?? $criterion['label'],
+                'desc' => $override['desc'] ?? $criterion['desc'],
+            ];
+        }
 
         $firstBreakdown = $this->normalizeBreakdown($evaluation->score_1_breakdown, $evaluation->score_1, $criteria);
         $secondBreakdown = $this->normalizeBreakdown($evaluation->score_2_breakdown, $evaluation->score_2, $criteria);
@@ -184,6 +191,9 @@ class EvaluationController extends Controller
         $firstEvalDate = $hiredDate ? $hiredDate->copy()->addMonths(3)->format('F d, Y (l)') : 'N/A';
         $secondEvalDate = $hiredDate ? $hiredDate->copy()->addMonths(5)->format('F d, Y (l)') : 'N/A';
 
+        $ratingScaleLines = $this->splitLines($template['ratingScaleLines'] ?? '');
+        $interpretationLines = $this->splitLines($template['interpretationLines'] ?? '');
+
         return [
             'employee' => $employee,
             'evaluation' => $evaluation,
@@ -194,8 +204,92 @@ class EvaluationController extends Controller
             'showSecond' => $showSecond,
             'firstEvalDate' => $firstEvalDate,
             'secondEvalDate' => $secondEvalDate,
+            'template' => $template,
+            'ratingScaleLines' => $ratingScaleLines,
+            'interpretationLines' => $interpretationLines,
             'generatedAt' => now()->format('F d, Y h:i A'),
         ];
+    }
+
+    private function extractTemplate(Request $request): ?array
+    {
+        $template = $request->input('template');
+        if (is_array($template)) {
+            return $template;
+        }
+
+        if (is_string($template) && trim($template) !== '') {
+            $decoded = json_decode($template, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return null;
+    }
+
+    private function mergeTemplate(array $default, ?array $template): array
+    {
+        if (!$template) {
+            return $default;
+        }
+
+        $merged = array_merge($default, $template);
+        $merged['criteriaOverrides'] = is_array($template['criteriaOverrides'] ?? null)
+            ? $template['criteriaOverrides']
+            : $default['criteriaOverrides'];
+
+        return $merged;
+    }
+
+    private function getCriteriaDefaults(): array
+    {
+        return [
+            ['id' => 'work_attitude', 'label' => '1. WORK ATTITUDE', 'desc' => 'How does an employee feel about his/her job? Is he/she interested in his/her work? Does the employee work hard? Is he alert and resourceful?'],
+            ['id' => 'job_knowledge', 'label' => '2. KNOWLEDGE OF THE JOB', 'desc' => 'Does he know the requirements of the job he is working on?'],
+            ['id' => 'quality_of_work', 'label' => '3. QUALITY OF WORK', 'desc' => 'Is he accurate, thorough and neat? Consider working habits. Extent to which decision and action are based on facts and sound reasoning and weighing of outcome?'],
+            ['id' => 'handle_workload', 'label' => '4. ABILITY TO HANDLE ASSIGNED WORKLOAD', 'desc' => 'Consider working habits. Is work completed on time? Do you have to follow up?'],
+            ['id' => 'work_with_supervisor', 'label' => '5. ABILITY TO WORK WITH SUPERVISOR', 'desc' => 'Consider working relationship / Interaction with superior?'],
+            ['id' => 'work_with_coemployees', 'label' => '6. ABILITY TO WORK WITH CO-EMPLOYEE', 'desc' => 'Can he work harmoniously with others?'],
+            ['id' => 'attendance', 'label' => '7. ATTENDANCE (ABSENCES/TARDINESS/UNDERTIME)', 'desc' => 'Is he regular and punctual in his attendance? What is his attitude towards time lost?'],
+            ['id' => 'compliance', 'label' => '8. COMPLIANCE WITH COMPANY RULES AND REGULATIONS', 'desc' => 'Does the employee follow the company\'s rules and regulations at all times?'],
+            ['id' => 'grooming', 'label' => '9. GROOMING AND APPEARANCE', 'desc' => 'Does he wear his uniform completely and neatly? Is he clean and neat?'],
+            ['id' => 'communication', 'label' => '10. COMMUNICATION SKILLS', 'desc' => 'How successful is he in expressing himself orally, verbally and in written form?'],
+        ];
+    }
+
+    private function getDefaultTemplate(): array
+    {
+        return [
+            'companyName' => 'ABIC REALTY & CONSULTANCY CORPORATION',
+            'title' => 'PERFORMANCE APPRAISAL',
+            'metaNameLabel' => 'NAME',
+            'metaDepartmentLabel' => 'DEPARTMENT/JOB TITLE',
+            'metaRatingPeriodLabel' => 'RATING PERIOD',
+            'criteriaHeader' => 'CRITERIA',
+            'ratingHeader' => 'RATING',
+            'criteriaOverrides' => array_reduce($this->getCriteriaDefaults(), function ($carry, $item) {
+                $carry[$item['id']] = ['label' => $item['label'], 'desc' => $item['desc']];
+                return $carry;
+            }, []),
+            'agreementText' => 'The above appraisal was discussed with me by my superior and I',
+            'ratingScaleTitle' => 'EMPLOYEE SHALL BE RATED AS FOLLOWS:',
+            'ratingScaleLines' => "1 - Poor\n2 - Needs Improvement\n3 - Meets Minimum Requirement\n4 - Very Satisfactory\n5 - Outstanding",
+            'interpretationTitle' => 'INTERPRETATION OF TOTAL RATING SCORE:',
+            'interpretationLines' => "50 - 41 Highly suitable to the position\n40 - 31 Suitable to the position\n30 - 16 Fails to meet minimum requirements of the job\n15 - 0 Employee advise to resign",
+            'recommendationLabel' => 'RECOMMENDATION: REGULAR EMPLOYMENT',
+            'remarksLabel' => 'COMMENTS / REMARKS:',
+            'managerSignaturesTitle' => 'Manager Approval Signatures',
+            'ratedByLabel' => 'Rated by:',
+            'reviewedByLabel' => 'Reviewed by:',
+            'approvedByLabel' => 'Approved by:',
+        ];
+    }
+
+    private function splitLines(string $value): array
+    {
+        $lines = array_map('trim', preg_split('/\r\n|\r|\n/', $value));
+        return array_values(array_filter($lines, fn($line) => $line !== ''));
     }
 
     private function normalizeBreakdown($breakdown, ?int $totalScore, array $criteria): array
