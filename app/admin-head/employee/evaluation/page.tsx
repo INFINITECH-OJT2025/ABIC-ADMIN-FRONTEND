@@ -19,6 +19,7 @@ import { getApiUrl } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { format, addMonths } from "date-fns";
+import { ConfirmationModal } from "@/components/ConfirmationModal";
 
 interface Employee {
   id: string;
@@ -96,12 +97,16 @@ export default function EvaluationPage() {
   const [statusFilter, setStatusFilter] = useState<
     "All" | "Probee" | "For Recommendation" | "Regular" | "Failed"
   >("All");
-  const [editingRegularization, setEditingRegularization] = useState<
-    Record<string, boolean>
-  >({});
   const [regularizationDates, setRegularizationDates] = useState<
     Record<string, string>
   >({});
+  const [confirmRegularization, setConfirmRegularization] = useState<{
+    isOpen: boolean;
+    employeeId: string | null;
+  }>({
+    isOpen: false,
+    employeeId: null,
+  });
 
   useEffect(() => {
     fetchData();
@@ -210,13 +215,20 @@ export default function EvaluationPage() {
     }
 
     return {
-      firstEval: format(firstEval, "MMMM d, yyyy"),
-      secondEval: format(secondEval, "MMMM d, yyyy"),
+      firstEval: format(firstEval, "MM/dd/yyyy"),
+      secondEval: format(secondEval, "MM/dd/yyyy"),
       regularization: regularizationDate
-        ? format(regularizationDate, "MMMM d, yyyy")
+        ? format(regularizationDate, "MM/dd/yyyy")
         : "-",
       status,
     };
+  };
+
+  const formatDisplayDate = (dateValue: string | null | undefined) => {
+    if (!dateValue) return "-";
+    const parsed = new Date(dateValue);
+    if (Number.isNaN(parsed.getTime())) return "-";
+    return format(parsed, "MM/dd/yyyy");
   };
 
   const isBenefitQualified = (
@@ -327,48 +339,69 @@ export default function EvaluationPage() {
     }
   };
 
-  const handleRegularizationDateChange = async (
+  const handleRegularizationDateInputChange = (
     employeeId: string,
     date: string,
   ) => {
     setRegularizationDates((prev) => ({ ...prev, [employeeId]: date }));
+  };
 
-    // Auto-save when date is set
-    if (date) {
-      setIsActionLoading(true);
-      try {
-        const currentEval = evaluations[employeeId] ||
-          persistedEvaluations[employeeId] || {
-            employee_id: employeeId,
-            score_1: null,
-            remarks_1: null,
-            score_2: null,
-            remarks_2: null,
-            status: null,
-          };
+  const requestRegularizationDateSave = (employeeId: string) => {
+    const selectedDate = regularizationDates[employeeId];
+    if (!selectedDate) {
+      toast.error("Please select a regularization date first");
+      return;
+    }
 
-        const response = await fetch(`${getApiUrl()}/api/evaluations`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...currentEval,
-            regularization_date: date,
-            status: "Regular",
-          }),
-        });
-        const data = await response.json();
-        if (data.success) {
-          toast.success("Regularization date saved");
-          fetchData();
-        } else {
-          toast.error(data.message || "Failed to save regularization date");
-        }
-      } catch (error) {
-        console.error("Error saving regularization date:", error);
-        toast.error("Connection failed");
-      } finally {
-        setIsActionLoading(false);
+    setConfirmRegularization({ isOpen: true, employeeId });
+  };
+
+  const handleConfirmRegularizationDateSave = async () => {
+    const employeeId = confirmRegularization.employeeId;
+    if (!employeeId) return;
+
+    const selectedDate = regularizationDates[employeeId];
+    if (!selectedDate) {
+      toast.error("Please select a regularization date first");
+      setConfirmRegularization({ isOpen: false, employeeId: null });
+      return;
+    }
+
+    setConfirmRegularization({ isOpen: false, employeeId: null });
+
+    setIsActionLoading(true);
+    try {
+      const currentEval = evaluations[employeeId] ||
+        persistedEvaluations[employeeId] || {
+          employee_id: employeeId,
+          score_1: null,
+          remarks_1: null,
+          score_2: null,
+          remarks_2: null,
+          status: null,
+        };
+
+      const response = await fetch(`${getApiUrl()}/api/evaluations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...currentEval,
+          regularization_date: selectedDate,
+          status: "Regular",
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success("Regularization date saved");
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to save regularization date");
       }
+    } catch (error) {
+      console.error("Error saving regularization date:", error);
+      toast.error("Connection failed");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -681,12 +714,7 @@ export default function EvaluationPage() {
                               </div>
                             </td>
                             <td className="px-3 py-2 text-slate-600 font-medium border-r border-rose-50/30 whitespace-nowrap">
-                              {emp.date_hired
-                                ? format(
-                                    new Date(emp.date_hired),
-                                    "MMM d, yyyy",
-                                  )
-                                : "-"}
+                              {formatDisplayDate(emp.date_hired)}
                             </td>
                             <td className="px-3 py-2 border-r border-rose-50/30 text-center">
                               <Badge
@@ -788,22 +816,40 @@ export default function EvaluationPage() {
                             </td>
                             <td className="px-3 py-2 text-[11px] whitespace-nowrap text-center border-r border-rose-50/30">
                               {hasPassedEvaluation ? (
-                                <Input
-                                  type="date"
-                                  value={
-                                    regularizationDates[emp.id] ||
-                                    evalData?.regularization_date ||
-                                    ""
-                                  }
-                                  onChange={(e) =>
-                                    handleRegularizationDateChange(
-                                      emp.id,
-                                      e.target.value,
-                                    )
-                                  }
-                                  className="h-7 text-[10px] border-[#A4163A]/30 focus:border-[#A4163A]"
-                                  placeholder="Set date"
-                                />
+                                evalData?.regularization_date ? (
+                                  <span className="text-slate-600 font-semibold text-[11px]">
+                                    {formatDisplayDate(evalData.regularization_date)}
+                                  </span>
+                                ) : (
+                                  <div className="flex items-center gap-2 justify-center">
+                                    <Input
+                                      type="date"
+                                      value={regularizationDates[emp.id] || ""}
+                                      onChange={(e) =>
+                                        handleRegularizationDateInputChange(
+                                          emp.id,
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="h-7 text-[10px] border-[#A4163A]/30 focus:border-[#A4163A]"
+                                      placeholder="Set date"
+                                    />
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      className="h-7 px-2 text-[10px] bg-[#A4163A] hover:bg-[#7B0F2B] text-white"
+                                      disabled={
+                                        !regularizationDates[emp.id] ||
+                                        isActionLoading
+                                      }
+                                      onClick={() =>
+                                        requestRegularizationDateSave(emp.id)
+                                      }
+                                    >
+                                      Save
+                                    </Button>
+                                  </div>
+                                )
                               ) : (
                                 <span className="text-slate-300 italic text-[10px] font-normal">
                                   -
@@ -835,6 +881,20 @@ export default function EvaluationPage() {
           </div>
         </>
       )}
+
+      <ConfirmationModal
+        isOpen={confirmRegularization.isOpen}
+        onClose={() =>
+          setConfirmRegularization({ isOpen: false, employeeId: null })
+        }
+        onConfirm={handleConfirmRegularizationDateSave}
+        title="Confirm Regularization Date"
+        description="This will save and lock the regularization date. You cannot edit it after saving."
+        confirmText="Yes, Save and Lock"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={isActionLoading}
+      />
     </div>
   );
 }
