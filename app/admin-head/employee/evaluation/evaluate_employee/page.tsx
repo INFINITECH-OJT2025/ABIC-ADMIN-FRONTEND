@@ -23,9 +23,13 @@ import {
   FileDown,
   Mail,
   Pencil,
-  Search,
   Check,
-  Circle
+  Calendar,
+  UserCheck,
+  TrendingUp,
+  PieChart,
+  ThumbsUp,
+  X
 } from 'lucide-react'
 import { getApiUrl } from '@/lib/api'
 import { toast } from 'sonner'
@@ -169,35 +173,52 @@ const EMPTY_SCORES: Record<CriteriaId, string> = {
 }
 
 const EvaluationFormSkeleton = () => (
-  <div className="min-h-screen bg-slate-50 py-10 px-4 animate-pulse">
-    <div className="max-w-[850px] mx-auto mb-4 flex justify-between">
-      <Skeleton className="h-10 w-24 bg-white border border-slate-200 shadow-sm" />
-      <div className="flex gap-2">
-        <Skeleton className="h-10 w-32 bg-white border border-slate-200 shadow-sm" />
-        <Skeleton className="h-10 w-32 bg-white border border-slate-200 shadow-sm" />
-        <Skeleton className="h-10 w-40 bg-white border border-slate-200 shadow-sm" />
+  <div className="min-h-screen bg-slate-50 animate-pulse">
+    <div className="bg-white border-b border-slate-200 shadow-sm mb-6">
+      <div className="w-full px-4 md:px-8 py-6">
+        <Skeleton className="h-8 w-60 bg-slate-200 mb-3" />
+        <Skeleton className="h-4 w-80 bg-slate-100" />
+      </div>
+      <div className="border-t border-slate-200 bg-slate-50/70 px-4 md:px-8 py-3">
+        <div className="flex flex-wrap gap-3">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-9 w-36 bg-slate-100 border border-slate-200" />
+          ))}
+        </div>
       </div>
     </div>
-    <div className="max-w-[850px] mx-auto bg-white shadow-sm p-[60px] border border-slate-200 space-y-10">
-      <div className="text-center space-y-4">
-        <Skeleton className="h-8 w-80 mx-auto bg-slate-200" />
-        <Skeleton className="h-8 w-64 mx-auto bg-slate-100" />
+
+    <div className="px-4 md:px-6">
+      <div className="max-w-[850px] mx-auto mb-4 flex justify-between gap-2">
+        <Skeleton className="h-10 w-24 bg-white border border-slate-200 shadow-sm" />
+        <div className="flex gap-2">
+          <Skeleton className="h-10 w-32 bg-white border border-slate-200 shadow-sm" />
+          <Skeleton className="h-10 w-32 bg-white border border-slate-200 shadow-sm" />
+          <Skeleton className="h-10 w-40 bg-white border border-slate-200 shadow-sm" />
+        </div>
       </div>
-      <div className="space-y-4 pt-6 border-t border-slate-100">
-        <Skeleton className="h-6 w-full bg-slate-50" />
-        <Skeleton className="h-6 w-full bg-slate-50" />
-        <Skeleton className="h-6 w-full bg-slate-50" />
-      </div>
-      <div className="space-y-8">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex gap-4 items-start pt-4 border-t border-slate-100">
-            <div className="flex-1 space-y-3">
-              <Skeleton className="h-5 w-48 bg-slate-200" />
-              <Skeleton className="h-4 w-full bg-slate-50" />
+
+      <div className="max-w-[850px] mx-auto bg-white shadow-sm p-[60px] border border-slate-200 space-y-10">
+        <div className="text-center space-y-4">
+          <Skeleton className="h-8 w-80 mx-auto bg-slate-200" />
+          <Skeleton className="h-8 w-64 mx-auto bg-slate-100" />
+        </div>
+        <div className="space-y-4 pt-6 border-t border-slate-100">
+          <Skeleton className="h-6 w-full bg-slate-50" />
+          <Skeleton className="h-6 w-full bg-slate-50" />
+          <Skeleton className="h-6 w-full bg-slate-50" />
+        </div>
+        <div className="space-y-8">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex gap-4 items-start pt-4 border-t border-slate-100">
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-5 w-48 bg-slate-200" />
+                <Skeleton className="h-4 w-full bg-slate-50" />
+              </div>
+              <Skeleton className="h-10 w-24 bg-slate-100 rounded-lg" />
             </div>
-            <Skeleton className="h-10 w-24 bg-slate-100 rounded-lg" />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   </div>
@@ -808,21 +829,76 @@ function EvaluateEmployeeForm() {
     const criterionId = criterion.id as CriteriaId
     return typeof secondDisplayBreakdown?.[criterionId] === 'number'
   })
+  const totalEmployedCount = employees.filter(
+    (emp) => emp.status === 'employed' || emp.status === 'rehired_employee'
+  ).length
+  const underProbationCount = probeeEmployees.length
+  const forRecommendationCount = Object.values(evaluations).filter(
+    (ev) => ev.status === 'For Recommendation'
+  ).length
+  const regularEmployeesCount = Object.values(evaluations).filter(
+    (ev) => ev.status === 'Regular' || ev.status === 'Regularized'
+  ).length
+  const failedEmployeesCount = Object.values(evaluations).filter(
+    (ev) => String(ev.status).toLowerCase() === 'failed'
+  ).length
 
   return (
-    <div className="min-h-screen bg-slate-200 py-10 px-4 font-serif">
+    <div className="min-h-screen bg-slate-50 pb-10">
+      <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6">
+        <div className="w-full px-4 md:px-8 py-6">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">
+                Employee Evaluation
+              </h1>
+              <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
+                <PieChart className="w-4 h-4" />
+                Manage employee evaluations and performance reviews
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm">
+          <div className="w-full px-4 md:px-8 py-3 flex flex-wrap items-center gap-3 md:gap-4 text-xs font-bold uppercase tracking-wider text-white/85">
+            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              <UserCheck className="h-4 w-4" />
+              Total Employed: {totalEmployedCount}
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              <Calendar className="h-4 w-4" />
+              Under Probation: {underProbationCount}
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              <ThumbsUp className="h-4 w-4" />
+              For Recommendation: {forRecommendationCount}
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              <TrendingUp className="h-4 w-4" />
+              Regular Employees: {regularEmployeesCount}
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              <X className="h-4 w-4" />
+              Failed Employees: {failedEmployeesCount}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 md:px-6 font-serif">
       {/* Action Bar */}
-      <div className={`${showSideBySide ? 'max-w-[1800px]' : 'max-w-[850px]'} mx-auto mb-4 flex justify-between`}>
-        <Button variant="outline" onClick={handleBackWindow} className="rounded-none border-black flex gap-2">
+      <div className={`${showSideBySide ? 'max-w-[1800px]' : 'max-w-[850px]'} mx-auto mb-4 flex flex-wrap justify-between gap-2`}>
+        <Button variant="outline" onClick={handleBackWindow} className="rounded-none border-[#7B0F2B] text-[#7B0F2B] hover:bg-rose-50 flex gap-2">
           <ArrowLeft className="w-4 h-4" /> Back
         </Button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
             onClick={handleExportPdf}
             disabled={isExportingPdf || !selectedEmployeeId}
-            className="rounded-none border-black flex gap-2"
+            className="rounded-none border-[#7B0F2B] text-[#7B0F2B] hover:bg-rose-50 flex gap-2"
           >
             {isExportingPdf ? 'Exporting...' : <><FileDown className="w-4 h-4" /> Export PDF</>}
           </Button>
@@ -831,7 +907,7 @@ function EvaluateEmployeeForm() {
             variant="outline"
             onClick={handleSendPdfToEmail}
             disabled={isEmailSending || !selectedEmployeeId}
-            className="rounded-none border-black flex gap-2"
+            className="rounded-none border-[#7B0F2B] text-[#7B0F2B] hover:bg-rose-50 flex gap-2"
           >
             {isEmailSending ? 'Sending...' : <><Mail className="w-4 h-4" /> Send to Email</>}
           </Button>
@@ -848,7 +924,7 @@ function EvaluateEmployeeForm() {
           <Button 
             onClick={handleSubmit} 
             disabled={isSubmitting || !showSecondEvaluationPanel || !isEditMode}
-            className="bg-black text-white rounded-none hover:bg-slate-800 flex gap-2"
+            className="bg-[#A4163A] text-white rounded-none hover:bg-[#7B0F2B] flex gap-2"
           >
             {isSubmitting ? 'Saving...' : <><Save className="w-4 h-4" /> Save Evaluation</>}
           </Button>
@@ -1367,6 +1443,7 @@ function EvaluateEmployeeForm() {
 
       </div>
       )}
+      </div>
       </div>
     </div>
   )
