@@ -6,6 +6,7 @@ import { Plus, Search, Edit2, Save, ChevronDown, ChevronRight, AlertCircle, Load
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getApiUrl } from "@/lib/api";
+import { toast } from "sonner";
 
 type InterviewStatus = "PENDING" | "CONFIRMED" | "PASSED" | "FAILED";
 
@@ -175,6 +176,20 @@ export default function ApplicantsForInterviewPage() {
   }, []);
 
   const addInitialRow = () => {
+    const hasIncompleteDraft = initialRows.some(
+      (row) =>
+        row.isNew &&
+        (!String(row.name ?? "").trim() ||
+          !String(row.position ?? "").trim() ||
+          !String(row.date ?? "").trim() ||
+          !String(row.time ?? "").trim()),
+    );
+
+    if (hasIncompleteDraft) {
+      toast.error("Complete the current initial interview draft before adding another row.");
+      return;
+    }
+
     const tempId = `tmp-initial-${Date.now()}`;
     setInitialRows((prev) => [
       ...prev,
@@ -231,7 +246,7 @@ export default function ApplicantsForInterviewPage() {
   const saveInitial = async (row: InterviewRow) => {
     if (savingInitialId === row.id) return;
     if (!row.date || !row.time) {
-      window.alert("Interview date and time are required.");
+      toast.error("Interview date and time are required.");
       return;
     }
     const apiUrl = getApiUrl();
@@ -291,7 +306,7 @@ export default function ApplicantsForInterviewPage() {
           return;
         }
 
-        window.alert(message);
+        toast.error(message);
         return;
       }
 
@@ -316,7 +331,7 @@ export default function ApplicantsForInterviewPage() {
   const saveFinal = async (row: InterviewRow) => {
     if (savingFinalId === row.id) return;
     if (!row.date || !row.time) {
-      window.alert("Interview date and time are required.");
+      toast.error("Interview date and time are required.");
       return;
     }
     const apiUrl = getApiUrl();
@@ -358,7 +373,7 @@ export default function ApplicantsForInterviewPage() {
           // Keep generic message when response is not JSON.
         }
 
-        window.alert(message);
+        toast.error(message);
         return;
       }
 
@@ -445,7 +460,7 @@ export default function ApplicantsForInterviewPage() {
       </div>
 
       <main className="flex-1 overflow-y-auto px-3 md:px-6 lg:px-8 pb-8 md:pb-12 space-y-10 text-black">
-        <div className="w-full bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-lg">
+        <div className="w-full bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-xl">
           <div
             onClick={() => setIsInitialOpen(!isInitialOpen)}
             className="bg-gradient-to-r from-[#4A081A]/10 to-transparent p-4 border-b-2 border-[#630C22] flex items-center justify-between cursor-pointer"
@@ -465,15 +480,15 @@ export default function ApplicantsForInterviewPage() {
             </div>
           </div>
           <div className={isInitialOpen ? "block" : "hidden"}>
-            <Table className="border-collapse w-full text-sm">
+            <Table className="border-collapse w-full text-[12px] table-fixed">
               <TableHeader>
                 <TableRow className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC] hover:bg-[#FFE5EC]/30">
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Applicant Name</TableHead>
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Position</TableHead>
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Interview Date</TableHead>
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Interview Time</TableHead>
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Status</TableHead>
-                  <TableHead className="px-6 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>
+                  <TableHead className="px-4 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Applicant Name</TableHead>
+                  <TableHead className="px-4 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Position</TableHead>
+                  <TableHead className="px-4 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Interview Date</TableHead>
+                  <TableHead className="px-4 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Interview Time</TableHead>
+                  <TableHead className="px-4 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Status</TableHead>
+                  <TableHead className="px-4 py-2 text-right font-bold text-[#800020] text-[10px] uppercase tracking-wider">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
@@ -488,9 +503,9 @@ export default function ApplicantsForInterviewPage() {
                   return (
                     <TableRow
                       key={row.id}
-                      className={`hover:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group ${editable ? "bg-amber-50/50" : ""}`}
+                      className={`border-b border-rose-50 transition-colors duration-200 group ${editable ? "bg-amber-50/50 hover:bg-amber-50/50 hover:[&>td]:bg-amber-50/50" : "hover:bg-[#FFE5EC] hover:[&>td]:bg-[#FFE5EC]"}`}
                     >
-                      <TableCell className="px-6 py-4 relative">
+                      <TableCell className="px-4 py-2 relative border-r border-rose-50/40">
                         {editable && rowNameError && (
                           <div className="absolute right-2 top-1 z-10 flex items-center gap-1 text-[11px] font-semibold text-[#ff2d55]">
                             <AlertCircle size={12} />
@@ -508,7 +523,7 @@ export default function ApplicantsForInterviewPage() {
                           placeholder="Name..."
                         />
                       </TableCell>
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-4 py-2 border-r border-rose-50/40">
                         <div className="relative">
                           <select
                             value={row.position}
@@ -525,7 +540,7 @@ export default function ApplicantsForInterviewPage() {
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7B0F2B] pointer-events-none" />
                         </div>
                       </TableCell>
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-4 py-2 border-r border-rose-50/40">
                         <input
                           type="date"
                           value={row.date || ""}
@@ -534,7 +549,7 @@ export default function ApplicantsForInterviewPage() {
                           className="w-full h-full bg-transparent border-none text-center font-bold text-black focus:outline-none read-only:opacity-80"
                         />
                       </TableCell>
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-4 py-2 border-r border-rose-50/40">
                         <input
                           type="time"
                           value={row.time || ""}
@@ -543,7 +558,7 @@ export default function ApplicantsForInterviewPage() {
                           className="w-full h-full bg-transparent border-none text-center font-bold text-black focus:outline-none read-only:opacity-80"
                         />
                       </TableCell>
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-4 py-2 border-r border-rose-50/40">
                         <div className="relative">
                           <select
                             value={row.status}
@@ -568,12 +583,12 @@ export default function ApplicantsForInterviewPage() {
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#7B0F2B] pointer-events-none" />
                         </div>
                       </TableCell>
-                      <TableCell className="px-6 py-4 text-right">
+                      <TableCell className="px-4 py-2 text-right">
                         {editable ? (
                           <button
                             onClick={() => saveInitial(row)}
                             disabled={isSaving || isMissingDateTime}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-2.5 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             <span>Save</span>
@@ -581,7 +596,7 @@ export default function ApplicantsForInterviewPage() {
                         ) : (
                           <button
                             onClick={() => setEditingInitialId(row.id)}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 cursor-pointer"
+                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-2.5 rounded-lg inline-flex items-center gap-2 cursor-pointer"
                           >
                             <Edit2 className="w-4 h-4" />
                             <span>Edit</span>
@@ -603,7 +618,7 @@ export default function ApplicantsForInterviewPage() {
           </div>
         </div>
 
-        <div className="w-full bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-lg">
+        <div className="w-full bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-xl">
           <div
             onClick={() => setIsFinalOpen(!isFinalOpen)}
             className="bg-gradient-to-r from-[#4A081A]/10 to-transparent p-4 border-b-2 border-[#630C22] flex items-center justify-between cursor-pointer"
@@ -615,15 +630,15 @@ export default function ApplicantsForInterviewPage() {
             <div className="w-7 h-7" />
           </div>
           <div className={isFinalOpen ? "block" : "hidden"}>
-            <Table className="border-collapse w-full text-sm">
+            <Table className="border-collapse w-full text-[12px] table-fixed">
               <TableHeader>
                 <TableRow className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC] hover:bg-[#FFE5EC]/30">
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Applicant Name</TableHead>
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Position</TableHead>
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Interview Date</TableHead>
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Interview Time</TableHead>
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Status</TableHead>
-                  <TableHead className="px-6 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>
+                  <TableHead className="px-4 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Applicant Name</TableHead>
+                  <TableHead className="px-4 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Position</TableHead>
+                  <TableHead className="px-4 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Interview Date</TableHead>
+                  <TableHead className="px-4 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Interview Time</TableHead>
+                  <TableHead className="px-4 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Status</TableHead>
+                  <TableHead className="px-4 py-2 text-right font-bold text-[#800020] text-[10px] uppercase tracking-wider">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
@@ -634,15 +649,15 @@ export default function ApplicantsForInterviewPage() {
                   return (
                     <TableRow
                       key={row.id}
-                      className={`hover:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group ${editable ? "bg-amber-50/50" : ""}`}
+                      className={`border-b border-rose-50 transition-colors duration-200 group ${editable ? "bg-amber-50/50 hover:bg-amber-50/50 hover:[&>td]:bg-amber-50/50" : "hover:bg-[#FFE5EC] hover:[&>td]:bg-[#FFE5EC]"}`}
                     >
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-4 py-2 border-r border-rose-50/40">
                         <div className="w-full h-full px-4 flex items-center font-bold text-black">{row.name || "-"}</div>
                       </TableCell>
-                      <TableCell className="px-6 py-4 font-bold text-black">
+                      <TableCell className="px-4 py-2 font-bold text-black border-r border-rose-50/40">
                         {row.position || "-"}
                       </TableCell>
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-4 py-2 border-r border-rose-50/40">
                         <input
                           type="date"
                           value={row.date || ""}
@@ -651,7 +666,7 @@ export default function ApplicantsForInterviewPage() {
                           className="w-full h-full bg-transparent border-none text-center font-bold text-black focus:outline-none read-only:opacity-80"
                         />
                       </TableCell>
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-4 py-2 border-r border-rose-50/40">
                         <input
                           type="time"
                           value={row.time || ""}
@@ -660,7 +675,7 @@ export default function ApplicantsForInterviewPage() {
                           className="w-full h-full bg-transparent border-none text-center font-bold text-black focus:outline-none read-only:opacity-80"
                         />
                       </TableCell>
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-4 py-2 border-r border-rose-50/40">
                         <div className="relative">
                           <select
                             value={row.status}
@@ -685,12 +700,12 @@ export default function ApplicantsForInterviewPage() {
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#7B0F2B] pointer-events-none" />
                         </div>
                       </TableCell>
-                      <TableCell className="px-6 py-4 text-right">
+                      <TableCell className="px-4 py-2 text-right">
                         {editable ? (
                           <button
                             onClick={() => saveFinal(row)}
                             disabled={isSaving || isMissingDateTime}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-2.5 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             <span>Save</span>
@@ -698,7 +713,7 @@ export default function ApplicantsForInterviewPage() {
                         ) : (
                           <button
                             onClick={() => setEditingFinalId(row.id)}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 cursor-pointer"
+                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-2.5 rounded-lg inline-flex items-center gap-2 cursor-pointer"
                           >
                             <Edit2 className="w-4 h-4" />
                             <span>Edit</span>

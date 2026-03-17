@@ -1567,7 +1567,7 @@ function TerminatePageContent() {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+        <div className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-xl flex flex-col">
           {fetchError ? (
             <div className="flex flex-col items-center justify-center py-24 text-center animate-in fade-in zoom-in-95 duration-500">
               <div className="w-20 h-20 bg-rose-50 rounded-full flex items-center justify-center mb-6 group">
@@ -1594,10 +1594,10 @@ function TerminatePageContent() {
             </div>
           ) : (
             <>
-              <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+              <div className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-[#4A081A]">Terminated History</h2>
-                  <p className="text-slate-400 text-xs mt-0.5">
+                  <h2 className="text-xl font-bold text-[#4A081A] uppercase tracking-wide">Terminated History</h2>
+                  <p className="text-[#A0153E]/70 text-[11px] mt-1 font-bold uppercase">
                     {filteredTerminations.length} of {baseTerminations.length} records
                   </p>
                 </div>
@@ -1618,57 +1618,57 @@ function TerminatePageContent() {
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
-                      <TableHeader className="bg-slate-50">
-                        <TableRow className="border-b border-slate-100">
-                          <TableHead className="py-4 pl-8 text-xs font-bold text-slate-500 uppercase tracking-wider">Employee</TableHead>
-                          <TableHead className="py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Termination Date</TableHead>
+                      <TableHeader className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC]">
+                        <TableRow className="border-b border-[#FFE5EC]/50">
+                          <TableHead className="py-2 pl-6 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Employee</TableHead>
+                          <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Termination Date</TableHead>
                           {(isHistoryView || activeTab !== 'terminated') && (
-                            <TableHead className="py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Rehire Date</TableHead>
+                            <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Rehire Date</TableHead>
                           )}
-                          <TableHead className="py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Reason</TableHead>
-                          <TableHead className="py-4 pr-8 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Action</TableHead>
+                          <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Reason</TableHead>
+                          <TableHead className="py-2 pr-6 text-[10px] font-bold text-[#800020] uppercase tracking-wider text-right">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {filteredTerminations
                           .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                           .map((record) => (
-                          <TableRow key={record.id} className="hover:bg-slate-50/80 transition-colors border-b border-slate-50">
-                            <TableCell className="py-4 pl-8 font-medium text-slate-900">
+                          <TableRow key={record.id} className="hover:bg-[#FFE5EC] hover:[&>td]:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group">
+                            <TableCell className="py-2 pl-6 font-medium text-slate-900 border-r border-rose-50/50">
                               <div className="flex flex-col">
-                                <span className="text-base">{record.employee?.last_name}, {record.employee?.first_name}</span>
-                                <span className="text-xs text-slate-500 font-normal mt-0.5">{record.employee?.position}</span>
+                                <span className="text-sm font-bold text-[#630C22] group-hover:text-[#4A081A] transition-colors">{record.employee?.last_name}, {record.employee?.first_name}</span>
+                                <span className="text-[10px] text-slate-500 font-semibold uppercase">{record.employee?.position}</span>
                               </div>
                             </TableCell>
-                            <TableCell className="text-slate-600 text-sm font-medium">
+                            <TableCell className="text-slate-600 text-[11px] font-medium border-r border-rose-50/50">
                               {record.termination_date ? (
                                 <div className="flex flex-col">
                                   <span className="font-semibold text-rose-700">{new Date(record.termination_date).toLocaleDateString()}</span>
-                                  <span className="text-xs text-slate-400 mt-0.5">{new Date(record.termination_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                  <span className="text-[10px] text-slate-400 mt-0.5">{new Date(record.termination_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
                               ) : 'N/A'}
                             </TableCell>
                             {(isHistoryView || activeTab !== 'terminated') && (
-                              <TableCell className="text-slate-600 text-sm font-medium">
+                              <TableCell className="text-slate-600 text-[11px] font-medium border-r border-rose-50/50">
                                 {record.rehired_at ? (
                                   <div className="flex flex-col">
                                     <span className="font-semibold text-emerald-700">{new Date(record.rehired_at).toLocaleDateString()}</span>
-                                    <span className="text-xs text-slate-400 mt-0.5">{new Date(record.rehired_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span className="text-[10px] text-slate-400 mt-0.5">{new Date(record.rehired_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                   </div>
                                 ) : (
-                                  <span className="text-slate-300 italic text-xs">—</span>
+                                  <span className="text-slate-300 italic text-[10px]">-</span>
                                 )}
                               </TableCell>
                             )}
-                            <TableCell className="max-w-[300px] truncate text-slate-500 text-sm italic">
+                            <TableCell className="max-w-[300px] truncate text-slate-500 text-[11px] italic border-r border-rose-50/50">
                               &quot;{record.reason}&quot;
                             </TableCell>
-                            <TableCell className="py-4 pr-8 text-right">
+                            <TableCell className="py-2 pr-6 text-right">
                               <div className="flex items-center justify-end gap-3">
                                 <Button
-                                  variant="ghost"
+                                  variant="outline"
                                   size="sm"
-                                  className="text-slate-600 font-bold hover:text-slate-800 hover:bg-slate-100 rounded-lg px-4"
+                                  className="rounded-lg font-bold transition-all text-[#630C22] border-[#630C22] hover:bg-[#630C22] hover:text-white h-7 px-2 text-[10px]"
                                   onClick={() => {
                                     setSelectedTermination(record)
                                     setShowDetailDialog(true)
@@ -1702,8 +1702,8 @@ function TerminatePageContent() {
                     </Table>
                     {/* Pagination */}
                     {filteredTerminations.length > itemsPerPage && (
-                      <div className="px-8 py-3 border-t border-slate-50 flex items-center justify-between bg-slate-50/30">
-                        <div className="text-xs text-slate-500 font-medium">
+                      <div className="px-6 py-3 border-t border-[#FFE5EC]/70 flex items-center justify-between bg-[#FFE5EC]/20">
+                        <div className="text-[11px] text-slate-500 font-medium">
                           Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredTerminations.length)} of {filteredTerminations.length}
                         </div>
                         <div className="flex gap-1.5 items-center">
@@ -1712,7 +1712,7 @@ function TerminatePageContent() {
                             size="sm"
                             onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                             disabled={currentPage === 1}
-                            className="h-8 px-3 text-xs font-bold border-slate-200 text-slate-600 hover:bg-white disabled:opacity-40"
+                            className="h-8 px-3 text-xs font-bold border-[#FFE5EC] text-[#7B0F2B] hover:bg-white disabled:opacity-40"
                           >
                             Previous
                           </Button>
@@ -1724,7 +1724,7 @@ function TerminatePageContent() {
                                 "w-8 h-8 rounded-lg text-xs font-bold transition-all",
                                 currentPage === page
                                   ? "bg-[#800020] text-white shadow-md scale-105"
-                                  : "text-slate-500 hover:bg-slate-100"
+                                  : "text-[#7B0F2B]/70 hover:bg-[#FFE5EC]/60"
                               )}
                             >
                               {page}
@@ -1735,7 +1735,7 @@ function TerminatePageContent() {
                             size="sm"
                             onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredTerminations.length / itemsPerPage)))}
                             disabled={currentPage === Math.ceil(filteredTerminations.length / itemsPerPage)}
-                            className="h-8 px-3 text-xs font-bold border-slate-200 text-slate-600 hover:bg-white disabled:opacity-40"
+                            className="h-8 px-3 text-xs font-bold border-[#FFE5EC] text-[#7B0F2B] hover:bg-white disabled:opacity-40"
                           >
                             Next
                           </Button>
@@ -1749,17 +1749,17 @@ function TerminatePageContent() {
           )}
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+        <div className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-xl flex flex-col">
           {fetchError ? (
             <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
               <p>Unable to load resigned history.</p>
             </div>
           ) : (
             <>
-              <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+              <div className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-bold text-[#4A081A]">Resigned History</h2>
-                  <p className="text-slate-400 text-xs mt-0.5">
+                  <h2 className="text-xl font-bold text-[#4A081A] uppercase tracking-wide">Resigned History</h2>
+                  <p className="text-[#A0153E]/70 text-[11px] mt-1 font-bold uppercase">
                     {filteredResigned.length} of {baseResigned.length} records
                   </p>
                 </div>
@@ -1780,57 +1780,57 @@ function TerminatePageContent() {
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
-                      <TableHeader className="bg-slate-50">
-                        <TableRow className="border-b border-slate-100">
-                          <TableHead className="py-4 pl-8 text-xs font-bold text-slate-500 uppercase tracking-wider">Employee</TableHead>
-                          <TableHead className="py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Resignation Date</TableHead>
+                      <TableHeader className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC]">
+                        <TableRow className="border-b border-[#FFE5EC]/50">
+                          <TableHead className="py-2 pl-6 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Employee</TableHead>
+                          <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Resignation Date</TableHead>
                           {(isHistoryView || activeTab !== 'terminated') && (
-                            <TableHead className="py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Rehire Date</TableHead>
+                            <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Rehire Date</TableHead>
                           )}
-                          <TableHead className="py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Reason</TableHead>
-                          <TableHead className="py-4 pr-8 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Action</TableHead>
+                          <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Reason</TableHead>
+                          <TableHead className="py-2 pr-6 text-[10px] font-bold text-[#800020] uppercase tracking-wider text-right">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {filteredResigned
                           .slice((currentResignedPage - 1) * itemsPerPage, currentResignedPage * itemsPerPage)
                           .map((record) => (
-                            <TableRow key={`resigned-${record.id}`} className="hover:bg-slate-50/80 transition-colors border-b border-slate-50">
-                              <TableCell className="py-4 pl-8 font-medium text-slate-900">
+                            <TableRow key={`resigned-${record.id}`} className="hover:bg-[#FFE5EC] hover:[&>td]:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group">
+                              <TableCell className="py-2 pl-6 font-medium text-slate-900 border-r border-rose-50/50">
                                 <div className="flex flex-col">
-                                  <span className="text-base">{record.employee?.last_name}, {record.employee?.first_name}</span>
-                                  <span className="text-xs text-slate-500 font-normal mt-0.5">{record.employee?.position}</span>
+                                  <span className="text-sm font-bold text-[#630C22] group-hover:text-[#4A081A] transition-colors">{record.employee?.last_name}, {record.employee?.first_name}</span>
+                                  <span className="text-[10px] text-slate-500 font-semibold uppercase">{record.employee?.position}</span>
                                 </div>
                               </TableCell>
-                              <TableCell className="text-slate-600 text-sm font-medium">
+                              <TableCell className="text-slate-600 text-[11px] font-medium border-r border-rose-50/50">
                                 {record.termination_date ? (
                                   <div className="flex flex-col">
                                     <span className="font-semibold text-rose-700">{new Date(record.termination_date).toLocaleDateString()}</span>
-                                    <span className="text-xs text-slate-400 mt-0.5">{new Date(record.termination_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                    <span className="text-[10px] text-slate-400 mt-0.5">{new Date(record.termination_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                   </div>
                                 ) : 'N/A'}
                               </TableCell>
                               {(isHistoryView || activeTab !== 'terminated') && (
-                                <TableCell className="text-slate-600 text-sm font-medium">
+                                <TableCell className="text-slate-600 text-[11px] font-medium border-r border-rose-50/50">
                                   {record.rehired_at ? (
                                     <div className="flex flex-col">
                                       <span className="font-semibold text-emerald-700">{new Date(record.rehired_at).toLocaleDateString()}</span>
-                                      <span className="text-xs text-slate-400 mt-0.5">{new Date(record.rehired_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                      <span className="text-[10px] text-slate-400 mt-0.5">{new Date(record.rehired_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                     </div>
                                   ) : (
-                                    <span className="text-slate-300 italic text-xs">â€”</span>
+                                    <span className="text-slate-300 italic text-[10px]">-</span>
                                   )}
                                 </TableCell>
                               )}
-                              <TableCell className="max-w-[300px] truncate text-slate-500 text-sm italic">
+                              <TableCell className="max-w-[300px] truncate text-slate-500 text-[11px] italic border-r border-rose-50/50">
                                 &quot;{record.reason}&quot;
                               </TableCell>
-                              <TableCell className="py-4 pr-8 text-right">
+                              <TableCell className="py-2 pr-6 text-right">
                                 <div className="flex items-center justify-end gap-3">
                                   <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
-                                    className="text-[#800020] font-bold hover:text-[#A0153E] hover:bg-rose-50 rounded-lg px-4"
+                                    className="rounded-lg font-bold transition-all text-[#630C22] border-[#630C22] hover:bg-[#630C22] hover:text-white h-7 px-2 text-[10px]"
                                     onClick={() => {
                                       setSelectedTermination(record)
                                       setShowDetailDialog(true)
@@ -1863,8 +1863,8 @@ function TerminatePageContent() {
                       </TableBody>
                     </Table>
                     {filteredResigned.length > itemsPerPage && (
-                      <div className="px-8 py-3 border-t border-slate-50 flex items-center justify-between bg-slate-50/30">
-                        <div className="text-xs text-slate-500 font-medium">
+                      <div className="px-6 py-3 border-t border-[#FFE5EC]/70 flex items-center justify-between bg-[#FFE5EC]/20">
+                        <div className="text-[11px] text-slate-500 font-medium">
                           Showing {(currentResignedPage - 1) * itemsPerPage + 1} to {Math.min(currentResignedPage * itemsPerPage, filteredResigned.length)} of {filteredResigned.length}
                         </div>
                         <div className="flex gap-1.5 items-center">
@@ -1873,7 +1873,7 @@ function TerminatePageContent() {
                             size="sm"
                             onClick={() => setCurrentResignedPage(prev => Math.max(prev - 1, 1))}
                             disabled={currentResignedPage === 1}
-                            className="h-8 px-3 text-xs font-bold border-slate-200 text-slate-600 hover:bg-white disabled:opacity-40"
+                            className="h-8 px-3 text-xs font-bold border-[#FFE5EC] text-[#7B0F2B] hover:bg-white disabled:opacity-40"
                           >
                             Previous
                           </Button>
@@ -1885,7 +1885,7 @@ function TerminatePageContent() {
                                 "w-8 h-8 rounded-lg text-xs font-bold transition-all",
                                 currentResignedPage === page
                                   ? "bg-[#800020] text-white shadow-md scale-105"
-                                  : "text-slate-500 hover:bg-slate-100"
+                                  : "text-[#7B0F2B]/70 hover:bg-[#FFE5EC]/60"
                               )}
                             >
                               {page}
@@ -1896,7 +1896,7 @@ function TerminatePageContent() {
                             size="sm"
                             onClick={() => setCurrentResignedPage(prev => Math.min(prev + 1, Math.ceil(filteredResigned.length / itemsPerPage)))}
                             disabled={currentResignedPage === Math.ceil(filteredResigned.length / itemsPerPage)}
-                            className="h-8 px-3 text-xs font-bold border-slate-200 text-slate-600 hover:bg-white disabled:opacity-40"
+                            className="h-8 px-3 text-xs font-bold border-[#FFE5EC] text-[#7B0F2B] hover:bg-white disabled:opacity-40"
                           >
                             Next
                           </Button>

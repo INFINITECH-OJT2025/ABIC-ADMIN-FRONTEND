@@ -233,6 +233,15 @@ export default function HiringReportPage() {
   }, []);
 
   const addSummaryRow = () => {
+    const hasIncompleteDraft = summaryRows.some(
+      (row) => row.isNew && !String(row.position ?? "").trim(),
+    );
+
+    if (hasIncompleteDraft) {
+      toast.error("Complete the current summary draft before adding another row.");
+      return;
+    }
+
     const tempId = `tmp-summary-${Date.now()}`;
     setSummaryRows((prev) => [
       ...prev,
@@ -576,7 +585,7 @@ export default function HiringReportPage() {
       </div>
 
       <main className="flex-1 overflow-y-auto px-3 md:px-6 lg:px-8 pb-8 md:pb-12 space-y-10">
-        <div className="w-full bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-lg">
+        <div className="w-full bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-xl">
           <div
             onClick={() => setIsSummaryOpen(!isSummaryOpen)}
             className="bg-gradient-to-r from-[#4A081A]/10 to-transparent p-4 border-b-2 border-[#630C22] flex items-center justify-between cursor-pointer"
@@ -596,15 +605,15 @@ export default function HiringReportPage() {
             </div>
           </div>
           <div className={isSummaryOpen ? "block" : "hidden"}>
-            <Table className="border-collapse w-full text-sm table-fixed">
+            <Table className="border-collapse w-full text-[12px] table-fixed">
               <TableHeader>
                 <TableRow className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC] hover:bg-[#FFE5EC]/30">
-                  <TableHead className="w-[34%] px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Position</TableHead>
-                  <TableHead className="w-[14%] px-6 py-4 text-center font-bold text-[#800020] text-sm uppercase tracking-wider">Required Headcount</TableHead>
-                  <TableHead className="w-[14%] px-6 py-4 text-center font-bold text-[#800020] text-sm uppercase tracking-wider">Hired (Onboarded)</TableHead>
-                  <TableHead className="w-[14%] px-6 py-4 text-center font-bold text-[#800020] text-sm uppercase tracking-wider">Remaining Slots</TableHead>
-                  <TableHead className="w-[14%] px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Last Update</TableHead>
-                  <TableHead className="w-[10%] px-6 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>
+                  <TableHead className="w-[34%] px-4 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Position</TableHead>
+                  <TableHead className="w-[14%] px-4 py-2 text-center font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Required Headcount</TableHead>
+                  <TableHead className="w-[14%] px-4 py-2 text-center font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Hired (Onboarded)</TableHead>
+                  <TableHead className="w-[14%] px-4 py-2 text-center font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Remaining Slots</TableHead>
+                  <TableHead className="w-[14%] px-4 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Last Update</TableHead>
+                  <TableHead className="w-[10%] px-4 py-2 text-right font-bold text-[#800020] text-[10px] uppercase tracking-wider">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
@@ -612,8 +621,8 @@ export default function HiringReportPage() {
                   const editable = row.isNew || editingSummaryId === row.id;
                   const isSaving = savingSummaryId === row.id;
                   return (
-                    <TableRow key={row.id} className="hover:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group">
-                      <TableCell className="px-6 py-4 relative overflow-hidden">
+                    <TableRow key={row.id} className="hover:bg-[#FFE5EC] hover:[&>td]:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group">
+                      <TableCell className="px-4 py-2 relative overflow-hidden border-r border-rose-50/40">
                         <div className="relative">
                           <select
                             value={row.position}
@@ -630,7 +639,7 @@ export default function HiringReportPage() {
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#7B0F2B] pointer-events-none" />
                         </div>
                       </TableCell>
-                      <TableCell className="px-6 py-4 text-center bg-white">
+                      <TableCell className="px-4 py-2 text-center bg-white border-r border-rose-50/40">
                         <div className="relative flex items-center justify-center h-full">
                           <span className="font-bold text-lg">{row.requiredHeadcount}</span>
                           <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-col items-center justify-center -space-y-1">
@@ -651,7 +660,7 @@ export default function HiringReportPage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="px-6 py-4">
+                      <TableCell className="px-4 py-2 border-r border-rose-50/40">
                         <input
                           type="number"
                           value={row.hired}
@@ -659,14 +668,14 @@ export default function HiringReportPage() {
                           className="w-full h-full bg-transparent border-none text-center font-semibold text-black focus:outline-none read-only:opacity-80"
                         />
                       </TableCell>
-                      <TableCell className="px-6 py-4 text-center font-bold text-black text-lg">{row.remaining}</TableCell>
-                      <TableCell className="px-6 py-4 font-semibold text-black text-xs">{row.lastUpdate}</TableCell>
-                      <TableCell className="px-6 py-4 text-right">
+                      <TableCell className="px-4 py-2 text-center font-bold text-black text-base border-r border-rose-50/40">{row.remaining}</TableCell>
+                      <TableCell className="px-4 py-2 font-semibold text-black text-[11px] border-r border-rose-50/40">{row.lastUpdate}</TableCell>
+                      <TableCell className="px-4 py-2 text-right">
                         {editable ? (
                           <button
                             onClick={() => saveSummary(row)}
                             disabled={isSaving}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-2.5 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 cursor-pointer"
                           >
                             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                             <span>Save</span>
@@ -674,7 +683,7 @@ export default function HiringReportPage() {
                         ) : (
                           <button
                             onClick={() => setEditingSummaryId(row.id)}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 cursor-pointer"
+                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-2.5 rounded-lg inline-flex items-center gap-2 cursor-pointer"
                           >
                             <Edit2 className="w-4 h-4" />
                             <span>Edit</span>
@@ -685,10 +694,10 @@ export default function HiringReportPage() {
                   );
                 })}
                 <TableRow className="h-10 font-bold bg-[#FFE5EC]/30 border-t border-[#FFE5EC]">
-                  <TableCell className="text-right uppercase px-6 text-[10px] tracking-widest text-[#800020]">TOTAL</TableCell>
-                  <TableCell className="text-center text-lg px-6">{totalSummaryHC}</TableCell>
-                  <TableCell className="text-center text-lg px-6">{totalSummaryHired}</TableCell>
-                  <TableCell className="text-center text-lg px-6">{totalSummaryRemaining}</TableCell>
+                  <TableCell className="text-right uppercase px-4 text-[10px] tracking-widest text-[#800020] border-r border-[#FFE5EC]/50">TOTAL</TableCell>
+                  <TableCell className="text-center text-base px-4 border-r border-[#FFE5EC]/50">{totalSummaryHC}</TableCell>
+                  <TableCell className="text-center text-base px-4 border-r border-[#FFE5EC]/50">{totalSummaryHired}</TableCell>
+                  <TableCell className="text-center text-base px-4 border-r border-[#FFE5EC]/50">{totalSummaryRemaining}</TableCell>
                   <TableCell />
                   <TableCell />
                 </TableRow>
@@ -697,7 +706,7 @@ export default function HiringReportPage() {
           </div>
         </div>
 
-        <div className="w-full bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-lg">
+        <div className="w-full bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-xl">
           <div
             onClick={() => setIsJobOffersOpen(!isJobOffersOpen)}
             className="bg-gradient-to-r from-[#4A081A]/10 to-transparent p-4 border-b-2 border-[#630C22] flex items-center justify-between cursor-pointer"
@@ -709,17 +718,17 @@ export default function HiringReportPage() {
             <div className="w-7 h-7" />
           </div>
           <div className={isJobOffersOpen ? "block" : "hidden"}>
-            <Table className="border-collapse w-full text-sm table-fixed">
+            <Table className="border-collapse w-full text-[12px] table-fixed">
               <TableHeader>
                 <TableRow className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC] hover:bg-[#FFE5EC]/30">
-                  <TableHead className="w-[170px] px-2 py-3 text-left font-bold text-[#800020] text-xs uppercase tracking-wider leading-tight">Applicant Name</TableHead>
-                  <TableHead className="w-[170px] px-2 py-3 text-left font-bold text-[#800020] text-xs uppercase tracking-wider leading-tight">Position</TableHead>
-                  <TableHead className="w-[150px] px-2 py-3 text-left font-bold text-[#800020] text-xs uppercase tracking-wider leading-tight">Salary Offer</TableHead>
-                  <TableHead className="w-[135px] px-2 py-3 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight">Date Offer Sent</TableHead>
-                  <TableHead className="w-[135px] px-2 py-3 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight">Date of Response</TableHead>
-                  <TableHead className="w-[255px] px-2 py-3 text-left font-bold text-[#800020] text-[9px] uppercase tracking-wider leading-tight">Offer Status (Pending/Accepted)</TableHead>
-                  <TableHead className="w-[130px] px-2 py-3 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight">Start Date</TableHead>
-                  <TableHead className="w-[190px] px-2 py-3 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>
+                  <TableHead className="w-[170px] px-2 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight border-r border-[#FFE5EC]/50">Applicant Name</TableHead>
+                  <TableHead className="w-[170px] px-2 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight border-r border-[#FFE5EC]/50">Position</TableHead>
+                  <TableHead className="w-[150px] px-2 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight border-r border-[#FFE5EC]/50">Salary Offer</TableHead>
+                  <TableHead className="w-[135px] px-2 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight border-r border-[#FFE5EC]/50">Date Offer Sent</TableHead>
+                  <TableHead className="w-[135px] px-2 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight border-r border-[#FFE5EC]/50">Date of Response</TableHead>
+                  <TableHead className="w-[255px] px-2 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight border-r border-[#FFE5EC]/50">Offer Status (Pending/Accepted)</TableHead>
+                  <TableHead className="w-[130px] px-2 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight border-r border-[#FFE5EC]/50">Start Date</TableHead>
+                  <TableHead className="w-[190px] px-2 py-2 text-right font-bold text-[#800020] text-[10px] uppercase tracking-wider">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
@@ -741,15 +750,15 @@ export default function HiringReportPage() {
                   return (
                     <TableRow
                       key={row.id}
-                      className={`transition-colors duration-200 group border-b border-rose-50 ${editable ? "bg-amber-50/50" : "hover:bg-[#FFE5EC]"}`}
+                      className={`transition-colors duration-200 group border-b border-rose-50 ${editable ? "bg-amber-50/50 hover:bg-amber-50/50 hover:[&>td]:bg-amber-50/50" : "hover:bg-[#FFE5EC] hover:[&>td]:bg-[#FFE5EC]"}`}
                     >
-                      <TableCell className="px-2 py-3">
-                        <div className="w-full h-full flex items-center font-semibold text-black">{row.name || "-"}</div>
+                      <TableCell className="px-2 py-2 border-r border-rose-50/40">
+                        <div className="w-full h-full flex items-center font-semibold text-black group-hover:text-[#630C22] transition-colors">{row.name || "-"}</div>
                       </TableCell>
-                      <TableCell className="px-2 py-3">
-                        <div className="w-full h-full flex items-center font-semibold text-sm text-black">{row.position}</div>
+                      <TableCell className="px-2 py-2 border-r border-rose-50/40">
+                        <div className="w-full h-full flex items-center font-semibold text-sm text-black group-hover:text-[#630C22] transition-colors">{row.position}</div>
                       </TableCell>
-                      <TableCell className="px-2 py-3 relative">
+                      <TableCell className="px-2 py-2 relative border-r border-rose-50/40">
                         {editable ? (
                           <div className="flex items-center h-full w-full gap-1.5">
                             <span className="font-bold text-black text-xl select-none">P</span>
@@ -772,7 +781,7 @@ export default function HiringReportPage() {
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="px-2 py-3">
+                      <TableCell className="px-2 py-2 border-r border-rose-50/40">
                         <input
                           type="date"
                           value={row.offerSent}
@@ -781,7 +790,7 @@ export default function HiringReportPage() {
                           className="w-full h-full bg-transparent border-none text-center text-xs text-black focus:outline-none px-1 read-only:opacity-70"
                         />
                       </TableCell>
-                      <TableCell className="px-2 py-3">
+                      <TableCell className="px-2 py-2 border-r border-rose-50/40">
                         <input
                           type="date"
                           value={row.responseDate}
@@ -790,7 +799,7 @@ export default function HiringReportPage() {
                           className="w-full h-full bg-transparent border-none text-center text-xs text-black focus:outline-none px-1 read-only:opacity-70"
                         />
                       </TableCell>
-                      <TableCell className="px-2 py-3">
+                      <TableCell className="px-2 py-2 border-r border-rose-50/40">
                         <div className="relative">
                           <select
                             value={row.status}
@@ -807,7 +816,7 @@ export default function HiringReportPage() {
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#7B0F2B] pointer-events-none" />
                         </div>
                       </TableCell>
-                      <TableCell className="px-2 py-3">
+                      <TableCell className="px-2 py-2 border-r border-rose-50/40">
                         <input
                           type="date"
                           value={row.startDate}
@@ -816,7 +825,7 @@ export default function HiringReportPage() {
                           className="w-full h-full bg-transparent border-none text-center text-xs text-black focus:outline-none px-1 read-only:opacity-70"
                         />
                       </TableCell>
-                      <TableCell className="px-2 py-3 text-right">
+                      <TableCell className="px-2 py-2 text-right">
                         {editable ? (
                           <button
                             onClick={() => saveJobOffer(row)}
@@ -833,7 +842,7 @@ export default function HiringReportPage() {
                             <Link href={buildOnboardHref(row)}>
                               <button
                                 title="Onboard this applicant"
-                                className="h-10 px-5 text-[12px] font-black uppercase tracking-wide rounded-lg border border-[#800020] text-[#800020] hover:bg-[#800020] hover:text-white transition-colors inline-flex items-center justify-center"
+                                className="h-9 px-4 text-[11px] font-black uppercase tracking-wide rounded-lg border border-[#800020] text-[#800020] hover:bg-[#800020] hover:text-white transition-colors inline-flex items-center justify-center"
                               >
                                 Onboard Applicant
                               </button>
@@ -850,7 +859,7 @@ export default function HiringReportPage() {
                             <button
                               disabled
                               title="Set Start Date first before onboarding."
-                              className="h-10 px-5 text-[12px] font-black uppercase tracking-wide rounded-lg border border-[#800020] text-[#800020] opacity-50 cursor-not-allowed inline-flex items-center justify-center"
+                              className="h-9 px-4 text-[11px] font-black uppercase tracking-wide rounded-lg border border-[#800020] text-[#800020] opacity-50 cursor-not-allowed inline-flex items-center justify-center"
                             >
                               Onboard Applicant
                             </button>
@@ -873,7 +882,7 @@ export default function HiringReportPage() {
           </div>
         </div>
 
-        <div className="w-full bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-lg">
+        <div className="w-full bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-xl">
           <div
             onClick={() => setIsOnboardedOpen(!isOnboardedOpen)}
             className="bg-gradient-to-r from-[#4A081A]/10 to-transparent p-4 border-b-2 border-[#630C22] flex items-center justify-between cursor-pointer"
@@ -884,22 +893,22 @@ export default function HiringReportPage() {
             </div>
           </div>
           <div className={isOnboardedOpen ? "block" : "hidden"}>
-            <Table className="border-collapse w-full text-sm">
+            <Table className="border-collapse w-full text-[12px] table-fixed">
               <TableHeader>
                 <TableRow className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC] hover:bg-[#FFE5EC]/30">
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Applicant Name</TableHead>
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Position</TableHead>
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Salary</TableHead>
-                  <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Start Date</TableHead>
+                  <TableHead className="px-5 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Applicant Name</TableHead>
+                  <TableHead className="px-5 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Position</TableHead>
+                  <TableHead className="px-5 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50">Salary</TableHead>
+                  <TableHead className="px-5 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider">Start Date</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
                 {onboardedRows.map((row) => (
-                  <TableRow key={row.id} className="hover:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group">
-                    <TableCell className="px-6 py-4 font-bold text-black">{row.name}</TableCell>
-                    <TableCell className="px-6 py-4 font-bold text-black">{row.position}</TableCell>
-                    <TableCell className="px-6 py-4 font-bold text-black">P {formatSalary(row.salary)}</TableCell>
-                    <TableCell className="px-6 py-4 font-bold text-black">{row.startDate || "-"}</TableCell>
+                  <TableRow key={row.id} className="hover:bg-[#FFE5EC] hover:[&>td]:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group">
+                    <TableCell className="px-5 py-2 font-bold text-black text-[12px] border-r border-rose-50/40 group-hover:text-[#630C22] transition-colors">{row.name}</TableCell>
+                    <TableCell className="px-5 py-2 font-bold text-black text-[12px] border-r border-rose-50/40 group-hover:text-[#630C22] transition-colors">{row.position}</TableCell>
+                    <TableCell className="px-5 py-2 font-bold text-black text-[12px] border-r border-rose-50/40">P {formatSalary(row.salary)}</TableCell>
+                    <TableCell className="px-5 py-2 font-bold text-black text-[12px]">{row.startDate || "-"}</TableCell>
                   </TableRow>
                 ))}
                 {onboardedRows.length === 0 && (
