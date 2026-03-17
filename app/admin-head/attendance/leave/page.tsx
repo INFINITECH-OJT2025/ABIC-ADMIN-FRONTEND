@@ -52,7 +52,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { ConfirmationModal } from "@/components/ConfirmationModal";
+import { useConfirmation } from "@/components/providers/confirmation-provider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Department {
@@ -126,12 +126,12 @@ const APPROVAL_OPTIONS = [
 
 const LEAVE_CATEGORY_OPTIONS = [
   {
-    label: "Half-day",
+    label: "half-day",
     value: "half-day",
     color: "bg-[#FFF3C4] text-[#A67B00] border-2 border-[#FFE894] shadow-sm",
   },
   {
-    label: "Whole Day",
+    label: "whole-day",
     value: "whole-day",
     color: "bg-[#FFEAEB] text-[#800020] border-2 border-[#FFD1D4] shadow-sm",
   },
@@ -767,9 +767,9 @@ function CalendarView({
                     <span className="font-extrabold text-slate-800 text-base group-hover:text-[#A4163A] transition-colors">
                       {e.employee_name}
                     </span>
-                      <span
-                        className={cn(
-                          "text-[10px] font-extrabold px-3 py-1 rounded tracking-wider",
+                    <span
+                      className={cn(
+                        "text-[10px] font-extrabold px-3 py-1 rounded tracking-wider",
                         e.approved_by === "Declined"
                           ? "bg-red-100 text-red-700 border border-red-200"
                           : e.approved_by === "Pending"
@@ -1037,6 +1037,7 @@ export default function LeavePage() {
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const { confirm } = useConfirmation();
   const [entries, setEntries] = useState<LeaveEntry[]>([]);
 
   // State for hierarchies
@@ -1065,14 +1066,11 @@ export default function LeavePage() {
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [remarksOpen, setRemarksOpen] = useState(false);
   const [inlineSaving, setInlineSaving] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [pendingPayload, setPendingPayload] = useState<any | null>(null);
 
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<number | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const [showEditConfirm, setShowEditConfirm] = useState(false);
   const [entryToEdit, setEntryToEdit] = useState<LeaveEntry | null>(null);
 
   const [shiftSchedules, setShiftSchedules] = useState<OfficeShiftSchedule[]>(
@@ -1200,62 +1198,60 @@ export default function LeavePage() {
   const resetInlineForm = () => setInlineForm({ ...emptyForm });
 
   const handleEdit = (entry: LeaveEntry) => {
-    setEntryToEdit(entry);
-    setShowEditConfirm(true);
-  };
-
-  const confirmEdit = () => {
-    if (!entryToEdit) return;
-    const entry = entryToEdit;
-    setInlineForm({
-      id: entry.id,
-      employee_id: entry.employee_id,
-      employee_name: entry.employee_name,
-      department: entry.department,
-      category: entry.category,
-      shift: entry.shift || "",
-      start_date: normalizeDate(entry.start_date),
-      leave_end_date: normalizeDate(entry.leave_end_date),
-      number_of_days: entry.number_of_days,
-      approved_by: entry.approved_by,
-      remarks: entry.remarks,
-      cite_reason: entry.cite_reason,
+    confirm({
+      title: "Confirm Edit",
+      description: `Are you sure you want to edit the leave entry for ${entry.employee_name}? This will populate the form at the top with this entry's details.`,
+      confirmText: "Edit Entry",
+      onConfirm: () => {
+        setInlineForm({
+          id: entry.id,
+          employee_id: entry.employee_id,
+          employee_name: entry.employee_name,
+          department: entry.department,
+          category: entry.category,
+          shift: entry.shift || "",
+          start_date: normalizeDate(entry.start_date),
+          leave_end_date: normalizeDate(entry.leave_end_date),
+          number_of_days: entry.number_of_days,
+          approved_by: entry.approved_by,
+          remarks: entry.remarks,
+          cite_reason: entry.cite_reason,
+        });
+        setAddModalOpen(true);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      },
     });
-    setAddModalOpen(true);
-    setShowEditConfirm(false);
-    setEntryToEdit(null);
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = (id: number) => {
-    setEntryToDelete(id);
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDelete = async () => {
-    if (entryToDelete === null) return;
-    setIsDeleting(true);
-    try {
-      const res = await fetch(`${getApiUrl()}/api/leaves/${entryToDelete}`, {
-        method: "DELETE",
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast.success("Leave entry deleted successfully");
-        fetchEntries();
-      } else {
-        // Fallback for local
-        setEntries((prev) => prev.filter((e) => e.id !== entryToDelete));
-        toast.success("Leave entry deleted (local)");
-      }
-    } catch {
-      setEntries((prev) => prev.filter((e) => e.id !== entryToDelete));
-      toast.success("Leave entry deleted (local)");
-    } finally {
-      setIsDeleting(false);
-      setShowDeleteConfirm(false);
-      setEntryToDelete(null);
-    }
+    const entry = entries.find((e) => e.id === id);
+    confirm({
+      title: "Confirm Delete",
+      description: `Are you sure you want to delete the leave entry for ${entry?.employee_name || "this employee"}? This action cannot be undone.`,
+      confirmText: "Delete Entry",
+      variant: "danger",
+      onConfirm: async () => {
+        setIsDeleting(true);
+        try {
+          const res = await fetch(`${getApiUrl()}/api/leaves/${id}`, {
+            method: "DELETE",
+          });
+          const data = await res.json();
+          if (data.success) {
+            toast.success("Leave entry deleted successfully");
+            fetchEntries();
+          } else {
+            setEntries((prev) => prev.filter((e) => e.id !== id));
+            toast.success("Leave entry deleted (local)");
+          }
+        } catch {
+          setEntries((prev) => prev.filter((e) => e.id !== id));
+          toast.success("Leave entry deleted (local)");
+        } finally {
+          setIsDeleting(false);
+        }
+      },
+    });
   };
 
   const handleInlineSelectEmployee = (emp: Employee) => {
@@ -1615,28 +1611,25 @@ export default function LeavePage() {
       shift:
         inlineForm.category === "whole-day" ? "" : (inlineForm.shift ?? ""),
     };
-    setPendingPayload(payload);
-    setShowConfirm(true);
-  };
 
-  const confirmInlineSave = async () => {
-    if (!pendingPayload) return;
-    setInlineSaving(true);
-    try {
-      if (pendingPayload && pendingPayload.id) {
-        // Update logic
-        await handleUpdate(pendingPayload as LeaveEntry);
-      } else {
-        await handleSave(pendingPayload as Omit<LeaveEntry, "id">);
-      }
-      resetInlineForm();
-      // Do not hide the form after saving as requested
-      // setAddModalOpen(false)
-    } finally {
-      setInlineSaving(false);
-      setShowConfirm(false);
-      setTimeout(() => setPendingPayload(null), 100);
-    }
+    confirm({
+      title: "Confirm Save",
+      description: "Are you sure you want to save this leave monitoring entry?",
+      confirmText: "Save Leave",
+      onConfirm: async () => {
+        setInlineSaving(true);
+        try {
+          if (payload && payload.id) {
+            await handleUpdate(payload as LeaveEntry);
+          } else {
+            await handleSave(payload as Omit<LeaveEntry, "id">);
+          }
+          resetInlineForm();
+        } finally {
+          setInlineSaving(false);
+        }
+      },
+    });
   };
 
   // Filters
@@ -1679,10 +1672,7 @@ export default function LeavePage() {
       if (filterStatus) {
         const isApproved = !["Pending", "Declined"].includes(e.approved_by);
         if (filterStatus === "Approved" && !isApproved) return false;
-        if (
-          filterStatus !== "Approved" &&
-          e.approved_by !== filterStatus
-        )
+        if (filterStatus !== "Approved" && e.approved_by !== filterStatus)
           return false;
       }
 
@@ -1749,6 +1739,55 @@ export default function LeavePage() {
     searchQuery,
   ]);
 
+  // Navigation Guard: Prevent leaving with unsaved changes in the form
+  useEffect(() => {
+    const hasUnsavedChanges =
+      (inlineForm.employee_name ||
+        inlineForm.start_date ||
+        inlineForm.cite_reason) &&
+      !inlineSaving;
+
+    // Internal Navigation guard (Next.js links, Sidebar items)
+    const handleInternalNavigation = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest("a");
+
+      if (anchor && hasUnsavedChanges) {
+        const href = anchor.getAttribute("href");
+        if (!href || href === "#" || href.startsWith("javascript:")) return;
+        if (anchor.target === "_blank") return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        confirm({
+          title: "Unsaved Changes",
+          description: (
+            <>
+              You have an unsaved leave entry for{" "}
+              <span className="text-[#4A081A] font-black">
+                {inlineForm.employee_name || "a selected employee"}
+              </span>
+              . Moving to another page will discard your progress.
+            </>
+          ),
+          confirmText: "Discard & Leave",
+          cancelText: "Stay Here",
+          variant: "warning",
+          onConfirm: () => {
+            window.location.href = anchor.href;
+          },
+        });
+      }
+    };
+
+    document.addEventListener("click", handleInternalNavigation, true);
+
+    return () => {
+      document.removeEventListener("click", handleInternalNavigation, true);
+    };
+  }, [inlineForm, inlineSaving, confirm]);
+
   const deptOptions = [
     { label: "All Departments", value: "" },
     ...departments.map((d) => ({ label: d.name, value: d.name })),
@@ -1770,36 +1809,6 @@ export default function LeavePage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f8f0f2] via-white to-[#fff0f3]">
-      <ConfirmationModal
-        isOpen={showConfirm}
-        onClose={() => setShowConfirm(false)}
-        onConfirm={confirmInlineSave}
-        title="Confirm Save"
-        description="Are you sure you want to save this leave monitoring entry?"
-        confirmText="Save Leave"
-        isLoading={inlineSaving}
-      />
-
-      <ConfirmationModal
-        isOpen={showEditConfirm}
-        onClose={() => setShowEditConfirm(false)}
-        onConfirm={confirmEdit}
-        title="Confirm Edit"
-        description={`Are you sure you want to edit the leave entry for ${entryToEdit?.employee_name || "this employee"}? This will populate the form at the top with this entry's details.`}
-        confirmText="Edit Entry"
-        variant="default"
-      />
-
-      <ConfirmationModal
-        isOpen={showDeleteConfirm}
-        onClose={() => setShowDeleteConfirm(false)}
-        onConfirm={confirmDelete}
-        title="Confirm Delete"
-        description={`Are you sure you want to delete the leave entry for ${entries.find((e) => e.id === entryToDelete)?.employee_name || "this employee"}? This action cannot be undone.`}
-        confirmText="Delete Entry"
-        variant="destructive"
-        isLoading={isDeleting}
-      />
       {/* ----- INTEGRATED HEADER & TOOLBAR ----- */}
       <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6 sticky top-0 z-50">
         {/* Main Header Row */}
@@ -2160,17 +2169,21 @@ export default function LeavePage() {
                       <button
                         className={cn(
                           "flex items-center justify-between h-11 border-b-2 px-3 text-xs text-left group transition-colors rounded-t-md shadow-sm cursor-pointer",
-                          inlineForm.category
-                            ? "bg-rose-50 border-rose-300"
-                            : "bg-white border-slate-300 hover:border-[#800020]",
+                          inlineForm.category === "half-day"
+                            ? "bg-amber-50 border-amber-300"
+                            : inlineForm.category === "whole-day"
+                              ? "bg-rose-50 border-rose-300"
+                              : "bg-white border-slate-300 hover:border-[#800020]",
                         )}
                       >
                         <span
                           className={cn(
                             "font-bold",
-                            inlineForm.category
-                              ? "text-[#800020]"
-                              : "text-slate-400 italic font-medium",
+                            inlineForm.category === "half-day"
+                              ? "text-amber-700"
+                              : inlineForm.category === "whole-day"
+                                ? "text-[#800020]"
+                                : "text-slate-400 italic font-medium",
                           )}
                         >
                           {inlineForm.category || "Select Type"}
@@ -2203,7 +2216,7 @@ export default function LeavePage() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-1">
                     Shift (if Half-day)
                   </label>
                   <Popover open={shiftOpen} onOpenChange={setShiftOpen}>
@@ -2225,7 +2238,7 @@ export default function LeavePage() {
                               : "text-slate-400 italic",
                           )}
                         >
-                          {inlineForm.shift || "N/A"}
+                          {inlineForm.shift || "Select Shift Schedule"}
                         </span>
                         <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-[#800020] transition-colors" />
                       </button>
@@ -2336,13 +2349,28 @@ export default function LeavePage() {
                   </label>
                   <Popover open={approvalOpen} onOpenChange={setApprovalOpen}>
                     <PopoverTrigger asChild>
-                      <button className="flex items-center justify-between h-11 border-b-2 border-slate-300 bg-white px-3 text-xs text-left group hover:border-[#800020] transition-colors rounded-t-md shadow-sm cursor-pointer">
+                      <button
+                        className={cn(
+                          "flex items-center justify-between h-11 border-b-2 px-3 text-xs text-left group transition-colors rounded-t-md shadow-sm cursor-pointer",
+                          inlineForm.approved_by === "Pending"
+                            ? "bg-orange-50 border-orange-300"
+                            : inlineForm.approved_by === "Declined"
+                              ? "bg-rose-50 border-rose-300"
+                              : inlineForm.approved_by
+                                ? "bg-emerald-50 border-emerald-300"
+                                : "bg-white border-slate-300 hover:border-[#800020]",
+                        )}
+                      >
                         <span
                           className={cn(
-                            "truncate",
-                            inlineForm.approved_by
-                              ? "text-black font-bold"
-                              : "text-slate-400 italic",
+                            "truncate font-bold",
+                            inlineForm.approved_by === "Pending"
+                              ? "text-orange-700"
+                              : inlineForm.approved_by === "Declined"
+                                ? "text-[#800020]"
+                                : inlineForm.approved_by
+                                  ? "text-emerald-700"
+                                  : "text-slate-400 italic font-medium",
                           )}
                         >
                           {inlineForm.approved_by || "Select Leave Status..."}
@@ -2451,7 +2479,7 @@ export default function LeavePage() {
                           setAddModalOpen(false);
                           resetInlineForm();
                         }}
-                        className="flex-1 md:flex-none h-[44px] px-6 text-[11px] font-black uppercase tracking-widest rounded-lg shadow-sm border-2 hover:bg-rose-50 text-slate-700"
+                        className="flex-1 md:flex-none h-[44px] px-8 text-[11px] font-black uppercase tracking-widest rounded-lg shadow-sm border-2 hover:bg-rose-50 text-slate-700 min-w-[140px]"
                       >
                         Cancel
                       </Button>
@@ -2459,13 +2487,13 @@ export default function LeavePage() {
                         type="button"
                         onClick={handleInlineSave}
                         disabled={inlineSaving}
-                        className="flex-1 md:flex-none h-[44px] px-8 text-[11px] font-black uppercase tracking-widest rounded-lg bg-[#800020] hover:bg-[#4A081A] shadow-md shadow-rose-100 transition-all text-white"
+                        className="flex-1 md:flex-none h-[44px] px-8 text-[11px] font-black uppercase tracking-widest rounded-lg bg-[#800020] hover:bg-[#4A081A] shadow-md shadow-rose-100 transition-all text-white min-w-[140px]"
                       >
                         {inlineSaving
                           ? "..."
                           : inlineForm.id
                             ? "Update"
-                            : "Save Record"}
+                            : "Save"}
                       </Button>
                     </div>
                   </div>
@@ -2628,7 +2656,7 @@ export default function LeavePage() {
                         <td className="border border-rose-100 px-3 py-2.5 text-center text-slate-500 font-semibold">
                           {entry.employee_id}
                         </td>
-                        <td 
+                        <td
                           className="border border-rose-100 px-4 py-1.5 font-bold text-slate-700 truncate max-w-[150px] whitespace-nowrap"
                           title={entry.employee_name}
                         >
@@ -2643,13 +2671,18 @@ export default function LeavePage() {
                                 : "bg-rose-50 text-rose-600 border border-rose-100",
                             )}
                           >
-                            {entry.category === "half-day" ? "Half-day" : "Whole-day"}
+                            {entry.category === "half-day"
+                              ? "Half-day"
+                              : "Whole-day"}
                           </span>
                         </td>
                         <td className="border border-rose-100 px-3 py-2.5 text-center text-slate-500 italic whitespace-nowrap font-medium">
                           {entry.category === "whole-day"
                             ? "—"
-                            : (entry.shift || "—").replace(/\s+(?=\d|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/g, " - ")}
+                            : (entry.shift || "—").replace(
+                                /\s+(?=\d|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/g,
+                                " - ",
+                              )}
                         </td>
                         <td className="border border-rose-100 px-3 py-2.5 text-center text-slate-600 font-bold whitespace-nowrap">
                           {formatDisplayDate(entry.start_date)}
@@ -2673,7 +2706,13 @@ export default function LeavePage() {
                               ) &&
                                 "bg-green-50 text-green-600 border border-green-100",
                             )}
-                            title={!["Pending", "Declined"].includes(entry.approved_by) ? `Approved by ${entry.approved_by}` : undefined}
+                            title={
+                              !["Pending", "Declined"].includes(
+                                entry.approved_by,
+                              )
+                                ? `Approved by ${entry.approved_by}`
+                                : undefined
+                            }
                           >
                             {entry.approved_by === "Pending"
                               ? "Pending"

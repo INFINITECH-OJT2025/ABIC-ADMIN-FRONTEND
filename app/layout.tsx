@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
 import { QueryProvider } from "@/components/providers/query-provider";
+import { ConfirmationProvider } from "@/components/providers/confirmation-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,7 +31,9 @@ export default function RootLayout({
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <QueryProvider>{children}</QueryProvider>
+        <QueryProvider>
+          <ConfirmationProvider>{children}</ConfirmationProvider>
+        </QueryProvider>
         <Toaster
           position="top-right"
           richColors={false}
@@ -72,7 +75,7 @@ export default function RootLayout({
                 "[&_[data-icon]]:text-white/80",
               ].join(" "),
               title: "font-bold text-base leading-snug tracking-wide",
-              description: "text-stone-500 text-sm mt-1 leading-relaxed",
+              description: "text-stone-900 text-sm mt-1 leading-relaxed",
               icon: "mt-0.5 flex-shrink-0 [&>svg]:w-6 [&>svg]:h-6",
               closeButton: [
                 "!bg-transparent !border-none !shadow-none",
