@@ -27,6 +27,57 @@ class EmployeeController extends Controller
         $this->activityLogService = $activityLogService;
     }
 
+    private function shouldReplaceUserProfile(?string $previous, ?string $next): bool
+    {
+        $prev = trim((string) $previous);
+        if ($prev === '') {
+            return false;
+        }
+
+        $nextValue = trim((string) $next);
+        if ($nextValue === '') {
+            return true;
+        }
+
+        return $nextValue !== $prev;
+    }
+
+    private function deleteUserProfileImage(string $publicId): void
+    {
+        $normalized = trim(str_replace('\\', '/', $publicId));
+        if ($normalized === '') {
+            return;
+        }
+
+        if (preg_match('#/api/directory/images/file/(.+)$#i', $normalized, $matches)) {
+            $normalized = $matches[1];
+        }
+
+        $normalized = trim($normalized, " \t\n\r\0\x0B/");
+        if ($normalized === '' || str_contains($normalized, '..')) {
+            return;
+        }
+
+        $segments = explode('/', $normalized);
+        if (($segments[0] ?? '') !== 'user_profile') {
+            return;
+        }
+
+        foreach ($segments as $segment) {
+            if ($segment === '' || $segment === '.' || $segment === '..') {
+                return;
+            }
+            if (!preg_match('/^[A-Za-z0-9._-]+$/', $segment)) {
+                return;
+            }
+        }
+
+        $absolutePath = storage_path('uploads/images' . DIRECTORY_SEPARATOR . implode(DIRECTORY_SEPARATOR, $segments));
+        if (is_file($absolutePath)) {
+            @unlink($absolutePath);
+        }
+    }
+
     private function syncLatestRehireProfile(Employee $employee): void
     {
         $latestRehire = Rehired::where('employee_id', $employee->id)
@@ -194,6 +245,7 @@ class EmployeeController extends Controller
     public function update(Request $request, Employee $employee)
     {
         try {
+            $previousUserProfile = $employee->user_profile;
             $validated = $request->validate([
                 'first_name' => 'sometimes|nullable|string|max:255',
                 'last_name' => 'sometimes|nullable|string|max:255',
@@ -251,6 +303,9 @@ class EmployeeController extends Controller
             $isRehireProcess = $request->boolean('rehire_process');
             unset($validated['rehire_process']);
 
+            $shouldDeleteUserProfile = array_key_exists('user_profile', $validated)
+                && $this->shouldReplaceUserProfile($previousUserProfile, $validated['user_profile'] ?? null);
+
             if (isset($validated['password'])) {
                 $validated['password'] = Hash::make($validated['password']);
             }
@@ -273,6 +328,9 @@ class EmployeeController extends Controller
                     $employee->update($rehireLiveUpdates);
                 }
                 $rehiredRecord = $this->saveRehireProfileOnly($employee, $validated);
+                if ($shouldDeleteUserProfile) {
+                    $this->deleteUserProfileImage((string) $previousUserProfile);
+                }
 
                 return response()->json([
                     'success' => true,
@@ -283,6 +341,9 @@ class EmployeeController extends Controller
 
             $employee->update($validated);
             $this->syncLatestRehireProfile($employee);
+            if ($shouldDeleteUserProfile) {
+                $this->deleteUserProfileImage((string) $previousUserProfile);
+            }
 
             // Automatically create a 'Probee' evaluation record if the employee becomes employed or rehired
             if (in_array($employee->status, ['employed', 'rehired_employee'])) {
