@@ -75,6 +75,29 @@ interface Office {
   name: string
 }
 
+type EvaluationTemplate = {
+  officeLogos: Record<string, string>
+  officeNameOverrides: Record<string, string>
+  title: string
+  metaNameLabel: string
+  metaDepartmentLabel: string
+  metaRatingPeriodLabel: string
+  criteriaHeader: string
+  ratingHeader: string
+  criteriaOverrides: Record<string, { label: string; desc: string }>
+  agreementText: string
+  ratingScaleTitle: string
+  ratingScaleLines: string
+  interpretationTitle: string
+  interpretationLines: string
+  recommendationLabel: string
+  remarksLabel: string
+  managerSignaturesTitle: string
+  ratedByLabel: string
+  reviewedByLabel: string
+  approvedByLabel: string
+}
+
 type EvaluationView = 'first' | 'second' | 'both'
 type CriteriaId =
   | 'work_attitude'
@@ -102,7 +125,8 @@ const CRITERIA = [
 ] as const
 
 const DEFAULT_EVALUATION_TEMPLATE = {
-  companyName: "ABIC REALTY & CONSULTANCY CORPORATION",
+  officeLogos: {},
+  officeNameOverrides: {},
   title: "PERFORMANCE APPRAISAL",
   metaNameLabel: "NAME",
   metaDepartmentLabel: "DEPARTMENT/JOB TITLE",
@@ -187,7 +211,7 @@ function EvaluateEmployeeForm() {
   const [departments, setDepartments] = useState<Department[]>([])
   const [offices, setOffices] = useState<Office[]>([])
   const [loading, setLoading] = useState(true)
-  const [evaluationTemplate, setEvaluationTemplate] = useState(DEFAULT_EVALUATION_TEMPLATE)
+  const [evaluationTemplate, setEvaluationTemplate] = useState<EvaluationTemplate>(DEFAULT_EVALUATION_TEMPLATE)
   
   // Form State
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(searchParams?.get('id') || '')
@@ -213,20 +237,69 @@ function EvaluateEmployeeForm() {
   }, [])
 
   useEffect(() => {
-    if (typeof window === 'undefined') return
-    const saved = localStorage.getItem('warning_letter_templates')
-    if (!saved) return
-    try {
-      const parsed = JSON.parse(saved)
-      if (parsed?.evaluation) {
-        setEvaluationTemplate({
-          ...DEFAULT_EVALUATION_TEMPLATE,
-          ...parsed.evaluation
-        })
+    const loadEvaluationTemplate = async () => {
+      let localTemplate: Partial<EvaluationTemplate> = {}
+
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('warning_letter_templates')
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved)
+            if (parsed?.evaluation) {
+              localTemplate = parsed.evaluation
+            }
+          } catch {
+            // Ignore malformed template cache.
+          }
+        }
       }
-    } catch {
-      // Ignore malformed template cache.
+
+      try {
+        const res = await fetch(`${getApiUrl()}/api/warning-letter-templates/evaluation`)
+        const data = await res.json()
+
+        if (data?.success && data?.data) {
+          const dbTemplate = data.data
+          let parsedBody: Partial<EvaluationTemplate> = {}
+
+          if (typeof dbTemplate.body === 'string' && dbTemplate.body.trim()) {
+            try {
+              const decoded = JSON.parse(dbTemplate.body)
+              if (decoded && typeof decoded === 'object') {
+                parsedBody = decoded
+              }
+            } catch {
+              parsedBody = {}
+            }
+          }
+
+          setEvaluationTemplate({
+            ...DEFAULT_EVALUATION_TEMPLATE,
+            ...localTemplate,
+            ...parsedBody,
+            title: parsedBody.title || dbTemplate.title || DEFAULT_EVALUATION_TEMPLATE.title,
+            officeLogos: {
+              ...((localTemplate.officeLogos as Record<string, string>) || {}),
+              ...((parsedBody.officeLogos as Record<string, string>) || {}),
+            },
+            officeNameOverrides: {
+              ...((localTemplate.officeNameOverrides as Record<string, string>) || {}),
+              ...((parsedBody.officeNameOverrides as Record<string, string>) || {}),
+            },
+          })
+          return
+        }
+      } catch {
+        // Fall back to local template only.
+      }
+
+      setEvaluationTemplate({
+        ...DEFAULT_EVALUATION_TEMPLATE,
+        ...localTemplate,
+      })
     }
+
+    loadEvaluationTemplate()
   }, [])
 
   useEffect(() => {
@@ -431,8 +504,31 @@ function EvaluateEmployeeForm() {
       position: selectedEmployee.position,
       department: deptObj?.name || selectedEmployee.department || 'Not Assigned',
       office: officeObj?.name || '',
+      officeId: officeObj?.id ? String(officeObj.id) : '',
     }
   }, [selectedEmployee, departments, offices])
+
+  const selectedEvaluationLogo = useMemo(() => {
+    const officeId = employeeDetails?.officeId || ''
+    const officeLogos = (evaluationTemplate.officeLogos || {}) as Record<string, string>
+    if (officeId && officeLogos[officeId]) {
+      return officeLogos[officeId]
+    }
+    return null
+  }, [employeeDetails?.officeId, evaluationTemplate])
+
+  const selectedOfficeDisplayName = useMemo(() => {
+    const officeId = employeeDetails?.officeId || ''
+    const officeNameOverrides = (evaluationTemplate.officeNameOverrides || {}) as Record<string, string>
+    const customName = officeId ? officeNameOverrides[officeId] : ''
+    if (customName && String(customName).trim()) {
+      return String(customName).trim()
+    }
+    if (employeeDetails?.office && String(employeeDetails.office).trim()) {
+      return String(employeeDetails.office).trim()
+    }
+    return 'OFFICE NOT SET'
+  }, [employeeDetails?.office, employeeDetails?.officeId, evaluationTemplate])
 
   const totalScore = useMemo(() => {
     return Object.values(scores).reduce((acc, curr) => acc + (parseInt(curr) || 0), 0)
@@ -534,7 +630,8 @@ function EvaluateEmployeeForm() {
     try {
       const templateForExport = {
         ...evaluationTemplate,
-        companyName: employeeDetails?.office || evaluationTemplate.companyName
+        companyName: selectedOfficeDisplayName,
+        evaluationLogoImage: selectedEvaluationLogo,
       }
       const response = await fetch(
         `${getApiUrl()}/api/evaluations/${selectedEmployeeId}/pdf`,
@@ -593,7 +690,8 @@ function EvaluateEmployeeForm() {
     try {
       const templateForExport = {
         ...evaluationTemplate,
-        companyName: employeeDetails?.office || evaluationTemplate.companyName
+        companyName: selectedOfficeDisplayName,
+        evaluationLogoImage: selectedEvaluationLogo,
       }
       const response = await fetch(`${getApiUrl()}/api/evaluations/${selectedEmployeeId}/email-pdf`, {
         method: 'POST',
@@ -796,8 +894,17 @@ function EvaluateEmployeeForm() {
         {showFirstEvaluationPanel && (
           <div className="bg-white shadow-2xl p-[60px] text-[13px] leading-relaxed text-black border border-slate-300">
             <div className="text-center mb-10">
+            {selectedEvaluationLogo && (
+              <div className="mb-4 flex justify-center">
+                <img
+                  src={selectedEvaluationLogo}
+                  alt="Office Logo"
+                  className="max-h-[84px] max-w-[180px] object-contain"
+                />
+              </div>
+            )}
             <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">
-              {employeeDetails?.office ? employeeDetails.office.toUpperCase() : 'OFFICE NOT SET'}
+              {selectedOfficeDisplayName.toUpperCase()}
             </h1>
               <h2 className="font-bold text-lg uppercase tracking-wider">
                 {evaluationTemplate.title}
@@ -996,8 +1103,17 @@ function EvaluateEmployeeForm() {
         
         {/* Header */}
         <div className="text-center mb-10">
+          {selectedEvaluationLogo && (
+            <div className="mb-4 flex justify-center">
+              <img
+                src={selectedEvaluationLogo}
+                alt="Office Logo"
+                className="max-h-[84px] max-w-[180px] object-contain"
+              />
+            </div>
+          )}
           <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">
-            {employeeDetails?.office ? employeeDetails.office.toUpperCase() : 'OFFICE NOT SET'}
+            {selectedOfficeDisplayName.toUpperCase()}
           </h1>
           <h2 className="font-bold text-lg uppercase tracking-wider">
             {evaluationTemplate.title}

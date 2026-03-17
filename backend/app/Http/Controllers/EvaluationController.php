@@ -159,9 +159,32 @@ class EvaluationController extends Controller
     {
         $defaultTemplate = $this->getDefaultTemplate();
         $template = $this->mergeTemplate($defaultTemplate, $template);
-        $officeName = $this->resolveOfficeName($employee);
-        if ($officeName) {
-            $template['companyName'] = $officeName;
+
+        $officeId = $this->resolveOfficeId($employee);
+        $officeLogos = is_array($template['officeLogos'] ?? null) ? $template['officeLogos'] : [];
+        $officeNameOverrides = is_array($template['officeNameOverrides'] ?? null) ? $template['officeNameOverrides'] : [];
+        if ($officeId && isset($officeLogos[$officeId]) && is_string($officeLogos[$officeId])) {
+            $template['evaluationLogoImage'] = $officeLogos[$officeId];
+        }
+
+        if ($officeId && isset($officeNameOverrides[$officeId]) && is_string($officeNameOverrides[$officeId])) {
+            $customOfficeName = trim($officeNameOverrides[$officeId]);
+            if ($customOfficeName !== '') {
+                $template['companyName'] = $customOfficeName;
+            }
+        }
+
+        if (empty($template['companyName'])) {
+            $officeName = $this->resolveOfficeName($employee);
+            if ($officeName) {
+                $template['companyName'] = $officeName;
+            }
+        }
+
+        // DomPDF image decoding depends on GD in this environment.
+        // If GD is unavailable, skip logo rendering so PDF export/email still succeeds.
+        if (!extension_loaded('gd')) {
+            $template['evaluationLogoImage'] = null;
         }
 
         $criteriaDefaults = $this->getCriteriaDefaults();
@@ -267,6 +290,9 @@ class EvaluationController extends Controller
     private function getDefaultTemplate(): array
     {
         return [
+            'evaluationLogoImage' => null,
+            'officeLogos' => [],
+            'officeNameOverrides' => [],
             'companyName' => 'ABIC REALTY & CONSULTANCY CORPORATION',
             'title' => 'PERFORMANCE APPRAISAL',
             'metaNameLabel' => 'NAME',
@@ -316,6 +342,25 @@ class EvaluationController extends Controller
 
         $office = Office::query()->find($department->office_id);
         return $office?->name ? trim((string) $office->name) : null;
+    }
+
+    private function resolveOfficeId(Employee $employee): ?string
+    {
+        $deptValue = (string) ($employee->department ?? '');
+        if ($deptValue === '') {
+            return null;
+        }
+
+        $department = Department::query()
+            ->where('id', $deptValue)
+            ->orWhere('name', $deptValue)
+            ->first();
+
+        if (!$department || !$department->office_id) {
+            return null;
+        }
+
+        return (string) $department->office_id;
     }
 
     private function buildPdfFilename(Employee $employee): string

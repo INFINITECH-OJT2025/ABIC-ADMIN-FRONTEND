@@ -40,6 +40,11 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getApiUrl } from "@/lib/api";
 
+type Office = {
+  id: string;
+  name: string;
+};
+
 const DEFAULT_TARDINESS_REGULAR_TEMPLATE = {
   title: "TARDINESS WARNING LETTER",
   body: `Dear {{salutation}} {{last_name}},
@@ -260,7 +265,8 @@ const EVALUATION_CRITERIA_DEFAULTS = [
 ] as const;
 
 const DEFAULT_EVALUATION_TEMPLATE = {
-  companyName: "ABIC REALTY & CONSULTANCY CORPORATION",
+  officeLogos: {},
+  officeNameOverrides: {},
   title: "PERFORMANCE APPRAISAL",
   metaNameLabel: "NAME",
   metaDepartmentLabel: "DEPARTMENT/JOB TITLE",
@@ -295,6 +301,7 @@ const SERVER_TEMPLATE_KEYS = new Set([
   "leave",
   "supervisor-tardiness",
   "supervisor-leave",
+  "evaluation",
 ]);
 
 // --- Skeleton Component ---
@@ -384,6 +391,7 @@ export default function EditFormsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showPreview, setShowPreview] = useState(true);
   const [isFullWidth, setIsFullWidth] = useState(true);
+  const [offices, setOffices] = useState<Office[]>([]);
 
   const [hasLocalOnlyChanges, setHasLocalOnlyChanges] = useState(false);
 
@@ -392,16 +400,53 @@ export default function EditFormsPage() {
     const fetchTemplates = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(`${getApiUrl()}/api/warning-letter-templates`);
-        const data = await res.json();
+        const [res, officeRes] = await Promise.all([
+          fetch(`${getApiUrl()}/api/warning-letter-templates`),
+          fetch(`${getApiUrl()}/api/offices`),
+        ]);
+        const [data, officeData] = await Promise.all([
+          res.json(),
+          officeRes.json(),
+        ]);
+
+        if (officeData?.success && Array.isArray(officeData.data)) {
+          setOffices(officeData.data);
+        }
 
         const localSaved = localStorage.getItem("warning_letter_templates");
 
         if (data && data.success && Array.isArray(data.data)) {
           const mapped: any = { ...templates };
+          let hasServerEvaluation = false;
           data.data.forEach((template: any) => {
             const slug = template.slug;
             if (slug) {
+              if (slug === "evaluation") {
+                hasServerEvaluation = true;
+                let parsedEvaluation = {};
+
+                if (typeof template.body === "string" && template.body.trim()) {
+                  try {
+                    const candidate = JSON.parse(template.body);
+                    if (candidate && typeof candidate === "object") {
+                      parsedEvaluation = candidate;
+                    }
+                  } catch {
+                    parsedEvaluation = {};
+                  }
+                }
+
+                mapped.evaluation = {
+                  ...DEFAULT_EVALUATION_TEMPLATE,
+                  ...parsedEvaluation,
+                  title:
+                    (parsedEvaluation as any).title ||
+                    template.title ||
+                    DEFAULT_EVALUATION_TEMPLATE.title,
+                };
+                return;
+              }
+
               mapped[slug] = {
                 title: template.title,
                 headerLogoImage: template.header_logo_image,
@@ -422,7 +467,7 @@ export default function EditFormsPage() {
 
           if (localSaved) {
             const local = JSON.parse(localSaved);
-            if (local?.evaluation) {
+            if (!hasServerEvaluation && local?.evaluation) {
               mapped.evaluation = {
                 ...DEFAULT_EVALUATION_TEMPLATE,
                 ...local.evaluation,
@@ -509,9 +554,24 @@ export default function EditFormsPage() {
     if (!silent) setIsSaving(true);
     try {
       const payload = Object.fromEntries(
-        Object.entries(templates).filter(([slug]) =>
-          SERVER_TEMPLATE_KEYS.has(slug),
-        ),
+        Object.entries(templates)
+          .filter(([slug]) => SERVER_TEMPLATE_KEYS.has(slug))
+          .map(([slug, content]) => {
+            if (slug === "evaluation") {
+              const evaluationTemplate = {
+                ...DEFAULT_EVALUATION_TEMPLATE,
+                ...(content as any),
+              };
+              return [
+                slug,
+                {
+                  title: evaluationTemplate.title,
+                  body: JSON.stringify(evaluationTemplate),
+                },
+              ];
+            }
+            return [slug, content];
+          }),
       );
       const res = await fetch(
         `${getApiUrl()}/api/warning-letter-templates/bulk`,
@@ -652,6 +712,79 @@ export default function EditFormsPage() {
     reader.readAsDataURL(file);
   };
 
+  const handleOfficeEvaluationLogoUpload = (
+    officeId: string,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image is too large. Please select a logo under 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setHasLocalOnlyChanges(true);
+      setTemplates((prev) => {
+        const currentEvaluation =
+          ((prev as any).evaluation as any) || DEFAULT_EVALUATION_TEMPLATE;
+        return {
+          ...prev,
+          evaluation: {
+            ...currentEvaluation,
+            officeLogos: {
+              ...(currentEvaluation.officeLogos || {}),
+              [officeId]: base64,
+            },
+          },
+        };
+      });
+      toast.success("Office evaluation logo uploaded successfully!");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleOfficeEvaluationNameChange = (
+    officeId: string,
+    value: string,
+  ) => {
+    setHasLocalOnlyChanges(true);
+    setTemplates((prev) => {
+      const currentEvaluation =
+        ((prev as any).evaluation as any) || DEFAULT_EVALUATION_TEMPLATE;
+      return {
+        ...prev,
+        evaluation: {
+          ...currentEvaluation,
+          officeNameOverrides: {
+            ...(currentEvaluation.officeNameOverrides || {}),
+            [officeId]: value,
+          },
+        },
+      };
+    });
+  };
+
+  const removeOfficeEvaluationLogo = (officeId: string) => {
+    setHasLocalOnlyChanges(true);
+    setTemplates((prev) => {
+      const currentEvaluation =
+        ((prev as any).evaluation as any) || DEFAULT_EVALUATION_TEMPLATE;
+      const nextOfficeLogos = { ...(currentEvaluation.officeLogos || {}) };
+      delete nextOfficeLogos[officeId];
+      return {
+        ...prev,
+        evaluation: {
+          ...currentEvaluation,
+          officeLogos: nextOfficeLogos,
+        },
+      };
+    });
+  };
+
   const renderPreview = () => {
     const type = activeTab === "letterhead" ? "tardiness-regular" : activeTab;
     const template = (templates as any)[type];
@@ -676,7 +809,7 @@ export default function EditFormsPage() {
         <div className="bg-white border-0 shadow-2xl px-16 py-12 w-[794px] mx-auto min-h-[1120px] font-serif flex flex-col text-[13px] leading-relaxed">
           <div className="text-center mb-10">
             <h1 className="font-bold text-base uppercase tracking-tight">
-              {safeTemplate.companyName || "Company Name"}
+              [OFFICE NAME AUTO]
             </h1>
             <h2 className="font-bold text-lg uppercase tracking-wider">
               {safeTemplate.title}
@@ -1380,17 +1513,98 @@ export default function EditFormsPage() {
                     </div>
                   ) : activeTab === "evaluation" ? (
                     <div className="space-y-8">
-                      <div className="space-y-2.5">
-                        <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                          Company Name
-                        </Label>
-                        <Input
-                          value={(templates as any)[activeTab].companyName}
-                          onChange={(e) =>
-                            updateTemplate("companyName", e.target.value)
-                          }
-                          className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                        />
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-3 mb-1">
+                          <div className="p-2 bg-rose-100 rounded-lg">
+                            <Layout className="w-4 h-4 text-[#A4163A]" />
+                          </div>
+                          <h4 className="text-xs font-black text-[#A4163A] uppercase tracking-wider">
+                            Office-specific Evaluation Logos
+                          </h4>
+                        </div>
+                        <div className="space-y-4">
+                          {offices.length === 0 ? (
+                            <p className="text-xs text-slate-500">
+                              No offices found. Add offices first to set
+                              office-based logos.
+                            </p>
+                          ) : (
+                            offices.map((office) => {
+                              const officeLogo =
+                                ((templates as any)[activeTab].officeLogos ||
+                                  {})[String(office.id)];
+                              const officeNameOverride =
+                                ((templates as any)[activeTab]
+                                  .officeNameOverrides || {})[
+                                  String(office.id)
+                                ] || office.name;
+                              return (
+                                <div
+                                  key={office.id}
+                                  className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm"
+                                >
+                                  <div className="mb-3 space-y-2">
+                                    <div className="text-[11px] font-black text-[#7B0F2B] uppercase tracking-wider">
+                                      Office Name (for evaluation)
+                                    </div>
+                                    <Input
+                                      value={officeNameOverride}
+                                      onChange={(e) =>
+                                        handleOfficeEvaluationNameChange(
+                                          String(office.id),
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-10"
+                                    />
+                                  </div>
+                                  {officeLogo ? (
+                                    <div className="relative group w-full max-w-[320px] aspect-video bg-white rounded-2xl border-2 border-dashed border-rose-200 overflow-hidden flex items-center justify-center p-4">
+                                      <img
+                                        src={officeLogo}
+                                        alt={`${office.name} logo`}
+                                        className="max-h-full max-w-full object-contain"
+                                      />
+                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="h-10 px-4 rounded-xl bg-red-500 hover:bg-red-600 border-0 text-white font-bold"
+                                          onClick={() =>
+                                            removeOfficeEvaluationLogo(
+                                              String(office.id),
+                                            )
+                                          }
+                                        >
+                                          <Trash2 className="w-4 h-4 mr-2" />
+                                          Remove
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <label className="w-full max-w-[320px] aspect-video bg-white hover:bg-rose-50/50 rounded-2xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all hover:border-[#A4163A] group">
+                                      <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/*"
+                                        onChange={(e) =>
+                                          handleOfficeEvaluationLogoUpload(
+                                            String(office.id),
+                                            e,
+                                          )
+                                        }
+                                      />
+                                      <Upload className="w-7 h-7 text-rose-300 group-hover:text-[#A4163A]" />
+                                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">
+                                        Upload {office.name} Logo
+                                      </span>
+                                    </label>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
                       </div>
 
                       <div className="space-y-2.5">

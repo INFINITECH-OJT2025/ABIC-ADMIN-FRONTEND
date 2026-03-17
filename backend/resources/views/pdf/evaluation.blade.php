@@ -9,6 +9,8 @@
         .doc, .doc * { font-family: "Times New Roman", serif !important; font-size: 10pt !important; line-height: 1.1 !important; }
         .doc { width: 100%; max-width: 700px; margin: 0 auto; }
         .header { text-align: center; margin-bottom: 8px; margin-top: 0; padding: 4px 0; }
+        .logo-wrap { margin-bottom: 4px; }
+        .logo-image { max-height: 56px; max-width: 140px; object-fit: contain; }
         .company { color: #000; font-weight: 700; font-size: 19px; letter-spacing: 0.3px; margin-bottom: 5px; }
         .title { font-weight: 700; font-size: 16px; letter-spacing: 0.5px; margin-top: 5px; }
         .meta { margin-bottom: 8px; }
@@ -83,6 +85,11 @@
 @if($showFirst)
     <div class="doc">
         <div class="header">
+            @if(!empty($template['evaluationLogoImage']))
+                <div class="logo-wrap">
+                    <img class="logo-image" src="{{ $template['evaluationLogoImage'] }}" alt="Office Logo">
+                </div>
+            @endif
             <div class="company">{{ $template['companyName'] ?? 'Company Name' }}</div>
             <div class="title">{{ $template['title'] ?? 'PERFORMANCE APPRAISAL' }}</div>
         </div>
@@ -198,6 +205,11 @@
 @if($showSecond)
     <div class="doc {{ $showFirst ? 'page-break' : '' }}">
         <div class="header">
+            @if(!empty($template['evaluationLogoImage']))
+                <div class="logo-wrap">
+                    <img class="logo-image" src="{{ $template['evaluationLogoImage'] }}" alt="Office Logo">
+                </div>
+            @endif
             <div class="company">{{ $template['companyName'] ?? 'Company Name' }}</div>
             <div class="title">{{ $template['title'] ?? 'PERFORMANCE APPRAISAL' }}</div>
         </div>
