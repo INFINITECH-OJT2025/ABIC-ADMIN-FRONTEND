@@ -709,17 +709,17 @@ export default function HiringReportPage() {
             <div className="w-7 h-7" />
           </div>
           <div className={isJobOffersOpen ? "block" : "hidden"}>
-            <Table className="border-collapse w-full text-sm">
+            <Table className="border-collapse w-full text-sm table-fixed">
               <TableHeader>
                 <TableRow className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC] hover:bg-[#FFE5EC]/30">
-                  <TableHead className="px-3 py-4 text-left font-bold text-[#800020] text-xs uppercase tracking-wider leading-tight">Applicant Name</TableHead>
-                  <TableHead className="px-3 py-4 text-left font-bold text-[#800020] text-xs uppercase tracking-wider leading-tight">Position</TableHead>
-                  <TableHead className="px-3 py-4 text-left font-bold text-[#800020] text-xs uppercase tracking-wider leading-tight">Salary Offer</TableHead>
-                  <TableHead className="px-3 py-4 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight">Date Offer Sent</TableHead>
-                  <TableHead className="px-3 py-4 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight">Date of Response</TableHead>
-                  <TableHead className="px-3 py-4 text-left font-bold text-[#800020] text-[9px] uppercase tracking-wider leading-tight">Offer Status (Pending/Accepted)</TableHead>
-                  <TableHead className="px-3 py-4 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight">Start Date</TableHead>
-                  <TableHead className="px-3 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>
+                  <TableHead className="w-[170px] px-2 py-3 text-left font-bold text-[#800020] text-xs uppercase tracking-wider leading-tight">Applicant Name</TableHead>
+                  <TableHead className="w-[170px] px-2 py-3 text-left font-bold text-[#800020] text-xs uppercase tracking-wider leading-tight">Position</TableHead>
+                  <TableHead className="w-[150px] px-2 py-3 text-left font-bold text-[#800020] text-xs uppercase tracking-wider leading-tight">Salary Offer</TableHead>
+                  <TableHead className="w-[135px] px-2 py-3 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight">Date Offer Sent</TableHead>
+                  <TableHead className="w-[135px] px-2 py-3 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight">Date of Response</TableHead>
+                  <TableHead className="w-[255px] px-2 py-3 text-left font-bold text-[#800020] text-[9px] uppercase tracking-wider leading-tight">Offer Status (Pending/Accepted)</TableHead>
+                  <TableHead className="w-[130px] px-2 py-3 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight">Start Date</TableHead>
+                  <TableHead className="w-[190px] px-2 py-3 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
@@ -743,15 +743,15 @@ export default function HiringReportPage() {
                       key={row.id}
                       className={`transition-colors duration-200 group border-b border-rose-50 ${editable ? "bg-amber-50/50" : "hover:bg-[#FFE5EC]"}`}
                     >
-                      <TableCell className="px-3 py-4">
-                        <div className="w-full h-full px-3 flex items-center font-semibold text-black">{row.name || "-"}</div>
+                      <TableCell className="px-2 py-3">
+                        <div className="w-full h-full flex items-center font-semibold text-black">{row.name || "-"}</div>
                       </TableCell>
-                      <TableCell className="px-3 py-4">
-                        <div className="w-full h-full px-3 flex items-center font-semibold text-sm text-black">{row.position}</div>
+                      <TableCell className="px-2 py-3">
+                        <div className="w-full h-full flex items-center font-semibold text-sm text-black">{row.position}</div>
                       </TableCell>
-                      <TableCell className="px-3 py-4 relative">
+                      <TableCell className="px-2 py-3 relative">
                         {editable ? (
-                          <div className="flex items-center h-full px-3 w-full gap-1.5">
+                          <div className="flex items-center h-full w-full gap-1.5">
                             <span className="font-bold text-black text-xl select-none">P</span>
                             <input
                               type="text"
@@ -766,13 +766,13 @@ export default function HiringReportPage() {
                             />
                           </div>
                         ) : (
-                          <div className="flex items-center gap-1.5 px-3 font-bold text-black text-3 leading-none">
+                          <div className="flex items-center gap-1.5 font-bold text-black text-3 leading-none">
                             <span className="text-xl select-none">P</span>
                             <span className="text-lg">{formatSalary(row.salary) || "0"}</span>
                           </div>
                         )}
                       </TableCell>
-                      <TableCell className="px-3 py-4">
+                      <TableCell className="px-2 py-3">
                         <input
                           type="date"
                           value={row.offerSent}
@@ -781,7 +781,7 @@ export default function HiringReportPage() {
                           className="w-full h-full bg-transparent border-none text-center text-xs text-black focus:outline-none px-1 read-only:opacity-70"
                         />
                       </TableCell>
-                      <TableCell className="px-3 py-4">
+                      <TableCell className="px-2 py-3">
                         <input
                           type="date"
                           value={row.responseDate}
@@ -790,13 +790,13 @@ export default function HiringReportPage() {
                           className="w-full h-full bg-transparent border-none text-center text-xs text-black focus:outline-none px-1 read-only:opacity-70"
                         />
                       </TableCell>
-                      <TableCell className="px-3 py-4">
+                      <TableCell className="px-2 py-3">
                         <div className="relative">
                           <select
                             value={row.status}
                             disabled={!editable}
                             onChange={(e) => handleJobOfferChange(row.id, "status", e.target.value)}
-                            className="w-full h-9 bg-white border border-[#E9C8D0] rounded-lg appearance-none px-3 pr-8 font-semibold text-xs text-black focus:outline-none focus:ring-2 focus:ring-[#A0153E]/20 disabled:opacity-70 disabled:bg-white"
+                            className="w-full h-10 bg-white border border-[#E9C8D0] rounded-lg appearance-none px-3 pr-8 font-semibold text-xs text-black focus:outline-none focus:ring-2 focus:ring-[#A0153E]/20 disabled:opacity-70 disabled:bg-white"
                           >
                             {OFFER_STATUSES.map((s) => (
                               <option key={s} value={s}>
@@ -807,7 +807,7 @@ export default function HiringReportPage() {
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#7B0F2B] pointer-events-none" />
                         </div>
                       </TableCell>
-                      <TableCell className="px-3 py-4">
+                      <TableCell className="px-2 py-3">
                         <input
                           type="date"
                           value={row.startDate}
@@ -816,7 +816,7 @@ export default function HiringReportPage() {
                           className="w-full h-full bg-transparent border-none text-center text-xs text-black focus:outline-none px-1 read-only:opacity-70"
                         />
                       </TableCell>
-                      <TableCell className="px-3 py-4 text-right">
+                      <TableCell className="px-2 py-3 text-right">
                         {editable ? (
                           <button
                             onClick={() => saveJobOffer(row)}
@@ -833,7 +833,7 @@ export default function HiringReportPage() {
                             <Link href={buildOnboardHref(row)}>
                               <button
                                 title="Onboard this applicant"
-                                className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-[#800020] text-[#800020] hover:bg-[#800020] hover:text-white transition-colors"
+                                className="h-10 px-5 text-[12px] font-black uppercase tracking-wide rounded-lg border border-[#800020] text-[#800020] hover:bg-[#800020] hover:text-white transition-colors inline-flex items-center justify-center"
                               >
                                 Onboard Applicant
                               </button>
@@ -850,7 +850,7 @@ export default function HiringReportPage() {
                             <button
                               disabled
                               title="Set Start Date first before onboarding."
-                              className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-[#800020] text-[#800020] opacity-50 cursor-not-allowed"
+                              className="h-10 px-5 text-[12px] font-black uppercase tracking-wide rounded-lg border border-[#800020] text-[#800020] opacity-50 cursor-not-allowed inline-flex items-center justify-center"
                             >
                               Onboard Applicant
                             </button>
