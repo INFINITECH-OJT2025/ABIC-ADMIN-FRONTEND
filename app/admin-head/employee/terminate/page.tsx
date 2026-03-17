@@ -263,15 +263,16 @@ function TerminatePageContent() {
           return Boolean(targetLastDay) && recordLastDay === targetLastDay
         })
 
-        const sortedByLatest = [...(sameDayMatches.length > 0 ? sameDayMatches : [])]
-          .filter((item: any) => String(item?.status ?? '').toUpperCase() !== 'DONE')
-          .sort((a: any, b: any) => {
+        const pool = sameDayMatches.length > 0 ? sameDayMatches : candidates
+        const sortedByLatest = [...pool].sort((a: any, b: any) => {
           const aTs = new Date(a?.updated_at ?? a?.created_at ?? 0).getTime()
           const bTs = new Date(b?.updated_at ?? b?.created_at ?? 0).getTime()
           return bTs - aTs
-          })
+        })
 
-        const match = sortedByLatest[0]
+        const match =
+          sortedByLatest.find((item: any) => String(item?.status ?? '').toUpperCase() !== 'DONE')
+          ?? sortedByLatest[0]
         
         if (match) {
           setChecklistRecordId(String(match.id))

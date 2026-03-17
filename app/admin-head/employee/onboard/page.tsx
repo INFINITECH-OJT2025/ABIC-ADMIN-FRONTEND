@@ -141,6 +141,24 @@ const resolveDepartmentFromHierarchy = (
   return matchedDepartment ? toPlainString(matchedDepartment.name) : "";
 };
 
+const resolvePositionFromOptions = (
+  positionName: unknown,
+  positions: Hierarchy[],
+): string => {
+  const raw = toPlainString(positionName);
+  if (!raw) return "";
+  if (!positions.length) return raw;
+
+  const normalized = raw.toLowerCase().replace(/\s+/g, " ").trim();
+  const match = positions.find(
+    (p) =>
+      toPlainString(p.name).toLowerCase().replace(/\s+/g, " ").trim() ===
+      normalized,
+  );
+
+  return match ? toPlainString(match.name) : raw;
+};
+
 export default function OnboardPage() {
   return (
     <Suspense fallback={<OnboardSkeleton />}>
@@ -791,6 +809,21 @@ function OnboardPageContent() {
   }, [onboardFormData.position, onboardFormData.department, positions, departments]);
 
   useEffect(() => {
+    if (!onboardFormData.position || positions.length === 0) return;
+
+    const canonicalPosition = resolvePositionFromOptions(
+      onboardFormData.position,
+      positions,
+    );
+    if (canonicalPosition && canonicalPosition !== onboardFormData.position) {
+      setOnboardFormData((prev) => ({
+        ...prev,
+        position: canonicalPosition,
+      }));
+    }
+  }, [onboardFormData.position, positions]);
+
+  useEffect(() => {
     if (!regions.length) return;
 
     const hydrateAddressDropdowns = async () => {
@@ -1157,6 +1190,12 @@ function OnboardPageContent() {
       );
 
       if (emp) {
+        const rawPosition =
+          toPlainString(emp.position) ||
+          toPlainString((emp as any).position_name) ||
+          toPlainString((emp as any).job_title) ||
+          toPlainString((emp as any).designation);
+        const resolvedPosition = resolvePositionFromOptions(rawPosition, positions);
         setOnboardingEmployeeId(String(emp?.id ?? id));
         const requestedBatchFromQuery = Number(batchParam);
         const hasRequestedBatch =
@@ -1194,7 +1233,7 @@ function OnboardPageContent() {
           last_name: toPlainString(emp.last_name),
           email: toPlainString(emp.email),
           mobile_number: toPlainString(emp.mobile_number),
-          position: toPlainString(emp.position),
+          position: resolvedPosition,
           onboarding_date: toIsoDate(emp.onboarding_date || emp.date_hired),
           department: toPlainString(emp.department),
         });
@@ -1202,11 +1241,12 @@ function OnboardPageContent() {
           ...emp,
           email: toPlainString(emp.email),
           mobile_number: toPlainString(emp.mobile_number),
+          position: resolvedPosition,
           date_hired: toIsoDate(emp.date_hired || emp.onboarding_date),
         });
         setChecklistData({
           name: `${emp.first_name} ${emp.last_name}`,
-          position: toPlainString(emp.position),
+          position: resolvedPosition,
           department: toPlainString(emp.department),
           date: toIsoDate(emp.onboarding_date || emp.date_hired)
             ? new Date(
