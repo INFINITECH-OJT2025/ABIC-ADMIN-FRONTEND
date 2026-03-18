@@ -208,6 +208,24 @@ function EvaluateEmployeeForm() {
   const [reviewedBy, setReviewedBy] = useState('')
   const [approvedBy, setApprovedBy] = useState('')
 
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const isViewer = userRole === "super_admin_viewer";
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const data = await response.json();
+          setUserRole(data.user?.role || data.role);
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+      }
+    };
+    fetchUserRole();
+  }, []);
+
   useEffect(() => {
     fetchInitialData()
   }, [])
@@ -513,11 +531,11 @@ function EvaluateEmployeeForm() {
 
   useEffect(() => {
     if (!selectedEmployee) {
-      setIsEditMode(true)
+      setIsEditMode(!isViewer)
       return
     }
-    setIsEditMode(!hasSavedCurrentEvaluation)
-  }, [selectedEmployeeId, selectedEmployee, evaluationContext.targetScore, hasSavedCurrentEvaluation])
+    setIsEditMode(!isViewer && !hasSavedCurrentEvaluation)
+  }, [selectedEmployeeId, selectedEmployee, evaluationContext.targetScore, hasSavedCurrentEvaluation, isViewer])
 
   const handleScoreChange = (id: CriteriaId, value: string) => {
     const cleaned = value.replace(/[^1-5]/g, '').slice(0, 1)
@@ -719,41 +737,45 @@ function EvaluateEmployeeForm() {
           <ArrowLeft className="w-4 h-4" /> Back
         </Button>
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleExportPdf}
-            disabled={isExportingPdf || !selectedEmployeeId}
-            className="rounded-none border-black flex gap-2"
-          >
-            {isExportingPdf ? 'Exporting...' : <><FileDown className="w-4 h-4" /> Export PDF</>}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleSendPdfToEmail}
-            disabled={isEmailSending || !selectedEmployeeId}
-            className="rounded-none border-black flex gap-2"
-          >
-            {isEmailSending ? 'Sending...' : <><Mail className="w-4 h-4" /> Send to Email</>}
-          </Button>
-          {hasSavedCurrentEvaluation && !isEditMode && showSecondEvaluationPanel && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsEditMode(true)}
-              className="rounded-none border-[#7B0F2B] text-[#7B0F2B] flex gap-2"
-            >
-              <Pencil className="w-4 h-4" /> Edit Evaluation
-            </Button>
+          {!isViewer && (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleExportPdf}
+                disabled={isExportingPdf || !selectedEmployeeId}
+                className="rounded-none border-black flex gap-2"
+              >
+                {isExportingPdf ? 'Exporting...' : <><FileDown className="w-4 h-4" /> Export PDF</>}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleSendPdfToEmail}
+                disabled={isEmailSending || !selectedEmployeeId}
+                className="rounded-none border-black flex gap-2"
+              >
+                {isEmailSending ? 'Sending...' : <><Mail className="w-4 h-4" /> Send to Email</>}
+              </Button>
+              {hasSavedCurrentEvaluation && !isEditMode && showSecondEvaluationPanel && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditMode(true)}
+                  className="rounded-none border-[#7B0F2B] text-[#7B0F2B] flex gap-2"
+                >
+                  <Pencil className="w-4 h-4" /> Edit Evaluation
+                </Button>
+              )}
+              <Button 
+                onClick={handleSubmit} 
+                disabled={isSubmitting || !showSecondEvaluationPanel || !isEditMode}
+                className="bg-black text-white rounded-none hover:bg-slate-800 flex gap-2"
+              >
+                {isSubmitting ? 'Saving...' : <><Save className="w-4 h-4" /> Save Evaluation</>}
+              </Button>
+            </>
           )}
-          <Button 
-            onClick={handleSubmit} 
-            disabled={isSubmitting || !showSecondEvaluationPanel || !isEditMode}
-            className="bg-black text-white rounded-none hover:bg-slate-800 flex gap-2"
-          >
-            {isSubmitting ? 'Saving...' : <><Save className="w-4 h-4" /> Save Evaluation</>}
-          </Button>
         </div>
       </div>
 
@@ -1015,9 +1037,9 @@ function EvaluateEmployeeForm() {
                     {selectedEmployee ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}` : '[Loading Employee]'}
                   </span>
                 ) : (
-                  <Select value={selectedEmployeeId} onValueChange={handleEmployeeChange}>
+                  <Select value={selectedEmployeeId} onValueChange={handleEmployeeChange} disabled={isViewer}>
                     <SelectTrigger className="h-6 border-none bg-transparent p-0 shadow-none text-[#D32F2F] font-bold focus:ring-0 w-full hover:bg-transparent hover:text-rose-800 transition-colors">
-                      <SelectValue placeholder="[Select Employee Here]" />
+                      <SelectValue placeholder={isViewer ? "[No Employee Selected]" : "[Select Employee Here]"} />
                     </SelectTrigger>
                     <SelectContent>
                       {selectableEmployees.map(emp => (

@@ -325,6 +325,20 @@ export default function MasterfilePage() {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const isViewer = userRole === "super_admin_viewer";
+
+  const fetchUserRole = async () => {
+    try {
+      const response = await fetch("/api/auth/me");
+      if (response.ok) {
+        const data = await response.json();
+        setUserRole(data.role);
+      }
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+    }
+  };
 
   // Editing States
   const [isEditingContact, setIsEditingContact] = useState(false);
@@ -461,6 +475,7 @@ export default function MasterfilePage() {
   }, [imagePreview.isOpen]);
 
   useEffect(() => {
+    fetchUserRole();
     fetchEmployees();
     fetchRegions();
     fetchPositionsAndDepartments();
@@ -1977,7 +1992,7 @@ export default function MasterfilePage() {
                             </div>
 
                             {/* Action Buttons Row */}
-                            {(isTerminationPending ||
+                            {!isViewer && (isTerminationPending ||
                               isRehirePending ||
                               (employee.status === "pending" &&
                                 (!isComplete ||
@@ -2171,7 +2186,7 @@ export default function MasterfilePage() {
 
                     {/* Actions */}
                     <div className="flex items-center gap-3">
-                      {selectedEmployee &&
+                      {selectedEmployee && !isViewer &&
                         (isEditingAll ? (
                           <>
                             <button
@@ -2265,7 +2280,7 @@ export default function MasterfilePage() {
                               {selectedEmployee?.first_name}{" "}
                               {selectedEmployee?.last_name}
                             </p>
-                            {isEditingAll && (
+                            {isEditingAll && !isViewer && (
                               <div className="mt-2 flex items-center gap-2">
                                 <label
                                   htmlFor="masterfile_profile_upload"
@@ -3458,8 +3473,8 @@ export default function MasterfilePage() {
 
                       {/* Footer Actions */}
                       <div className="bg-slate-50 px-6 py-4 rounded-lg border border-[#FFE5EC] flex justify-end gap-3">
-                        {selectedEmployee?.status === "pending" ||
-                        selectedEmployee?.status === "rehire_pending" ? (
+                        {(selectedEmployee?.status === "pending" ||
+                        selectedEmployee?.status === "rehire_pending") && !isViewer ? (
                           <>
                             {selectedEmployee.onboarding_tasks?.isComplete &&
                               !checkCompleteness(selectedEmployee)

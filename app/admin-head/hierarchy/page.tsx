@@ -2,6 +2,7 @@
 
 import { useMemo, useState, useEffect } from "react"
 import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui"
+import { cn } from "@/lib/utils"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -48,12 +49,14 @@ function NodePill({
   label,
   variant = "staff",
   color,
-  onEdit
+  onEdit,
+  isViewer
 }: {
   label: string;
   variant?: "staff" | "dept" | "exec" | "admin";
   color?: string;
-  onEdit?: () => void
+  onEdit?: () => void;
+  isViewer?: boolean;
 }) {
   const styles = {
     staff: "bg-white text-slate-700 border-slate-200/90 shadow-sm hover:shadow-md hover:border-slate-300",
@@ -70,7 +73,7 @@ function NodePill({
       style={!isHighRank && color ? { borderLeftColor: color, borderLeftWidth: '4px' } : {}}
     >
       {label}
-      {onEdit && (
+      {onEdit && !isViewer && (
         <button
           onClick={(e) => { e.stopPropagation(); onEdit(); }}
           className="absolute -right-2 -top-2 h-6 w-6 rounded-full bg-slate-800 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-md hover:bg-slate-900"
@@ -88,6 +91,7 @@ function HierarchyBranch({
   onEdit,
   execId,
   adminId,
+  isViewer,
   pathIds = [],
   depth = 0,
 }: {
@@ -96,6 +100,7 @@ function HierarchyBranch({
   onEdit: (node: PositionNode) => void;
   execId?: string;
   adminId?: string;
+  isViewer?: boolean;
   pathIds?: string[];
   depth?: number;
 }) {
@@ -123,6 +128,7 @@ function HierarchyBranch({
         variant={getVariant(node.title, node.departmentId, node.id)}
         color={node.color}
         onEdit={() => onEdit(node)}
+        isViewer={isViewer}
       />
       {children.length > 0 && (
         <div className="relative ml-3 pl-3 md:ml-4 md:pl-4">
@@ -138,6 +144,7 @@ function HierarchyBranch({
                     onEdit={onEdit}
                     execId={execId}
                     adminId={adminId}
+                    isViewer={isViewer}
                     pathIds={nextPath}
                     depth={depth + 1}
                   />
@@ -204,6 +211,23 @@ export default function AdminHeadHierarchyPage() {
   const [editTitle, setEditTitle] = useState("")
   const [editDepartment, setEditDepartment] = useState("")
   const [editParent, setEditParent] = useState("")
+
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`${getApiUrl()}/api/auth/me`, {
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data?.role) {
+          setUserRole(data.data.role)
+        }
+      })
+      .catch(err => console.error("Error fetching role:", err))
+  }, [])
+
+  const isViewer = userRole === 'super_admin_viewer'
 
   useEffect(() => {
     if (editingPosition) {
@@ -786,6 +810,7 @@ export default function AdminHeadHierarchyPage() {
       </div>
 
       <div className="px-4 md:px-8 grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+        {!isViewer && (
         <Card className="xl:col-span-1 border-2 border-[#FFE5EC] xl:sticky xl:top-4 shadow-sm">
           <CardHeader>
             <CardTitle className="text-[#630C22]">Setup Controls</CardTitle>
@@ -942,8 +967,9 @@ export default function AdminHeadHierarchyPage() {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        <Card className="xl:col-span-2 border-2 border-[#FFE5EC] shadow-sm">
+        <Card className={cn("xl:col-span-2 border-2 border-[#FFE5EC] shadow-sm", isViewer && "xl:col-span-3")}>
           <CardHeader>
             <CardTitle className="text-[#630C22]">Organization Hierarchy</CardTitle>
           </CardHeader>
@@ -956,6 +982,7 @@ export default function AdminHeadHierarchyPage() {
                       label={execNode.title}
                       variant="exec"
                       onEdit={() => setEditingPosition(execNode)}
+                      isViewer={isViewer}
                     />
                   )}
                   {execNode && adminNode && <div className="h-6 w-px bg-slate-300" />}
@@ -964,6 +991,7 @@ export default function AdminHeadHierarchyPage() {
                       label={adminNode.title}
                       variant="admin"
                       onEdit={() => setEditingPosition(adminNode)}
+                      isViewer={isViewer}
                     />
                   )}
                   {!execNode && !adminNode && (
@@ -984,7 +1012,7 @@ export default function AdminHeadHierarchyPage() {
                   item.id !== adminNode?.id && 
                   item.id !== execNode?.id
                 ).map((item) => (
-                  <HierarchyBranch key={item.id} node={item} allNodes={positions} onEdit={setEditingPosition} execId={execNode?.id} adminId={adminNode?.id} />
+                  <HierarchyBranch key={item.id} node={item} allNodes={positions} onEdit={setEditingPosition} execId={execNode?.id} adminId={adminNode?.id} isViewer={isViewer} />
                 ))}
               </div>
 
@@ -998,14 +1026,16 @@ export default function AdminHeadHierarchyPage() {
                         <div className="h-[2px] flex-1 bg-slate-200" />
                         <div className="flex items-center gap-3 px-6 py-2 rounded-full bg-slate-100 border border-slate-200 shadow-sm">
                           <span className="text-sm font-black uppercase tracking-widest text-slate-600">{office.name} OFFICE</span>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 text-slate-400 hover:text-[#A4163A] hover:bg-white transition-colors"
-                            onClick={() => handleOpenShiftModal(office)}
-                          >
-                            <Clock className="w-4 h-4" />
-                          </Button>
+                          {!isViewer && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 text-slate-400 hover:text-[#A4163A] hover:bg-white transition-colors"
+                              onClick={() => handleOpenShiftModal(office)}
+                            >
+                              <Clock className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                         <div className="h-[2px] flex-1 bg-slate-200" />
                       </div>

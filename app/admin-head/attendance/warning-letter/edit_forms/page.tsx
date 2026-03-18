@@ -210,8 +210,7 @@ const EVALUATION_CRITERIA_DEFAULTS = [
   {
     id: "work_attitude",
     label: "1. WORK ATTITUDE",
-    desc:
-      "How does an employee feel about his/her job? Is he/she interested in his/her work? \nDoes the employee work hard? Is he alert and resourceful?",
+    desc: "How does an employee feel about his/her job? Is he/she interested in his/her work? \nDoes the employee work hard? Is he alert and resourceful?",
   },
   {
     id: "job_knowledge",
@@ -221,14 +220,12 @@ const EVALUATION_CRITERIA_DEFAULTS = [
   {
     id: "quality_of_work",
     label: "3. QUALITY OF WORK",
-    desc:
-      "Is he accurate, thorough and neat? Consider working habits. Extent to which decision \nand action are based on facts and sound reasoning and weighing of outcome?",
+    desc: "Is he accurate, thorough and neat? Consider working habits. Extent to which decision \nand action are based on facts and sound reasoning and weighing of outcome?",
   },
   {
     id: "handle_workload",
     label: "4. ABILITY TO HANDLE ASSIGNED WORKLOAD",
-    desc:
-      "Consider working habits. Is work completed on time? Do you have to follow up?",
+    desc: "Consider working habits. Is work completed on time? Do you have to follow up?",
   },
   {
     id: "work_with_supervisor",
@@ -243,8 +240,7 @@ const EVALUATION_CRITERIA_DEFAULTS = [
   {
     id: "attendance",
     label: "7. ATTENDANCE (ABSENCES/TARDINESS/ UNDERTIME)",
-    desc:
-      "Is he regular and punctual in his attendance? What is his attitude towards time lost?",
+    desc: "Is he regular and punctual in his attendance? What is his attitude towards time lost?",
   },
   {
     id: "compliance",
@@ -259,8 +255,7 @@ const EVALUATION_CRITERIA_DEFAULTS = [
   {
     id: "communication",
     label: "10. COMMUNICATION SKILLS",
-    desc:
-      "How successful is he in expressing himself orally, verbally and in written form?",
+    desc: "How successful is he in expressing himself orally, verbally and in written form?",
   },
 ] as const;
 
@@ -687,15 +682,11 @@ export default function EditFormsPage() {
         ...template,
       };
       const criteriaOverrides = safeTemplate.criteriaOverrides || {};
-      const ratingScaleLines = String(
-        safeTemplate.ratingScaleLines || "",
-      )
+      const ratingScaleLines = String(safeTemplate.ratingScaleLines || "")
         .split("\n")
         .map((line) => line.trim())
         .filter(Boolean);
-      const interpretationLines = String(
-        safeTemplate.interpretationLines || "",
-      )
+      const interpretationLines = String(safeTemplate.interpretationLines || "")
         .split("\n")
         .map((line) => line.trim())
         .filter(Boolean);
@@ -1289,18 +1280,18 @@ export default function EditFormsPage() {
                             ? "Company Letterhead"
                             : activeTab === "evaluation"
                               ? "Evaluation Template"
-                            : activeTab.startsWith("supervisor-tardiness")
-                              ? "Supervisor Tardiness Advisory"
-                              : activeTab.startsWith("supervisor-leave")
-                                ? "Supervisor Leave Advisory"
-                                : "Employee Warning"}
+                              : activeTab.startsWith("supervisor-tardiness")
+                                ? "Supervisor Tardiness Advisory"
+                                : activeTab.startsWith("supervisor-leave")
+                                  ? "Supervisor Leave Advisory"
+                                  : "Employee Warning"}
                         </span>
                         <span className="text-[10px] font-medium text-rose-200/70 uppercase tracking-[0.2em]">
                           {activeTab === "letterhead"
                             ? "Shared Branding"
                             : activeTab === "evaluation"
                               ? "Form Configuration"
-                            : "Configuration Panel"}
+                              : "Configuration Panel"}
                         </span>
                       </div>
                     </CardTitle>
@@ -1309,7 +1300,7 @@ export default function EditFormsPage() {
                         ? "GLOBAL"
                         : activeTab === "evaluation"
                           ? "EVALUATION"
-                        : activeTab.replace("-", " ").toUpperCase()}
+                          : activeTab.replace("-", " ").toUpperCase()}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -1481,7 +1472,8 @@ export default function EditFormsPage() {
                           </Label>
                           <Input
                             value={
-                              (templates as any)[activeTab].metaRatingPeriodLabel
+                              (templates as any)[activeTab]
+                                .metaRatingPeriodLabel
                             }
                             onChange={(e) =>
                               updateTemplate(
@@ -1505,8 +1497,10 @@ export default function EditFormsPage() {
                         </div>
                         <div className="space-y-5">
                           {EVALUATION_CRITERIA_DEFAULTS.map((criterion) => {
-                            const overrides = (templates as any).evaluation
-                              ?.criteriaOverrides?.[criterion.id] || criterion;
+                            const overrides =
+                              (templates as any).evaluation
+                                ?.criteriaOverrides?.[criterion.id] ||
+                              criterion;
                             return (
                               <div
                                 key={criterion.id}

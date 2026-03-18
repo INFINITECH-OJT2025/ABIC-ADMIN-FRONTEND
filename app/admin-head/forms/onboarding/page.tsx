@@ -206,6 +206,22 @@ function OnboardingChecklistPageContent() {
   const [dragOverTaskId, setDragOverTaskId] = useState<number | null>(null)
   const [recentlyMovedTaskId, setRecentlyMovedTaskId] = useState<number | null>(null)
   const [open, setOpen] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`${getApiUrl()}/api/auth/me`, {
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data?.role) {
+          setUserRole(data.data.role)
+        }
+      })
+      .catch(err => console.error("Error fetching role:", err))
+  }, [])
+
+  const isViewer = userRole === 'super_admin_viewer'
   const [recordStatusFilter, setRecordStatusFilter] = useState<RecordStatusFilter>('ALL')
   const [recordSort, setRecordSort] = useState<RecordSort>('UPDATED_DESC')
   const [saveConfirmOpen, setSaveConfirmOpen] = useState(false)
@@ -1059,19 +1075,23 @@ function OnboardingChecklistPageContent() {
         <Card className="rounded-2xl border border-[#FFE5EC] shadow-2xl bg-white overflow-hidden mb-12">
           <div className="p-4 md:px-8 bg-slate-50/50 border-b border-[#FFE5EC] flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-3">
-              <Button onClick={addTask} size="sm" className="bg-[#A4163A] hover:bg-[#800020] text-white font-black text-xs h-9 px-6 rounded-xl shadow-md active:scale-95 transition-all">
-                <Plus className="w-3.5 h-3.5 mr-2" /> ADD ROW
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => queueTaskDeletion(selectedTaskIds)}
-                disabled={selectedTaskIds.length === 0 || saving}
-                className="border-rose-200 text-rose-700 hover:bg-rose-50 font-black text-xs h-9 px-4 rounded-xl"
-              >
-                <Trash2 className="w-3.5 h-3.5 mr-2" />
-                DELETE SELECTED ({selectedTaskIds.length})
-              </Button>
+              {!isViewer && (
+                <>
+                  <Button onClick={addTask} size="sm" className="bg-[#A4163A] hover:bg-[#800020] text-white font-black text-xs h-9 px-6 rounded-xl shadow-md active:scale-95 transition-all">
+                    <Plus className="w-3.5 h-3.5 mr-2" /> ADD ROW
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => queueTaskDeletion(selectedTaskIds)}
+                    disabled={selectedTaskIds.length === 0 || saving}
+                    className="border-rose-200 text-rose-700 hover:bg-rose-50 font-black text-xs h-9 px-4 rounded-xl"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 mr-2" />
+                    DELETE SELECTED ({selectedTaskIds.length})
+                  </Button>
+                </>
+              )}
               <Separator orientation="vertical" className="h-4 bg-slate-200" />
               <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] italic">
                 ADMINISTRATION FRAMEWORK - ABIC HR
@@ -1079,14 +1099,16 @@ function OnboardingChecklistPageContent() {
             </div>
 
             <div className="flex gap-3">
-              <Button
-                onClick={() => setSaveConfirmOpen(true)}
-                disabled={saving || !employeeInfo}
-                className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-[#A4163A] hover:bg-[#8D1332] text-white shadow-lg active:scale-95 transition-all rounded-xl"
-              >
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
-                {saving ? 'UPDATING...' : 'SAVE CHECKLIST'}
-              </Button>
+              {!isViewer && (
+                <Button
+                  onClick={() => setSaveConfirmOpen(true)}
+                  disabled={saving || !employeeInfo}
+                  className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-[#A4163A] hover:bg-[#8D1332] text-white shadow-lg active:scale-95 transition-all rounded-xl"
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
+                  {saving ? 'UPDATING...' : 'SAVE CHECKLIST'}
+                </Button>
+              )}
             </div>
           </div>
           {duplicateTaskIds.size > 0 && (
@@ -1103,18 +1125,20 @@ function OnboardingChecklistPageContent() {
                   <Checkbox
                     checked={allTasksSelected ? true : selectedTaskIds.length > 0 ? "indeterminate" : false}
                     onCheckedChange={(checked) => toggleSelectAllTasks(checked === true)}
-                    disabled={tasks.length === 0 || saving}
+                    disabled={tasks.length === 0 || saving || isViewer}
                     aria-label="Select all tasks"
                     className="mx-auto"
                   />
                 </TableHead>
                 <TableHead className="font-black text-[#800020] uppercase tracking-[0.12em] text-[12px] py-3">
                   <span>Required Onboarding Tasks</span>
-                  <p className="mt-1 text-[10px] normal-case font-semibold tracking-normal text-[#800020]/70">
-                    Task length: {VALIDATION_CONSTRAINTS.checklistTemplate.task.min} to {VALIDATION_CONSTRAINTS.checklistTemplate.task.max} characters.
-                  </p>
+                  {!isViewer && (
+                    <p className="mt-1 text-[10px] normal-case font-semibold tracking-normal text-[#800020]/70">
+                      Task length: {VALIDATION_CONSTRAINTS.checklistTemplate.task.min} to {VALIDATION_CONSTRAINTS.checklistTemplate.task.max} characters.
+                    </p>
+                  )}
                 </TableHead>
-                <TableHead className="w-[80px] text-center font-black text-[#800020] uppercase tracking-[0.12em] text-[12px] py-3">Action</TableHead>
+                <TableHead className={cn("w-[80px] text-center font-black text-[#800020] uppercase tracking-[0.12em] text-[12px] py-3", isViewer && "hidden")}>Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1161,12 +1185,12 @@ function OnboardingChecklistPageContent() {
                       checked={selectedTaskIdSet.has(item.id)}
                       onCheckedChange={(checked) => toggleTaskSelection(item.id, checked === true)}
                       aria-label="Select task"
-                      disabled={saving}
+                      disabled={saving || isViewer}
                       className="mx-auto"
                     />
                   </TableCell>
                   <TableCell className="py-2.5">
-                    {editMode ? (
+                    {editMode && !isViewer ? (
                       <div className="flex items-start gap-2">
                         <button
                           type="button"
@@ -1221,29 +1245,33 @@ function OnboardingChecklistPageContent() {
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="py-2.5 text-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => queueTaskDeletion([item.id])}
-                      disabled={saving}
-                      className="h-7 w-7 text-slate-300 hover:text-rose-500 transition-colors rounded-lg group-hover:bg-rose-50"
-                    >
-                      <Trash2 className="h-5.5 w-5.5" />
-                    </Button>
-                  </TableCell>
+                  {!isViewer && (
+                    <TableCell className="py-2.5 text-center">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => queueTaskDeletion([item.id])}
+                        disabled={saving}
+                        className="h-7 w-7 text-slate-300 hover:text-rose-500 transition-colors rounded-lg group-hover:bg-rose-50"
+                      >
+                        <Trash2 className="h-5.5 w-5.5" />
+                      </Button>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
 
 
               {tasks.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="py-24 text-center">
+                  <TableCell colSpan={isViewer ? 2 : 3} className="py-24 text-center">
                     <ClipboardList className="w-12 h-12 text-slate-200 mx-auto mb-4" />
                     <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No tasks initialized</p>
-                    <Button onClick={() => setStartChecklistOpen(true)} variant="outline" size="sm" className="mt-4 border-[#FFE5EC] text-[#A4163A] font-black h-9 rounded-xl">
-                      <Plus className="w-4 h-4 mr-1" /> START CHECKLIST
-                    </Button>
+                    {!isViewer && (
+                      <Button onClick={() => setStartChecklistOpen(true)} variant="outline" size="sm" className="mt-4 border-[#FFE5EC] text-[#A4163A] font-black h-9 rounded-xl">
+                        <Plus className="w-4 h-4 mr-1" /> START CHECKLIST
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               )}
@@ -1254,9 +1282,11 @@ function OnboardingChecklistPageContent() {
           {/* Table Footer */}
           <div className="hidden p-4 md:px-8 bg-slate-50/50 border-t border-[#FFE5EC] flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-3">
-              <Button onClick={addTask} size="sm" className="bg-[#A4163A] hover:bg-[#800020] text-white font-black text-xs h-9 px-6 rounded-xl shadow-md active:scale-95 transition-all">
-                <Plus className="w-3.5 h-3.5 mr-2" /> ADD ROW
-              </Button>
+              {!isViewer && (
+                <Button onClick={addTask} size="sm" className="bg-[#A4163A] hover:bg-[#800020] text-white font-black text-xs h-9 px-6 rounded-xl shadow-md active:scale-95 transition-all">
+                  <Plus className="w-3.5 h-3.5 mr-2" /> ADD ROW
+                </Button>
+              )}
               <Separator orientation="vertical" className="h-4 bg-slate-200" />
               <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em] italic">
                 ADMINISTRATION FRAMEWORK • ABIC HR
@@ -1265,14 +1295,16 @@ function OnboardingChecklistPageContent() {
 
 
             <div className="flex gap-3">
-              <Button
-                onClick={() => setSaveConfirmOpen(true)}
-                disabled={saving || !employeeInfo}
-                className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-[#A4163A] hover:bg-[#8D1332] text-white shadow-lg active:scale-95 transition-all rounded-xl"
-              >
-                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
-                {saving ? 'UPDATING...' : 'SAVE CHECKLIST'}
-              </Button>
+              {!isViewer && (
+                <Button
+                  onClick={() => setSaveConfirmOpen(true)}
+                  disabled={saving || !employeeInfo}
+                  className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-[#A4163A] hover:bg-[#8D1332] text-white shadow-lg active:scale-95 transition-all rounded-xl"
+                >
+                  {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
+                  {saving ? 'UPDATING...' : 'SAVE CHECKLIST'}
+                </Button>
+              )}
             </div>
           </div>
         </Card>

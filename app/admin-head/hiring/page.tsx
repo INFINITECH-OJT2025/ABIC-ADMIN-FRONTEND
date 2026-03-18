@@ -160,6 +160,22 @@ export default function HiringReportPage() {
   const [positionOptions, setPositionOptions] = useState<string[]>([""]);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [userRole, setUserRole] = useState<string|null>(null);
+
+  useEffect(() => {
+    fetch(`${getApiUrl()}/api/auth/me`, {
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data?.role) {
+          setUserRole(data.data.role);
+        }
+      })
+      .catch(err => console.error("Error fetching role:", err));
+  }, []);
+
+  const isViewer = userRole === 'super_admin_viewer';
 
   const applyOnboardedCountsToSummary = (rows: SummaryRow[], onboarded: OnboardedRow[]): SummaryRow[] => {
     const onboardedByPosition = onboarded.reduce<Map<string, number>>((acc, item) => {
@@ -585,15 +601,17 @@ export default function HiringReportPage() {
               {isSummaryOpen ? <ChevronDown size={20} className="text-[#4A081A]" /> : <ChevronRight size={20} className="text-[#4A081A]" />}
               <h2 className="text-xl text-[#4A081A] font-bold select-none">Hiring Requirement Summary</h2>
             </div>
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                addSummaryRow();
-              }}
-              className="bg-white text-[#A4163A] border-2 border-[#A4163A] rounded-full p-0.5 w-7 h-7 flex items-center justify-center cursor-pointer hover:bg-[#A4163A] hover:text-white transition-colors shadow-sm active:scale-95"
-            >
-              <Plus size={20} strokeWidth={4} />
-            </div>
+            {!isViewer && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addSummaryRow();
+                }}
+                className="bg-white text-[#A4163A] border-2 border-[#A4163A] rounded-full p-0.5 w-7 h-7 flex items-center justify-center cursor-pointer hover:bg-[#A4163A] hover:text-white transition-colors shadow-sm active:scale-95"
+              >
+                <Plus size={20} strokeWidth={4} />
+              </div>
+            )}
           </div>
           <div className={isSummaryOpen ? "block" : "hidden"}>
             <Table className="border-collapse w-full text-sm table-fixed">
@@ -604,12 +622,12 @@ export default function HiringReportPage() {
                   <TableHead className="w-[14%] px-6 py-4 text-center font-bold text-[#800020] text-sm uppercase tracking-wider">Hired (Onboarded)</TableHead>
                   <TableHead className="w-[14%] px-6 py-4 text-center font-bold text-[#800020] text-sm uppercase tracking-wider">Remaining Slots</TableHead>
                   <TableHead className="w-[14%] px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Last Update</TableHead>
-                  <TableHead className="w-[10%] px-6 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>
+                  {!isViewer && <TableHead className="w-[10%] px-6 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
                 {filteredSummaryRows.map((row) => {
-                  const editable = row.isNew || editingSummaryId === row.id;
+                  const editable = !isViewer && (row.isNew || editingSummaryId === row.id);
                   const isSaving = savingSummaryId === row.id;
                   return (
                     <TableRow key={row.id} className="hover:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group">
@@ -661,26 +679,28 @@ export default function HiringReportPage() {
                       </TableCell>
                       <TableCell className="px-6 py-4 text-center font-bold text-black text-lg">{row.remaining}</TableCell>
                       <TableCell className="px-6 py-4 font-semibold text-black text-xs">{row.lastUpdate}</TableCell>
-                      <TableCell className="px-6 py-4 text-right">
-                        {editable ? (
-                          <button
-                            onClick={() => saveSummary(row)}
-                            disabled={isSaving}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 cursor-pointer"
-                          >
-                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                            <span>Save</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setEditingSummaryId(row.id)}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 cursor-pointer"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                            <span>Edit</span>
-                          </button>
-                        )}
-                      </TableCell>
+                       {!isViewer && (
+                        <TableCell className="px-6 py-4 text-right">
+                          {editable ? (
+                            <button
+                              onClick={() => saveSummary(row)}
+                              disabled={isSaving}
+                              className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 cursor-pointer"
+                            >
+                              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                              <span>Save</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setEditingSummaryId(row.id)}
+                              className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 cursor-pointer"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              <span>Edit</span>
+                            </button>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
@@ -719,12 +739,12 @@ export default function HiringReportPage() {
                   <TableHead className="px-3 py-4 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight">Date of Response</TableHead>
                   <TableHead className="px-3 py-4 text-left font-bold text-[#800020] text-[9px] uppercase tracking-wider leading-tight">Offer Status (Pending/Accepted)</TableHead>
                   <TableHead className="px-3 py-4 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider leading-tight">Start Date</TableHead>
-                  <TableHead className="px-3 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>
+                  {!isViewer && <TableHead className="px-3 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
                 {filteredJobOffers.map((row) => {
-                  const editable = row.isNew || editingJobOfferId === row.id;
+                  const editable = !isViewer && (row.isNew || editingJobOfferId === row.id);
                   const onboarded = isAlreadyOnboarded(row);
                   const isSaving = savingJobOfferId === row.id;
                   const needsResponseDate = row.status !== "Pending";
@@ -816,55 +836,57 @@ export default function HiringReportPage() {
                           className="w-full h-full bg-transparent border-none text-center text-xs text-black focus:outline-none px-1 read-only:opacity-70"
                         />
                       </TableCell>
-                      <TableCell className="px-3 py-4 text-right">
-                        {editable ? (
-                          <button
-                            onClick={() => saveJobOffer(row)}
-                            disabled={isSaving || isMissingRequired}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                            <span>Save</span>
-                          </button>
-                        ) : onboarded ? (
-                          <span className="text-green-700 text-[11px] font-bold uppercase tracking-wide">Onboarded</span>
-                        ) : row.status === "Accepted" ? (
-                          row.startDate && remainingSlots > 0 ? (
-                            <Link href={buildOnboardHref(row)}>
+                       {!isViewer && (
+                        <TableCell className="px-3 py-4 text-right">
+                          {editable ? (
+                            <button
+                              onClick={() => saveJobOffer(row)}
+                              disabled={isSaving || isMissingRequired}
+                              className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                              <span>Save</span>
+                            </button>
+                          ) : onboarded ? (
+                            <span className="text-green-700 text-[11px] font-bold uppercase tracking-wide">Onboarded</span>
+                          ) : row.status === "Accepted" ? (
+                            row.startDate && remainingSlots > 0 ? (
+                              <Link href={buildOnboardHref(row)}>
+                                <button
+                                  title="Onboard this applicant"
+                                  className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-[#800020] text-[#800020] hover:bg-[#800020] hover:text-white transition-colors"
+                                >
+                                  Onboard Applicant
+                                </button>
+                              </Link>
+                            ) : remainingSlots <= 0 ? (
                               <button
-                                title="Onboard this applicant"
-                                className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-[#800020] text-[#800020] hover:bg-[#800020] hover:text-white transition-colors"
+                                disabled
+                                title="No remaining slots for this position. Increase headcount to onboard."
+                                className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-[#800020] text-[#800020] opacity-50 cursor-not-allowed"
+                              >
+                                No Slots
+                              </button>
+                            ) : (
+                              <button
+                                disabled
+                                title="Set Start Date first before onboarding."
+                                className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-[#800020] text-[#800020] opacity-50 cursor-not-allowed"
                               >
                                 Onboard Applicant
                               </button>
-                            </Link>
-                          ) : remainingSlots <= 0 ? (
-                            <button
-                              disabled
-                              title="No remaining slots for this position. Increase headcount to onboard."
-                              className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-[#800020] text-[#800020] opacity-50 cursor-not-allowed"
-                            >
-                              No Slots
-                            </button>
+                            )
                           ) : (
                             <button
-                              disabled
-                              title="Set Start Date first before onboarding."
-                              className="px-2 py-1 text-[10px] font-bold uppercase rounded border border-[#800020] text-[#800020] opacity-50 cursor-not-allowed"
+                              onClick={() => setEditingJobOfferId(row.id)}
+                              className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-3 rounded-lg inline-flex items-center gap-2 cursor-pointer"
                             >
-                              Onboard Applicant
+                              <Edit2 className="w-3.5 h-3.5" />
+                              <span>Edit</span>
                             </button>
-                          )
-                        ) : (
-                          <button
-                            onClick={() => setEditingJobOfferId(row.id)}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-3 rounded-lg inline-flex items-center gap-2 cursor-pointer"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                            <span>Edit</span>
-                          </button>
-                        )}
-                      </TableCell>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}

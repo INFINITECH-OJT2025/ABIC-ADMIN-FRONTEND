@@ -103,6 +103,24 @@ export default function EvaluationPage() {
     Record<string, string>
   >({});
 
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const isViewer = userRole === "super_admin_viewer";
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const data = await response.json();
+          setUserRole(data.user?.role || data.role);
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+      }
+    };
+    fetchUserRole();
+  }, []);
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -503,17 +521,19 @@ export default function EvaluationPage() {
                 </div>
 
                 <div className="flex items-center gap-3 w-full lg:w-auto">
-                  <Button
-                    onClick={() =>
-                      router.push(
-                        "/admin-head/employee/evaluation/evaluate_employee",
-                      )
-                    }
-                    className="bg-white text-[#7B0F2B] hover:bg-rose-50 px-4 h-10 rounded-lg font-bold transition-all flex items-center gap-2 text-xs md:text-sm w-full lg:w-auto"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Evaluate an Employee
-                  </Button>
+                  {!isViewer && (
+                    <Button
+                      onClick={() =>
+                        router.push(
+                          "/admin-head/employee/evaluation/evaluate_employee",
+                        )
+                      }
+                      className="bg-white text-[#7B0F2B] hover:bg-rose-50 px-4 h-10 rounded-lg font-bold transition-all flex items-center gap-2 text-xs md:text-sm w-full lg:w-auto"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Evaluate an Employee
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -790,6 +810,7 @@ export default function EvaluationPage() {
                               {hasPassedEvaluation ? (
                                 <Input
                                   type="date"
+                                  disabled={isViewer}
                                   value={
                                     regularizationDates[emp.id] ||
                                     evalData?.regularization_date ||

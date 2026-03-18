@@ -182,6 +182,24 @@ function TerminatePageContent() {
   const [activeTab, setActiveTab] = useState<'all' | 'terminated' | 'rehired'>('all')
   const [historyFilter, setHistoryFilter] = useState<'all' | 'terminated' | 'rehired' | 'resigned'>('all')
   const [exitActionType, setExitActionType] = useState<'terminate' | 'resigned'>('terminate')
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const isViewer = userRole === "super_admin_viewer";
+
+  const fetchUserRole = async () => {
+    try {
+      const response = await fetch("/api/auth/me");
+      if (response.ok) {
+        const data = await response.json();
+        setUserRole(data.role);
+      }
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserRole();
+  }, []);
   const router = useRouter()
   const pathname = usePathname()
   
@@ -1139,44 +1157,48 @@ function TerminatePageContent() {
             </div>
             <div className="w-full lg:w-auto flex flex-col items-start lg:items-end gap-2">
               <div className="flex items-center gap-2">
-                <Button
-                  onClick={() => {
-                    if (isRequestFormOpen && exitActionType === 'terminate') {
-                      setIsRequestFormOpen(false)
-                    } else {
-                      setExitActionType('terminate')
-                      setIsRequestFormOpen(true)
-                    }
-                  }}
-                  className={cn(
-                    "font-bold px-5 py-2.5 rounded-lg transition-all duration-300 shadow-lg flex items-center gap-2 h-auto border text-sm uppercase tracking-wider",
-                    isRequestFormOpen && exitActionType === 'terminate'
-                      ? "bg-white text-[#A4163A] border-white"
-                      : "bg-white/10 text-white hover:bg-white/20 border-white/20 backdrop-blur-sm"
-                  )}
-                >
-                  {isRequestFormOpen && exitActionType === 'terminate' ? <X className="h-4 w-4" /> : <Users className="h-4 w-4" />}
-                  <span>Terminate Employee</span>
-                </Button>
-                <Button
-                  onClick={() => {
-                    if (isRequestFormOpen && exitActionType === 'resigned') {
-                      setIsRequestFormOpen(false)
-                    } else {
-                      setExitActionType('resigned')
-                      setIsRequestFormOpen(true)
-                    }
-                  }}
-                  className={cn(
-                    "font-bold px-5 py-2.5 rounded-lg transition-all duration-300 shadow-lg flex items-center gap-2 h-auto border text-sm uppercase tracking-wider",
-                    isRequestFormOpen && exitActionType === 'resigned'
-                      ? "bg-white text-[#A4163A] border-white"
-                      : "bg-white/10 text-white hover:bg-white/20 border-white/20 backdrop-blur-sm"
-                  )}
-                >
-                  {isRequestFormOpen && exitActionType === 'resigned' ? <X className="h-4 w-4" /> : <Users className="h-4 w-4" />}
-                  <span>Resigned Employee</span>
-                </Button>
+                {!isViewer && (
+                  <Button
+                    onClick={() => {
+                      if (isRequestFormOpen && exitActionType === 'terminate') {
+                        setIsRequestFormOpen(false)
+                      } else {
+                        setExitActionType('terminate')
+                        setIsRequestFormOpen(true)
+                      }
+                    }}
+                    className={cn(
+                      "font-bold px-5 py-2.5 rounded-lg transition-all duration-300 shadow-lg flex items-center gap-2 h-auto border text-sm uppercase tracking-wider",
+                      isRequestFormOpen && exitActionType === 'terminate'
+                        ? "bg-white text-[#A4163A] border-white"
+                        : "bg-white/10 text-white hover:bg-white/20 border-white/20 backdrop-blur-sm"
+                    )}
+                  >
+                    {isRequestFormOpen && exitActionType === 'terminate' ? <X className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+                    <span>Terminate Employee</span>
+                  </Button>
+                )}
+                {!isViewer && (
+                  <Button
+                    onClick={() => {
+                      if (isRequestFormOpen && exitActionType === 'resigned') {
+                        setIsRequestFormOpen(false)
+                      } else {
+                        setExitActionType('resigned')
+                        setIsRequestFormOpen(true)
+                      }
+                    }}
+                    className={cn(
+                      "font-bold px-5 py-2.5 rounded-lg transition-all duration-300 shadow-lg flex items-center gap-2 h-auto border text-sm uppercase tracking-wider",
+                      isRequestFormOpen && exitActionType === 'resigned'
+                        ? "bg-white text-[#A4163A] border-white"
+                        : "bg-white/10 text-white hover:bg-white/20 border-white/20 backdrop-blur-sm"
+                    )}
+                  >
+                    {isRequestFormOpen && exitActionType === 'resigned' ? <X className="h-4 w-4" /> : <Users className="h-4 w-4" />}
+                    <span>Resigned Employee</span>
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -1408,6 +1430,7 @@ function TerminatePageContent() {
                     <Select
                       value={formData.recommended_by}
                       onValueChange={(value) => setFormData((prev) => ({ ...prev, recommended_by: value }))}
+                      disabled={isViewer}
                     >
                       <SelectTrigger className="w-full h-10 rounded-lg">
                         <SelectValue placeholder="Select recommender..." />
@@ -1439,7 +1462,7 @@ function TerminatePageContent() {
                       value={formData.notice_date}
                       onChange={handleInputChange}
                       className="h-10"
-                      disabled={submitting}
+                      disabled={submitting || isViewer}
                     />
                   </div>
 
@@ -1451,7 +1474,7 @@ function TerminatePageContent() {
                           type="checkbox"
                           checked={formData.notice_modes.includes('email')}
                           onChange={() => toggleNoticeMode('email')}
-                          disabled={submitting}
+                          disabled={submitting || isViewer}
                         />
                         <span>Email</span>
                       </label>
@@ -1460,7 +1483,7 @@ function TerminatePageContent() {
                           type="checkbox"
                           checked={formData.notice_modes.includes('printed_letter')}
                           onChange={() => toggleNoticeMode('printed_letter')}
-                          disabled={submitting}
+                          disabled={submitting || isViewer}
                         />
                         <span>Printed Letter</span>
                       </label>
@@ -1469,7 +1492,7 @@ function TerminatePageContent() {
                           type="checkbox"
                           checked={formData.notice_modes.includes('both')}
                           onChange={() => toggleNoticeMode('both')}
-                          disabled={submitting}
+                          disabled={submitting || isViewer}
                         />
                         <span>Both</span>
                       </label>
@@ -1483,6 +1506,7 @@ function TerminatePageContent() {
                 <Select
                   value={formData.reviewed_by}
                   onValueChange={(value) => setFormData((prev) => ({ ...prev, reviewed_by: value }))}
+                  disabled={isViewer}
                 >
                   <SelectTrigger className="w-full h-10 rounded-lg">
                     <SelectValue placeholder="Select reviewer..." />
@@ -1526,31 +1550,33 @@ function TerminatePageContent() {
                   value={formData.approval_date}
                   onChange={handleInputChange}
                   className="h-10"
-                  disabled={submitting}
+                  disabled={submitting || isViewer}
                 />
               </div>
             </div>
 
             <div className="flex justify-end items-center gap-2">
-              <Button
-                onClick={handleSubmit as any}
-                disabled={
-                  submitting ||
-                  !selectedEmployeeId ||
-                  formData.reason.trim().length < 10 ||
-                  !formData.reviewed_by ||
-                  !formData.approval_date ||
-                  (exitActionType === 'terminate' && (!formData.recommended_by || formData.notice_modes.length === 0 || !formData.notice_date))
-                }
-                className={cn(
-                  "h-10 px-6 text-sm font-bold rounded-xl transition-all whitespace-nowrap",
-                  submitting
-                    ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
-                    : "bg-gradient-to-r from-[#800020] to-[#A0153E] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-                )}
-              >
-                {submitting ? "Processing..." : (exitActionType === 'resigned' ? 'Proceed Resignation' : 'Proceed Termination')}
-              </Button>
+              {!isViewer && (
+                <Button
+                  onClick={handleSubmit as any}
+                  disabled={
+                    submitting ||
+                    !selectedEmployeeId ||
+                    formData.reason.trim().length < 10 ||
+                    !formData.reviewed_by ||
+                    !formData.approval_date ||
+                    (exitActionType === 'terminate' && (!formData.recommended_by || formData.notice_modes.length === 0 || !formData.notice_date))
+                  }
+                  className={cn(
+                    "h-10 px-6 text-sm font-bold rounded-xl transition-all whitespace-nowrap",
+                    submitting
+                      ? "bg-slate-100 text-slate-400 cursor-not-allowed shadow-none"
+                      : "bg-gradient-to-r from-[#800020] to-[#A0153E] text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                  )}
+                >
+                  {submitting ? "Processing..." : (exitActionType === 'resigned' ? 'Proceed Resignation' : 'Proceed Termination')}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon"
@@ -1833,7 +1859,7 @@ function TerminatePageContent() {
                                   >
                                     Review
                                   </Button>
-                                  {canShowRehireAction(record) && (
+                                  {canShowRehireAction(record) && !isViewer && (
                                     <Button
                                       size="sm"
                                       variant="outline"
@@ -1976,8 +2002,8 @@ function TerminatePageContent() {
                     clearanceTasks.map((task, index) => (
                     <TableRow 
                       key={index} 
-                      className="border-b border-rose-50/30 last:border-0 hover:bg-[#FFE5EC]/5 transition-colors group cursor-pointer"
-                      onClick={() => toggleClearanceTask(task)}
+                      className={cn("border-b border-rose-50/30 last:border-0 hover:bg-[#FFE5EC]/5 transition-colors group", !isViewer && "cursor-pointer")}
+                      onClick={() => !isViewer && toggleClearanceTask(task)}
                     >
                       <TableCell className="text-center py-2.5 font-mono text-[10px] font-bold text-slate-400">
                         {completedClearanceTasks[task] || '-'}
@@ -2014,32 +2040,34 @@ function TerminatePageContent() {
                   </p>
                 </div>
                 
-                <div className="flex gap-3">
-                  <Button
-                    onClick={async () => {
-                      const success = await handleSaveClearance(true)
-                      if (success) {
-                        router.push('/admin-head/employee/masterfile')
-                      }
-                    }}
-                    disabled={Object.keys(completedClearanceTasks).length < clearanceTasks.length || isSavingChecklist}
-                    className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-95 transition-all rounded-xl disabled:opacity-50"
-                  >
-                    {isSavingChecklist ? 'SAVING...' : 'COMPLETE CLEARANCE'}
-                  </Button>
-                  <Button 
-                    onClick={async () => {
-                      const success = await handleSaveClearance(false)
-                      if (success) {
-                        router.push('/admin-head/employee/masterfile')
-                      }
-                    }} 
-                    disabled={isSavingChecklist}
-                    className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-[#A4163A] hover:bg-[#800020] text-white shadow-lg active:scale-95 transition-all rounded-xl"
-                  >
-                    {isSavingChecklist ? 'SAVING...' : 'SAVE PROGRESS'}
-                  </Button>
-                </div>
+                {!isViewer && (
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={async () => {
+                        const success = await handleSaveClearance(true)
+                        if (success) {
+                          router.push('/admin-head/employee/masterfile')
+                        }
+                      }}
+                      disabled={Object.keys(completedClearanceTasks).length < clearanceTasks.length || isSavingChecklist}
+                      className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg active:scale-95 transition-all rounded-xl disabled:opacity-50"
+                    >
+                      {isSavingChecklist ? 'SAVING...' : 'COMPLETE CLEARANCE'}
+                    </Button>
+                    <Button 
+                      onClick={async () => {
+                        const success = await handleSaveClearance(false)
+                        if (success) {
+                          router.push('/admin-head/employee/masterfile')
+                        }
+                      }} 
+                      disabled={isSavingChecklist}
+                      className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-[#A4163A] hover:bg-[#800020] text-white shadow-lg active:scale-95 transition-all rounded-xl"
+                    >
+                      {isSavingChecklist ? 'SAVING...' : 'SAVE PROGRESS'}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2137,7 +2165,7 @@ function TerminatePageContent() {
               <Button variant="ghost" onClick={() => setShowDetailDialog(false)} className="font-bold text-slate-600">
                 Back to List
               </Button>
-              {selectedTermination && canShowRehireAction(selectedTermination) && (
+              {selectedTermination && canShowRehireAction(selectedTermination) && !isViewer && (
                 <Button
                   className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all font-bold px-6"
                   onClick={() => {

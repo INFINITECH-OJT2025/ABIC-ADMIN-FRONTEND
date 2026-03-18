@@ -479,6 +479,24 @@ export default function GovernmentDirectoryPage() {
     setGeneralContactsPage(1);
   }, [generalContactsSearch, editingGeneralContacts, activeAgency]);
 
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const isViewer = userRole === "super_admin_viewer";
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const response = await fetch("/api/auth/me");
+        if (response.ok) {
+          const data = await response.json();
+          setUserRole(data.user?.role || data.role);
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+      }
+    };
+    fetchUserRole();
+  }, []);
+
   const directoryQuery = useQuery({
     queryKey: ["directory-agencies"],
     queryFn: async (): Promise<Record<string, BackendAgency>> => {
@@ -1560,7 +1578,7 @@ export default function GovernmentDirectoryPage() {
 
             {/* EDIT MODE TOGGLE */}
             <div className="flex items-center gap-2">
-              {!isGeneralContactsView && (
+              {!isGeneralContactsView && !isViewer && (
                 <>
                   {editMode ? (
                     <>
@@ -1719,37 +1737,39 @@ export default function GovernmentDirectoryPage() {
                     ) : null}
                     Refresh
                   </Button>
-                  {editingGeneralContacts ? (
-                    <>
+                  {!isViewer && (
+                    editingGeneralContacts ? (
+                      <>
+                        <Button
+                          variant="ghost"
+                          onClick={cancelGeneralContactsEdit}
+                          disabled={savingGeneralContacts}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={() => void saveGeneralContacts()}
+                          className="bg-[#A4163A] hover:bg-[#8D1332] text-white"
+                          disabled={savingGeneralContacts}
+                        >
+                          {savingGeneralContacts ? (
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          ) : (
+                            <Save className="w-4 h-4 mr-2" />
+                          )}
+                          Save
+                        </Button>
+                      </>
+                    ) : (
                       <Button
-                        variant="ghost"
-                        onClick={cancelGeneralContactsEdit}
-                        disabled={savingGeneralContacts}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        onClick={() => void saveGeneralContacts()}
+                        onClick={startGeneralContactsEdit}
                         className="bg-[#A4163A] hover:bg-[#8D1332] text-white"
-                        disabled={savingGeneralContacts}
+                        disabled={loadingGeneralContacts}
                       >
-                        {savingGeneralContacts ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Save className="w-4 h-4 mr-2" />
-                        )}
-                        Save
+                        <Edit3 className="w-4 h-4 mr-2" />
+                        Edit Contacts
                       </Button>
-                    </>
-                  ) : (
-                    <Button
-                      onClick={startGeneralContactsEdit}
-                      className="bg-[#A4163A] hover:bg-[#8D1332] text-white"
-                      disabled={loadingGeneralContacts}
-                    >
-                      <Edit3 className="w-4 h-4 mr-2" />
-                      Edit Contacts
-                    </Button>
+                    )
                   )}
                 </div>
               </div>
@@ -2218,40 +2238,44 @@ export default function GovernmentDirectoryPage() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
 
                 <div className="absolute top-6 right-6 flex flex-col gap-3">
-                  {/* Upload Buttons */}
-                  <Button
-                    onClick={() => startAgencyUpload(activeAgency)}
-                    disabled={updatingImage}
-                    className="bg-[#A4163A] hover:bg-[#8a1230] text-white border-none rounded-lg px-6 shadow-lg shadow-red-900/20 font-bold"
-                  >
-                    {updatingImage ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <ImageUp className="mr-2 h-4 w-4" />
-                    )}
-                    Update Picture
-                  </Button>
+                  {!isViewer && (
+                    <>
+                      {/* Upload Buttons */}
+                      <Button
+                        onClick={() => startAgencyUpload(activeAgency)}
+                        disabled={updatingImage}
+                        className="bg-[#A4163A] hover:bg-[#8a1230] text-white border-none rounded-lg px-6 shadow-lg shadow-red-900/20 font-bold"
+                      >
+                        {updatingImage ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <ImageUp className="mr-2 h-4 w-4" />
+                        )}
+                        Update Picture
+                      </Button>
 
-                  <Button
-                    onClick={() =>
-                      void loadCloudinaryImages({
-                        type: "agency",
-                        agencyCode: activeAgency,
-                      })
-                    }
-                    disabled={loadingCloudinaryImages || updatingImage}
-                    className="bg-[#A4163A] hover:bg-[#8a1230] text-white border-none rounded-lg px-6 shadow-lg shadow-red-900/20 font-bold"
-                  >
-                    {loadingCloudinaryImages ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <Images className="mr-2 h-4 w-4" />
-                    )}
-                    Select from Image uploads
-                  </Button>
-                  <p className="text-[10px] font-bold text-white/80 text-right mt-1 drop-shadow-md">
-                    Max 20MB - JPG, JPEG, PNG, GIF, WebP, HEIC, HEIF
-                  </p>
+                      <Button
+                        onClick={() =>
+                          void loadCloudinaryImages({
+                            type: "agency",
+                            agencyCode: activeAgency,
+                          })
+                        }
+                        disabled={loadingCloudinaryImages || updatingImage}
+                        className="bg-[#A4163A] hover:bg-[#8a1230] text-white border-none rounded-lg px-6 shadow-lg shadow-red-900/20 font-bold"
+                      >
+                        {loadingCloudinaryImages ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Images className="mr-2 h-4 w-4" />
+                        )}
+                        Select from Image uploads
+                      </Button>
+                      <p className="text-[10px] font-bold text-white/80 text-right mt-1 drop-shadow-md">
+                        Max 20MB - JPG, JPEG, PNG, GIF, WebP, HEIC, HEIF
+                      </p>
+                    </>
+                  )}
                 </div>
 
                 <div className="absolute bottom-0 left-0 p-10 w-full max-w-4xl">

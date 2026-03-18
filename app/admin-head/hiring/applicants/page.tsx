@@ -102,6 +102,22 @@ export default function ApplicantsForInterviewPage() {
   const [initialNameErrors, setInitialNameErrors] = useState<Record<string, string>>({});
   const [savingInitialId, setSavingInitialId] = useState<number | string | null>(null);
   const [savingFinalId, setSavingFinalId] = useState<number | string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`${getApiUrl()}/api/auth/me`, {
+      headers: { 'Accept': 'application/json' }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && data.data?.role) {
+          setUserRole(data.data.role);
+        }
+      })
+      .catch(err => console.error("Error fetching role:", err));
+  }, []);
+
+  const isViewer = userRole === 'super_admin_viewer';
 
   const loadData = async () => {
     const apiUrl = getApiUrl();
@@ -398,8 +414,8 @@ export default function ApplicantsForInterviewPage() {
     return visibleRows.filter((row) => `${row.name} ${row.position}`.toLowerCase().includes(needle));
   }, [finalRows, searchTerm, editingFinalId, savingFinalId]);
 
-  const isInitialEditable = (row: InterviewRow) => row.isNew || editingInitialId === row.id;
-  const isFinalEditable = (row: InterviewRow) => row.isNew || editingFinalId === row.id;
+  const isInitialEditable = (row: InterviewRow) => !isViewer && (row.isNew || editingInitialId === row.id);
+  const isFinalEditable = (row: InterviewRow) => !isViewer && (row.isNew || editingFinalId === row.id);
 
   if (loading) {
     return <ApplicantsPageSkeleton />;
@@ -454,15 +470,17 @@ export default function ApplicantsForInterviewPage() {
               {isInitialOpen ? <ChevronDown size={20} className="text-[#4A081A]" /> : <ChevronRight size={20} className="text-[#4A081A]" />}
               <h2 className="text-xl text-[#4A081A] font-bold select-none">For Initial Interview</h2>
             </div>
-            <div
-              onClick={(e) => {
-                e.stopPropagation();
-                addInitialRow();
-              }}
-              className="bg-white text-[#A4163A] border-2 border-[#A4163A] rounded-full p-0.5 w-7 h-7 flex items-center justify-center cursor-pointer hover:bg-[#A4163A] hover:text-white transition-colors shadow-sm active:scale-95"
-            >
-              <Plus size={20} strokeWidth={4} />
-            </div>
+            {!isViewer && (
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  addInitialRow();
+                }}
+                className="bg-white text-[#A4163A] border-2 border-[#A4163A] rounded-full p-0.5 w-7 h-7 flex items-center justify-center cursor-pointer hover:bg-[#A4163A] hover:text-white transition-colors shadow-sm active:scale-95"
+              >
+                <Plus size={20} strokeWidth={4} />
+              </div>
+            )}
           </div>
           <div className={isInitialOpen ? "block" : "hidden"}>
             <Table className="border-collapse w-full text-sm">
@@ -473,7 +491,7 @@ export default function ApplicantsForInterviewPage() {
                   <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Interview Date</TableHead>
                   <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Interview Time</TableHead>
                   <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Status</TableHead>
-                  <TableHead className="px-6 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>
+                  {!isViewer && <TableHead className="px-6 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
@@ -568,26 +586,28 @@ export default function ApplicantsForInterviewPage() {
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#7B0F2B] pointer-events-none" />
                         </div>
                       </TableCell>
-                      <TableCell className="px-6 py-4 text-right">
-                        {editable ? (
-                          <button
-                            onClick={() => saveInitial(row)}
-                            disabled={isSaving || isMissingDateTime}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                            <span>Save</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setEditingInitialId(row.id)}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 cursor-pointer"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                            <span>Edit</span>
-                          </button>
-                        )}
-                      </TableCell>
+                       {!isViewer && (
+                        <TableCell className="px-6 py-4 text-right">
+                          {editable ? (
+                            <button
+                              onClick={() => saveInitial(row)}
+                              disabled={isSaving || isMissingDateTime}
+                              className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                              <span>Save</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setEditingInitialId(row.id)}
+                              className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 cursor-pointer"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              <span>Edit</span>
+                            </button>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
@@ -623,7 +643,7 @@ export default function ApplicantsForInterviewPage() {
                   <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Interview Date</TableHead>
                   <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Interview Time</TableHead>
                   <TableHead className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">Status</TableHead>
-                  <TableHead className="px-6 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>
+                  {!isViewer && <TableHead className="px-6 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">Action</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
@@ -685,26 +705,28 @@ export default function ApplicantsForInterviewPage() {
                           <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[#7B0F2B] pointer-events-none" />
                         </div>
                       </TableCell>
-                      <TableCell className="px-6 py-4 text-right">
-                        {editable ? (
-                          <button
-                            onClick={() => saveFinal(row)}
-                            disabled={isSaving || isMissingDateTime}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                            <span>Save</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setEditingFinalId(row.id)}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 cursor-pointer"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                            <span>Edit</span>
-                          </button>
-                        )}
-                      </TableCell>
+                       {!isViewer && (
+                        <TableCell className="px-6 py-4 text-right">
+                          {editable ? (
+                            <button
+                              onClick={() => saveFinal(row)}
+                              disabled={isSaving || isMissingDateTime}
+                              className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                              <span>Save</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setEditingFinalId(row.id)}
+                              className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-xs font-bold uppercase tracking-wider h-9 px-3 rounded-lg inline-flex items-center gap-2 cursor-pointer"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                              <span>Edit</span>
+                            </button>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   );
                 })}
