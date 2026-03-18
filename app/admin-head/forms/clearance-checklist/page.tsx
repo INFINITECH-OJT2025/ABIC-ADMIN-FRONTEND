@@ -36,6 +36,7 @@ import { VALIDATION_CONSTRAINTS } from '@/lib/validation/constraints'
 import { checklistTemplateTasksSchema } from '@/lib/validation/schemas'
 import { DeleteTaskDialog, UnsavedChangesDialog } from '@/components/checklist/confirm-dialogs'
 import { useChecklistTemplateSetup } from '@/lib/hooks/use-checklist-template-setup'
+import { useUserRole } from '@/lib/hooks/useUserRole'
 import { PageEmptyState, PageErrorState } from '@/components/state/page-feedback'
 import { ChecklistPageSkeleton } from '@/components/state/checklist-page-skeleton'
 import { toast } from 'sonner'
@@ -195,7 +196,14 @@ const buildChecklistTasks = (taskLabels: readonly string[]): ChecklistTask[] => 
 
 export default function ClearanceChecklistPage() {
   const router = useRouter()
-  const editMode = true
+  const { isViewOnly } = useUserRole()
+  const editMode = !isViewOnly
+  const viewOnlyDescription = 'Create, update, and delete actions are disabled in view only mode.'
+  const notifyViewOnly = () => {
+    toast.warning('View Only Mode', {
+      description: viewOnlyDescription,
+    })
+  }
   const [saving, setSaving] = useState(false)
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([])
   const [taskIdsToDelete, setTaskIdsToDelete] = useState<number[]>([])
@@ -554,16 +562,28 @@ export default function ClearanceChecklistPage() {
 
 
   const addTask = () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     setTasks([...tasks, createChecklistTask('', Date.now() + Math.floor(Math.random() * 1000))])
   }
 
   const startChecklistWithoutDefaultTasks = () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     setTasks([])
     setStartChecklistOpen(false)
     toast.info('Checklist started with no default tasks. Add rows to build your own list.')
   }
 
   const startChecklistWithDefaultTasks = () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     setTasks(buildChecklistTasks(CLEARANCE_DEFAULT_TASKS))
     setStartChecklistOpen(false)
     toast.success('Clearance default tasks loaded.')
@@ -571,6 +591,10 @@ export default function ClearanceChecklistPage() {
 
 
   const queueTaskDeletion = (ids: number[]) => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     const uniqueIds = [...new Set(ids)].filter((id) => allTaskIds.includes(id))
     if (uniqueIds.length === 0) return
     setTaskIdsToDelete(uniqueIds)
@@ -591,10 +615,12 @@ export default function ClearanceChecklistPage() {
 
 
   const updateTaskText = (id: number, text: string) => {
+    if (isViewOnly) return
     setTasks(tasks.map(t => t.id === id ? { ...t, task: text } : t));
   };
 
   const reorderTasksById = (sourceId: number, targetId: number) => {
+    if (isViewOnly) return
     if (sourceId === targetId) return
     setTasks((prev) => {
       const sourceIndex = prev.findIndex((row) => row.id === sourceId)
@@ -626,6 +652,7 @@ export default function ClearanceChecklistPage() {
 
 
   const persistTaskStatus = async (updatedTasks: ChecklistTask[], previousTasks: ChecklistTask[]) => {
+    if (isViewOnly) return
     if (!employeeInfo) return
 
 
@@ -660,6 +687,7 @@ export default function ClearanceChecklistPage() {
 
 
   const toggleTaskStatus = async (id: number, checked: boolean) => {
+    if (isViewOnly) return
     const previousTasks = tasks
     const updatedTasks = tasks.map(t => t.id === id
       ? { ...t, status: (checked ? 'DONE' : 'PENDING') as TaskStatus, date: checked ? new Date().toLocaleDateString('en-CA') : '' }
@@ -681,6 +709,10 @@ export default function ClearanceChecklistPage() {
       targetDepartmentIds?: number[]
     }
   ): Promise<boolean> => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return false
+    }
     if (!employeeInfo) return false
 
     const successMessage = options?.successMessage ?? 'Checklist template saved successfully!'
@@ -799,6 +831,10 @@ export default function ClearanceChecklistPage() {
   }
 
   const removeSelectedTasks = async () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     if (taskIdsToDelete.length === 0) return
 
     const idsToDelete = new Set(taskIdsToDelete)
@@ -829,6 +865,10 @@ export default function ClearanceChecklistPage() {
 
 
   const handleSave = async (): Promise<boolean> => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return false
+    }
     return persistTemplateTasks(tasks, { targetDepartmentIds: resolvedSaveTargetDepartmentIds })
   }
 
@@ -920,8 +960,13 @@ export default function ClearanceChecklistPage() {
               </p>
             </div>
 
-
-            <div />
+            {isViewOnly ? (
+              <div className="inline-flex items-center rounded-md bg-yellow-100 px-3 py-1 text-xs font-black text-yellow-800">
+                VIEW ONLY MODE
+              </div>
+            ) : (
+              <div />
+            )}
           </div>
         </div>
 
@@ -1037,14 +1082,14 @@ export default function ClearanceChecklistPage() {
         <Card className="rounded-2xl border border-[#FFE5EC] shadow-2xl bg-white overflow-hidden mb-12">
           <div className="p-4 md:px-8 bg-slate-50/50 border-b border-[#FFE5EC] flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-3">
-              <Button onClick={addTask} size="sm" className="bg-[#A4163A] hover:bg-[#800020] text-white font-black text-xs h-9 px-6 rounded-xl shadow-md active:scale-95 transition-all">
+              <Button onClick={addTask} size="sm" disabled={isViewOnly} className="bg-[#A4163A] hover:bg-[#800020] text-white font-black text-xs h-9 px-6 rounded-xl shadow-md active:scale-95 transition-all">
                 <Plus className="w-3.5 h-3.5 mr-2" /> ADD ROW
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => queueTaskDeletion(selectedTaskIds)}
-                disabled={selectedTaskIds.length === 0 || saving}
+                disabled={selectedTaskIds.length === 0 || saving || isViewOnly}
                 className="border-rose-200 text-rose-700 hover:bg-rose-50 font-black text-xs h-9 px-4 rounded-xl"
               >
                 <Trash2 className="w-3.5 h-3.5 mr-2" />
@@ -1059,7 +1104,7 @@ export default function ClearanceChecklistPage() {
             <div className="flex gap-3">
               <Button
                 onClick={() => setSaveConfirmOpen(true)}
-                disabled={saving || !employeeInfo}
+                disabled={saving || !employeeInfo || isViewOnly}
                 className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-[#A4163A] hover:bg-[#8D1332] text-white shadow-lg active:scale-95 transition-all rounded-xl"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
@@ -1081,7 +1126,7 @@ export default function ClearanceChecklistPage() {
                   <Checkbox
                     checked={allTasksSelected ? true : selectedTaskIds.length > 0 ? "indeterminate" : false}
                     onCheckedChange={(checked) => toggleSelectAllTasks(checked === true)}
-                    disabled={tasks.length === 0 || saving}
+                    disabled={tasks.length === 0 || saving || isViewOnly}
                     aria-label="Select all tasks"
                     className="mx-auto"
                   />
@@ -1139,7 +1184,7 @@ export default function ClearanceChecklistPage() {
                       checked={selectedTaskIdSet.has(item.id)}
                       onCheckedChange={(checked) => toggleTaskSelection(item.id, checked === true)}
                       aria-label="Select task"
-                      disabled={saving}
+                      disabled={saving || isViewOnly}
                       className="mx-auto"
                     />
                   </TableCell>
@@ -1148,7 +1193,7 @@ export default function ClearanceChecklistPage() {
                       <div className="flex items-start gap-2">
                         <button
                           type="button"
-                          draggable={tasks.length > 1}
+                          draggable={!isViewOnly && tasks.length > 1}
                           onDragStart={(event) => {
                             setDragTaskId(item.id)
                             event.dataTransfer.effectAllowed = 'move'
@@ -1182,6 +1227,7 @@ export default function ClearanceChecklistPage() {
                             item.status === 'DONE' ? "text-slate-300 line-through" : "text-slate-700"
                           )}
                           placeholder="Define clearance task..."
+                          disabled={isViewOnly}
                         />
                         <TextFieldStatus
                           value={item.task}
@@ -1204,7 +1250,7 @@ export default function ClearanceChecklistPage() {
                       variant="ghost"
                       size="icon"
                       onClick={() => queueTaskDeletion([item.id])}
-                      disabled={saving}
+                      disabled={saving || isViewOnly}
                       className="h-7 w-7 text-slate-300 hover:text-rose-500 transition-colors rounded-lg group-hover:bg-rose-50"
                     >
                       <Trash2 className="h-5.5 w-5.5" />
@@ -1219,7 +1265,7 @@ export default function ClearanceChecklistPage() {
                   <TableCell colSpan={3} className="py-24 text-center">
                     <ClipboardList className="w-12 h-12 text-slate-200 mx-auto mb-4" />
                     <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No tasks initialized</p>
-                    <Button onClick={() => setStartChecklistOpen(true)} variant="outline" size="sm" className="mt-4 border-[#FFE5EC] text-[#A4163A] font-black h-9 rounded-xl">
+                    <Button onClick={() => setStartChecklistOpen(true)} disabled={isViewOnly} variant="outline" size="sm" className="mt-4 border-[#FFE5EC] text-[#A4163A] font-black h-9 rounded-xl">
                       <Plus className="w-4 h-4 mr-1" /> START CHECKLIST
                     </Button>
                   </TableCell>
@@ -1232,7 +1278,7 @@ export default function ClearanceChecklistPage() {
           {/* Table Footer */}
           <div className="hidden p-4 md:px-8 bg-slate-50/50 border-t border-[#FFE5EC] flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex items-center gap-3">
-              <Button onClick={addTask} size="sm" className="bg-[#A4163A] hover:bg-[#800020] text-white font-black text-xs h-9 px-6 rounded-xl shadow-md active:scale-95 transition-all">
+              <Button onClick={addTask} size="sm" disabled={isViewOnly} className="bg-[#A4163A] hover:bg-[#800020] text-white font-black text-xs h-9 px-6 rounded-xl shadow-md active:scale-95 transition-all">
                 <Plus className="w-3.5 h-3.5 mr-2" /> ADD ROW
               </Button>
               <Separator orientation="vertical" className="h-4 bg-slate-200" />
@@ -1245,7 +1291,7 @@ export default function ClearanceChecklistPage() {
             <div className="flex gap-3">
               <Button
                 onClick={() => setSaveConfirmOpen(true)}
-                disabled={saving || !employeeInfo}
+                disabled={saving || !employeeInfo || isViewOnly}
                 className="h-9 px-8 font-black text-xs uppercase tracking-widest bg-[#A4163A] hover:bg-[#8D1332] text-white shadow-lg active:scale-95 transition-all rounded-xl"
               >
                 {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin mr-2" /> : <Save className="w-3.5 h-3.5 mr-2" />}
@@ -1279,6 +1325,7 @@ export default function ClearanceChecklistPage() {
                 variant={saveScope === 'CURRENT' ? 'default' : 'outline'}
                 className={cn("h-9 text-[11px] font-black", saveScope === 'CURRENT' ? 'bg-[#A4163A] text-white hover:bg-[#800020]' : '')}
                 onClick={() => setSaveScope('CURRENT')}
+                disabled={isViewOnly}
               >
                 This Checklist
               </Button>
@@ -1288,6 +1335,7 @@ export default function ClearanceChecklistPage() {
                 variant={saveScope === 'SAME_TASKS' ? 'default' : 'outline'}
                 className={cn("h-9 text-[11px] font-black", saveScope === 'SAME_TASKS' ? 'bg-[#A4163A] text-white hover:bg-[#800020]' : '')}
                 onClick={() => setSaveScope('SAME_TASKS')}
+                disabled={isViewOnly}
               >
                 Same Tasks
               </Button>
@@ -1297,6 +1345,7 @@ export default function ClearanceChecklistPage() {
                 variant={saveScope === 'SELECTED' ? 'default' : 'outline'}
                 className={cn("h-9 text-[11px] font-black", saveScope === 'SELECTED' ? 'bg-[#A4163A] text-white hover:bg-[#800020]' : '')}
                 onClick={() => setSaveScope('SELECTED')}
+                disabled={isViewOnly}
               >
                 Selected
               </Button>
@@ -1306,6 +1355,7 @@ export default function ClearanceChecklistPage() {
                 variant={saveScope === 'ALL' ? 'default' : 'outline'}
                 className={cn("h-9 text-[11px] font-black", saveScope === 'ALL' ? 'bg-[#A4163A] text-white hover:bg-[#800020]' : '')}
                 onClick={() => setSaveScope('ALL')}
+                disabled={isViewOnly}
               >
                 All Checklists
               </Button>
@@ -1327,6 +1377,7 @@ export default function ClearanceChecklistPage() {
                     <Checkbox
                       checked={selectedSaveDepartmentIds.includes(department.id)}
                       onCheckedChange={(checked) => toggleSaveDepartmentSelection(department.id, checked === true)}
+                      disabled={isViewOnly}
                     />
                     <span>{department.name}</span>
                   </label>
@@ -1353,7 +1404,7 @@ export default function ClearanceChecklistPage() {
             <AlertDialogCancel disabled={saving}>Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="bg-[#A4163A] text-white hover:bg-[#8D1332]"
-              disabled={saving || resolvedSaveTargetDepartmentIds.length === 0}
+              disabled={saving || resolvedSaveTargetDepartmentIds.length === 0 || isViewOnly}
               onClick={async () => {
                 setSaveConfirmOpen(false)
                 await handleSave()
@@ -1378,10 +1429,10 @@ export default function ClearanceChecklistPage() {
           </div>
           <AlertDialogFooter className="flex-col sm:flex-row gap-3 mt-2">
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <Button variant="outline" onClick={startChecklistWithoutDefaultTasks}>
+            <Button variant="outline" onClick={startChecklistWithoutDefaultTasks} disabled={isViewOnly}>
               Start With No Tasks
             </Button>
-            <AlertDialogAction className="bg-[#A4163A] text-white hover:bg-[#800020]" onClick={startChecklistWithDefaultTasks}>
+            <AlertDialogAction className="bg-[#A4163A] text-white hover:bg-[#800020]" onClick={startChecklistWithDefaultTasks} disabled={isViewOnly}>
               Use Default Tasks
             </AlertDialogAction>
           </AlertDialogFooter>

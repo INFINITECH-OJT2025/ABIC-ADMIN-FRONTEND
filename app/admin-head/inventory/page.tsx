@@ -54,6 +54,7 @@ import {
 import { cn } from '@/lib/utils'
 import { getApiUrl } from '@/lib/api'
 import { ensureOkResponse } from '@/lib/api/error-message'
+import { useUserRole } from '@/lib/hooks/useUserRole'
 import { PageErrorState } from '@/components/state/page-feedback'
 import { toast } from 'sonner'
 import { Boxes, Loader2, RefreshCw, Plus, ArrowDownUp, Search, AlertTriangle, PackageCheck, ChevronsUpDown, Check, Pencil, Trash2, Save, X } from 'lucide-react'
@@ -370,6 +371,13 @@ const useCountUp = (
 }
 
 export default function InventoryPage() {
+  const { isViewOnly } = useUserRole()
+  const viewOnlyDescription = 'Create, update, and delete actions are disabled in view only mode.'
+  const notifyViewOnly = () => {
+    toast.warning('View Only Mode', {
+      description: viewOnlyDescription,
+    })
+  }
   const currentYear = new Date().getFullYear()
   const todayIsoDate = getCurrentIsoDate()
   const [selectedYear, setSelectedYear] = useState<number>(currentYear)
@@ -595,8 +603,8 @@ export default function InventoryPage() {
   }, [departments])
 
   const isPastOrPresentYear = selectedYear <= currentYear
-  const canEditItemSetup = isPastOrPresentYear
-  const canEditTransactions = selectedYear === currentYear
+  const canEditItemSetup = isPastOrPresentYear && !isViewOnly
+  const canEditTransactions = selectedYear === currentYear && !isViewOnly
 
   const filteredItems = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
@@ -1140,6 +1148,7 @@ export default function InventoryPage() {
   }, [transactionDraft.item_id])
 
   const handleMovementTypeChange = (nextType: MovementType) => {
+    if (isViewOnly) return
     setMovementType(nextType)
     setTransactionDraft((prev) => ({
       ...prev,
@@ -1171,6 +1180,10 @@ export default function InventoryPage() {
   }
 
   const executeCreateItem = async () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     if (!createItemConfirmDraft) return
     try {
       setCreateItemFxError(null)
@@ -1227,6 +1240,10 @@ export default function InventoryPage() {
   }
 
   const createItem = async () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     if (!canEditItemSetup) {
       toast.warning('Edit Restricted', {
         description: 'Item setup can only be edited for past or present years.',
@@ -1263,6 +1280,10 @@ export default function InventoryPage() {
   }
 
   const handleItemEditModeToggle = () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     if (!canEditItemSetup) {
       toast.warning('Edit Restricted', {
         description: 'Item setup can only be edited for past or present years.',
@@ -1288,6 +1309,10 @@ export default function InventoryPage() {
   }
 
   const beginEditItem = (item: InventoryRow) => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     setEditingItemId(item.id)
     setItemEditDraft({
       item_name: normalizeUppercaseInventoryText(String(item.item_name || '')),
@@ -1301,6 +1326,10 @@ export default function InventoryPage() {
   }
 
   const saveEditedItem = async (itemId: number) => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     if (!canEditItemSetup) {
       toast.warning('Edit Restricted', {
         description: 'Item setup can only be edited for past or present years.',
@@ -1360,12 +1389,20 @@ export default function InventoryPage() {
   }
 
   const queueItemDeletion = (itemIds: number[]) => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     const uniqueIds = [...new Set(itemIds.filter((id) => Number.isFinite(id) && id > 0))]
     if (uniqueIds.length === 0) return
     setItemIdsToDelete(uniqueIds)
   }
 
   const removeSelectedItems = async () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     if (!canEditItemSetup) {
       toast.warning('Edit Restricted', {
         description: 'Item setup can only be edited for past or present years.',
@@ -1424,6 +1461,10 @@ export default function InventoryPage() {
   }
 
   const createTransaction = async () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
     if (!canEditTransactions) {
       toast.warning('Edit Restricted', {
         description: 'Transactions are recorded only for the current year.',
@@ -1564,6 +1605,11 @@ export default function InventoryPage() {
       <header className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-xl relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white to-transparent" />
         <div className="w-full px-4 md:px-8 py-7 md:py-8 relative z-10">
+          {isViewOnly ? (
+            <div className="mb-3 inline-flex items-center rounded-md bg-yellow-100 px-3 py-1 text-xs font-black text-yellow-800">
+              VIEW ONLY MODE
+            </div>
+          ) : null}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-3">
@@ -2147,7 +2193,7 @@ export default function InventoryPage() {
                   type="button"
                   variant={itemEditMode ? 'default' : 'outline'}
                   onClick={handleItemEditModeToggle}
-                  disabled={savingItemEdit || deletingItems}
+                  disabled={savingItemEdit || deletingItems || !canEditItemSetup}
                   className={cn(
                     'h-9 rounded-sm font-black text-xs uppercase tracking-wider',
                     itemEditMode ? 'bg-[#A4163A] hover:bg-[#800020] text-white' : 'border-[#FFE5EC] text-[#A4163A] hover:bg-rose-50'
@@ -2161,7 +2207,7 @@ export default function InventoryPage() {
                     type="button"
                     variant="outline"
                     onClick={() => queueItemDeletion(selectedItemIds)}
-                    disabled={selectedItemIds.length === 0 || deletingItems || savingItemEdit}
+                    disabled={selectedItemIds.length === 0 || deletingItems || savingItemEdit || !canEditItemSetup}
                     className="h-9 rounded-sm border-rose-200 text-rose-700 hover:bg-rose-50 font-black text-xs uppercase tracking-wider"
                   >
                     <Trash2 className="w-3.5 h-3.5 mr-2" />
@@ -2215,7 +2261,7 @@ export default function InventoryPage() {
                       <Checkbox
                         checked={allFilteredItemsSelected ? true : selectedItemIds.length > 0 ? 'indeterminate' : false}
                         onCheckedChange={(checked) => toggleSelectAllItems(checked === true)}
-                        disabled={filteredItems.length === 0 || deletingItems || savingItemEdit}
+                        disabled={filteredItems.length === 0 || deletingItems || savingItemEdit || !canEditItemSetup}
                         aria-label="Select all inventory items"
                         className="mx-auto"
                       />
@@ -2271,7 +2317,7 @@ export default function InventoryPage() {
                               checked={selectedItemIdSet.has(item.id)}
                               onCheckedChange={(checked) => toggleItemSelection(item.id, checked === true)}
                               aria-label={`Select inventory item ${item.item_code}`}
-                              disabled={deletingItems || savingItemEdit}
+                              disabled={deletingItems || savingItemEdit || !canEditItemSetup}
                               className="mx-auto"
                             />
                           </TableCell>
@@ -2283,7 +2329,7 @@ export default function InventoryPage() {
                               value={itemEditDraft?.item_name ?? ''}
                               onChange={(e) => setItemEditDraft((prev) => ({ item_name: normalizeUppercaseInventoryText(e.target.value), category: prev?.category ?? '' }))}
                               className="h-8 rounded-sm uppercase"
-                              disabled={savingItemEdit || deletingItems}
+                              disabled={savingItemEdit || deletingItems || !canEditItemSetup}
                             />
                           ) : (
                             item.item_name
@@ -2295,7 +2341,7 @@ export default function InventoryPage() {
                               value={itemEditDraft?.category ?? ''}
                               onChange={(e) => setItemEditDraft((prev) => ({ item_name: prev?.item_name ?? '', category: normalizeUppercaseInventoryText(e.target.value) }))}
                               className="h-8 rounded-sm uppercase"
-                              disabled={savingItemEdit || deletingItems}
+                              disabled={savingItemEdit || deletingItems || !canEditItemSetup}
                             />
                           ) : (
                             item.category
@@ -2316,7 +2362,7 @@ export default function InventoryPage() {
                                   size="sm"
                                   className="h-8 px-3 bg-[#A4163A] hover:bg-[#8D1332] text-white font-bold"
                                   onClick={() => void saveEditedItem(item.id)}
-                                  disabled={savingItemEdit || deletingItems}
+                                  disabled={savingItemEdit || deletingItems || !canEditItemSetup}
                                 >
                                   {savingItemEdit ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Save className="h-3.5 w-3.5 mr-1" />}
                                   Save
@@ -2327,7 +2373,7 @@ export default function InventoryPage() {
                                   variant="outline"
                                   className="h-8 px-3"
                                   onClick={cancelEditItem}
-                                  disabled={savingItemEdit || deletingItems}
+                                  disabled={savingItemEdit || deletingItems || !canEditItemSetup}
                                 >
                                   Cancel
                                 </Button>
@@ -2340,7 +2386,7 @@ export default function InventoryPage() {
                                   variant="outline"
                                   className="h-8 w-8 border-[#FFE5EC] text-[#A4163A] hover:bg-rose-50"
                                   onClick={() => beginEditItem(item)}
-                                  disabled={deletingItems || (editingItemId !== null && editingItemId !== item.id)}
+                                  disabled={!canEditItemSetup || deletingItems || (editingItemId !== null && editingItemId !== item.id)}
                                   title="Edit item"
                                 >
                                   <Pencil className="h-3.5 w-3.5" />
@@ -2351,7 +2397,7 @@ export default function InventoryPage() {
                                   variant="outline"
                                   className="h-8 w-8 border-rose-200 text-rose-700 hover:bg-rose-50"
                                   onClick={() => queueItemDeletion([item.id])}
-                                  disabled={deletingItems || savingItemEdit}
+                                  disabled={deletingItems || savingItemEdit || !canEditItemSetup}
                                   title="Delete item"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -2872,7 +2918,7 @@ export default function InventoryPage() {
               <AlertDialogAction
                 className="h-11 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold shadow-sm"
                 onClick={() => void removeSelectedItems()}
-                disabled={deletingItems}
+                disabled={deletingItems || isViewOnly}
               >
                 {deletingItems ? (
                   <>
@@ -2997,7 +3043,7 @@ export default function InventoryPage() {
                 <Button
                   type="button"
                   onClick={() => void createTransaction()}
-                  disabled={savingTransaction}
+                  disabled={savingTransaction || isViewOnly}
                   className="flex-1 h-12 rounded-xl bg-gradient-to-r from-[#0F766E] to-[#0284C7] hover:from-[#0E8A80] hover:to-[#0B98DB] text-white font-bold shadow-md transition-all active:scale-95"
                 >
                   {savingTransaction ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
@@ -3111,7 +3157,7 @@ export default function InventoryPage() {
               <Button
                 type="button"
                 onClick={() => void executeCreateItem()}
-                disabled={savingItem || !createItemConfirmDraft}
+                disabled={savingItem || !createItemConfirmDraft || isViewOnly}
                 className="flex-1 h-12 rounded-xl bg-gradient-to-r from-[#4A081A] to-[#800020] hover:from-[#630C22] hover:to-[#A0153E] text-white font-bold shadow-md transition-all active:scale-95"
               >
                 {isCreateItemStoring ? (
