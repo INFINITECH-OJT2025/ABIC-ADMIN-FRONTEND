@@ -146,10 +146,69 @@ type InventoryItemEditDraft = {
 type MovementType = 'in' | 'out'
 type TransactionDateMode = 'date' | 'month' | 'year'
 type VisualizationTopLimit = '5' | '8' | '10'
+type DepartmentColorTone = {
+  badge: string
+  swatch: string
+}
+
 const NO_DEPARTMENT_ASSIGNED_LABEL = 'NO DEPARTMENT ASSIGNED'
 const CREATE_ITEM_SUCCESS_FEEDBACK_MS = 850
 const QUANTITY_FX_VISIBLE_MS = 950
 const TRANSACTION_SUCCESS_FEEDBACK_MS = 800
+const DEFAULT_DEPARTMENT_COLOR_TONE: DepartmentColorTone = {
+  badge: 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-100 hover:text-slate-700 hover:border-slate-300 group-data-[selected=true]:bg-slate-100 group-data-[selected=true]:text-slate-700 group-data-[selected=true]:border-slate-300',
+  swatch: 'bg-slate-300 border-slate-400',
+}
+const DEPARTMENT_COLOR_TONES: DepartmentColorTone[] = [
+  {
+    badge: 'bg-violet-100 text-violet-800 border-violet-300 hover:bg-violet-100 hover:text-violet-800 hover:border-violet-300 group-data-[selected=true]:bg-violet-100 group-data-[selected=true]:text-violet-800 group-data-[selected=true]:border-violet-300',
+    swatch: 'bg-violet-400 border-violet-500',
+  },
+  {
+    badge: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-300 hover:bg-fuchsia-100 hover:text-fuchsia-800 hover:border-fuchsia-300 group-data-[selected=true]:bg-fuchsia-100 group-data-[selected=true]:text-fuchsia-800 group-data-[selected=true]:border-fuchsia-300',
+    swatch: 'bg-fuchsia-400 border-fuchsia-500',
+  },
+  {
+    badge: 'bg-indigo-100 text-indigo-800 border-indigo-300 hover:bg-indigo-100 hover:text-indigo-800 hover:border-indigo-300 group-data-[selected=true]:bg-indigo-100 group-data-[selected=true]:text-indigo-800 group-data-[selected=true]:border-indigo-300',
+    swatch: 'bg-indigo-400 border-indigo-500',
+  },
+  {
+    badge: 'bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-100 hover:text-blue-800 hover:border-blue-300 group-data-[selected=true]:bg-blue-100 group-data-[selected=true]:text-blue-800 group-data-[selected=true]:border-blue-300',
+    swatch: 'bg-blue-400 border-blue-500',
+  },
+  {
+    badge: 'bg-cyan-100 text-cyan-800 border-cyan-300 hover:bg-cyan-100 hover:text-cyan-800 hover:border-cyan-300 group-data-[selected=true]:bg-cyan-100 group-data-[selected=true]:text-cyan-800 group-data-[selected=true]:border-cyan-300',
+    swatch: 'bg-cyan-400 border-cyan-500',
+  },
+  {
+    badge: 'bg-teal-100 text-teal-800 border-teal-300 hover:bg-teal-100 hover:text-teal-800 hover:border-teal-300 group-data-[selected=true]:bg-teal-100 group-data-[selected=true]:text-teal-800 group-data-[selected=true]:border-teal-300',
+    swatch: 'bg-teal-400 border-teal-500',
+  },
+  {
+    badge: 'bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100 hover:text-emerald-800 hover:border-emerald-300 group-data-[selected=true]:bg-emerald-100 group-data-[selected=true]:text-emerald-800 group-data-[selected=true]:border-emerald-300',
+    swatch: 'bg-emerald-400 border-emerald-500',
+  },
+  {
+    badge: 'bg-lime-100 text-lime-800 border-lime-300 hover:bg-lime-100 hover:text-lime-800 hover:border-lime-300 group-data-[selected=true]:bg-lime-100 group-data-[selected=true]:text-lime-800 group-data-[selected=true]:border-lime-300',
+    swatch: 'bg-lime-400 border-lime-500',
+  },
+  {
+    badge: 'bg-yellow-100 text-yellow-800 border-yellow-300 hover:bg-yellow-100 hover:text-yellow-800 hover:border-yellow-300 group-data-[selected=true]:bg-yellow-100 group-data-[selected=true]:text-yellow-800 group-data-[selected=true]:border-yellow-300',
+    swatch: 'bg-yellow-400 border-yellow-500',
+  },
+  {
+    badge: 'bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100 hover:text-amber-800 hover:border-amber-300 group-data-[selected=true]:bg-amber-100 group-data-[selected=true]:text-amber-800 group-data-[selected=true]:border-amber-300',
+    swatch: 'bg-amber-400 border-amber-500',
+  },
+  {
+    badge: 'bg-orange-100 text-orange-800 border-orange-300 hover:bg-orange-100 hover:text-orange-800 hover:border-orange-300 group-data-[selected=true]:bg-orange-100 group-data-[selected=true]:text-orange-800 group-data-[selected=true]:border-orange-300',
+    swatch: 'bg-orange-400 border-orange-500',
+  },
+  {
+    badge: 'bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-100 hover:text-rose-800 hover:border-rose-300 group-data-[selected=true]:bg-rose-100 group-data-[selected=true]:text-rose-800 group-data-[selected=true]:border-rose-300',
+    swatch: 'bg-rose-400 border-rose-500',
+  },
+]
 
 const initialItemDraft: ItemDraft = {
   item_name: '',
@@ -247,11 +306,12 @@ const getTransactionDepartmentLabel = (row: Pick<TransactionRow, 'department_nam
 
   return department || NO_DEPARTMENT_ASSIGNED_LABEL
 }
+const normalizeDepartmentKey = (value: string | null | undefined): string => String(value || '').trim().toLowerCase()
 
 const getStockBadgeTone = (stock: number): string => {
-  if (stock <= 0) return 'bg-red-100 text-red-700 border-red-200'
-  if (stock <= 10) return 'bg-yellow-100 text-yellow-700 border-yellow-200'
-  return 'bg-green-100 text-green-700 border-green-200'
+  if (stock <= 0) return 'bg-red-100 text-red-700 border-red-200 hover:bg-red-100 hover:text-red-700 hover:border-red-200 group-data-[selected=true]:bg-red-100 group-data-[selected=true]:text-red-700 group-data-[selected=true]:border-red-200'
+  if (stock <= 10) return 'bg-yellow-100 text-yellow-700 border-yellow-200 hover:bg-yellow-100 hover:text-yellow-700 hover:border-yellow-200 group-data-[selected=true]:bg-yellow-100 group-data-[selected=true]:text-yellow-700 group-data-[selected=true]:border-yellow-200'
+  return 'bg-green-100 text-green-700 border-green-200 hover:bg-green-100 hover:text-green-700 hover:border-green-200 group-data-[selected=true]:bg-green-100 group-data-[selected=true]:text-green-700 group-data-[selected=true]:border-green-200'
 }
 
 const sanitizeIntegerInput = (value: string): string => value.replace(/[^\d]/g, '')
@@ -475,6 +535,37 @@ export default function InventoryPage() {
     })
     return Array.from(grouped.entries()).map(([department, rows]) => ({ department, rows }))
   }, [employees])
+  const departmentLegendEntries = useMemo(() => {
+    let paletteIndex = 0
+    return groupedEmployeesByDepartment.map((group) => {
+      const normalized = normalizeDepartmentKey(group.department)
+      if (!normalized || normalized.startsWith(normalizeDepartmentKey(NO_DEPARTMENT_ASSIGNED_LABEL))) {
+        return {
+          ...group,
+          normalized,
+          tone: DEFAULT_DEPARTMENT_COLOR_TONE,
+        }
+      }
+      const tone = DEPARTMENT_COLOR_TONES[paletteIndex % DEPARTMENT_COLOR_TONES.length]
+      paletteIndex += 1
+      return {
+        ...group,
+        normalized,
+        tone,
+      }
+    })
+  }, [groupedEmployeesByDepartment])
+  const departmentToneByKey = useMemo(() => {
+    const map = new Map<string, DepartmentColorTone>()
+    departmentLegendEntries.forEach((entry) => {
+      map.set(entry.normalized, entry.tone)
+    })
+    return map
+  }, [departmentLegendEntries])
+  const getDepartmentTone = (departmentLabel: string | null | undefined): DepartmentColorTone => {
+    const key = normalizeDepartmentKey(departmentLabel)
+    return departmentToneByKey.get(key) ?? DEFAULT_DEPARTMENT_COLOR_TONE
+  }
 
   const transactionYearOptions = useMemo(() => {
     const years = new Set<number>()
@@ -1832,7 +1923,7 @@ export default function InventoryPage() {
                                 }))
                                 setItemPickerOpen(false)
                               }}
-                              className="py-2.5"
+                              className="group py-2.5"
                             >
                               <div className="flex w-full items-center justify-between gap-3">
                                 <div className="min-w-0">
@@ -1949,7 +2040,7 @@ export default function InventoryPage() {
                             {selectedEmployee ? (
                               <span className="flex min-w-0 items-center gap-2">
                                 <span className="truncate">{getEmployeeDisplayName(selectedEmployee)}</span>
-                                <Badge className="rounded-sm border bg-slate-100 text-slate-700 border-slate-200">
+                                <Badge className={cn('rounded-sm border', getDepartmentTone(getEmployeeDepartmentLabel(selectedEmployee)).badge)}>
                                   {getEmployeeDepartmentLabel(selectedEmployee)}
                                 </Badge>
                               </span>
@@ -1966,7 +2057,10 @@ export default function InventoryPage() {
                               <CommandEmpty>No employed employee found.</CommandEmpty>
                               {groupedEmployeesByDepartment.map((group) => (
                                 <CommandGroup key={`employee-department-${group.department}`} heading={group.department}>
-                                  {group.rows.map((employee) => (
+                                  {group.rows.map((employee) => {
+                                    const employeeDepartmentLabel = getEmployeeDepartmentLabel(employee)
+                                    const employeeDepartmentTone = getDepartmentTone(employeeDepartmentLabel)
+                                    return (
                                     <CommandItem
                                       key={employee.id}
                                       value={`${employee.id} ${getEmployeeDisplayName(employee)} ${employee.department || ''}`}
@@ -1977,7 +2071,7 @@ export default function InventoryPage() {
                                         }))
                                         setEmployeePickerOpen(false)
                                       }}
-                                      className="py-2.5"
+                                      className="group py-2.5"
                                     >
                                       <div className="flex w-full items-center justify-between gap-3">
                                         <div className="min-w-0">
@@ -1985,14 +2079,15 @@ export default function InventoryPage() {
                                           <p className="truncate text-[11px] text-slate-500">{employee.id}</p>
                                         </div>
                                         <div className="flex items-center gap-2 shrink-0">
-                                          <Badge className="rounded-sm border bg-slate-100 text-slate-700 border-slate-200">
-                                            {getEmployeeDepartmentLabel(employee)}
+                                          <Badge className={cn('rounded-sm border', employeeDepartmentTone.badge)}>
+                                            {employeeDepartmentLabel}
                                           </Badge>
                                           <Check className={cn('h-4 w-4', transactionDraft.requested_by_employee_id === employee.id ? 'opacity-100 text-emerald-600' : 'opacity-0')} />
                                         </div>
                                       </div>
                                     </CommandItem>
-                                  ))}
+                                    )
+                                  })}
                                 </CommandGroup>
                               ))}
                             </CommandList>
@@ -2004,7 +2099,7 @@ export default function InventoryPage() {
                       <Label className="text-xs font-black uppercase tracking-wider text-slate-500">Department (Auto)</Label>
                       <div className="h-10 rounded-sm border border-slate-200 bg-slate-50 px-3 flex items-center">
                         {selectedEmployee ? (
-                          <Badge className="rounded-sm border bg-slate-100 text-slate-700 border-slate-200">
+                          <Badge className={cn('rounded-sm border', getDepartmentTone(getEmployeeDepartmentLabel(selectedEmployee)).badge)}>
                             {getEmployeeDepartmentLabel(selectedEmployee)}
                           </Badge>
                         ) : (
@@ -2219,7 +2314,7 @@ export default function InventoryPage() {
                                 <Button
                                   type="button"
                                   size="sm"
-                                  className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white"
+                                  className="h-8 px-3 bg-[#A4163A] hover:bg-[#8D1332] text-white font-bold"
                                   onClick={() => void saveEditedItem(item.id)}
                                   disabled={savingItemEdit || deletingItems}
                                 >

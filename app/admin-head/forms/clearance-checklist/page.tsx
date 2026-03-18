@@ -967,6 +967,7 @@ export default function ClearanceChecklistPage() {
                                   requestDepartmentChange(department)
                                   setOpen(false)
                                 }}
+                                className="group"
                               >
                                 <Check
                                   className={cn(
@@ -976,7 +977,7 @@ export default function ClearanceChecklistPage() {
                                 />
                                 <div className="flex w-full items-center justify-between gap-2">
                                   <span className="truncate">{department}</span>
-                                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                                  <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600 transition-colors group-data-[selected=true]:border-slate-200 group-data-[selected=true]:bg-slate-100 group-data-[selected=true]:text-slate-600">
                                     {departmentTaskCount}
                                   </span>
                                 </div>
