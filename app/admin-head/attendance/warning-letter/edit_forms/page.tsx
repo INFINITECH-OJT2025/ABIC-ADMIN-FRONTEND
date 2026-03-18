@@ -375,6 +375,25 @@ const EditorSkeleton = () => (
 );
 
 export default function EditFormsPage() {
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.success) {
+          setUserRole(data.user?.role);
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+      }
+    };
+    fetchUserRole();
+  }, []);
+
+  const isViewer = userRole === "super_admin_viewer";
+
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("letterhead");
   const [templates, setTemplates] = useState({
@@ -1181,23 +1200,25 @@ export default function EditFormsPage() {
                     )}
                   </Button>
 
-                  <Button
-                    onClick={() => handleSave()}
-                    disabled={isSaving}
-                    className="bg-white text-[#7B0F2B] hover:bg-rose-50 shadow-md hover:shadow-lg transition-all duration-300 text-[10px] font-black uppercase tracking-widest h-10 px-8 rounded-xl flex items-center border-b-4 border-rose-200 active:border-b-0 active:translate-y-1"
-                  >
-                    {isSaving ? (
-                      <>
-                        <Clock className="w-4 h-4 mr-2 animate-spin" />
-                        SAVING
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        SYNC CHANGES
-                      </>
-                    )}
-                  </Button>
+                  {!isViewer && (
+                    <Button
+                      onClick={() => handleSave()}
+                      disabled={isSaving}
+                      className="bg-white text-[#7B0F2B] hover:bg-rose-50 shadow-md hover:shadow-lg transition-all duration-300 text-[10px] font-black uppercase tracking-widest h-10 px-8 rounded-xl flex items-center border-b-4 border-rose-200 active:border-b-0 active:translate-y-1"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Clock className="w-4 h-4 mr-2 animate-spin" />
+                          SAVING
+                        </>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4 mr-2" />
+                          SYNC CHANGES
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -1226,15 +1247,17 @@ export default function EditFormsPage() {
                   </p>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => handleSave()}
-                disabled={isSaving}
-                className="bg-white hover:bg-amber-600 hover:text-white border-amber-300 text-amber-900 font-black rounded-2xl px-8 h-14 shadow-md transition-all active:scale-95"
-              >
-                {isSaving ? "Syncing..." : "Migrate to Cloud"}
-              </Button>
+              {!isViewer && (
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => handleSave()}
+                  disabled={isSaving}
+                  className="bg-white hover:bg-amber-600 hover:text-white border-amber-300 text-amber-900 font-black rounded-2xl px-8 h-14 shadow-md transition-all active:scale-95"
+                >
+                  {isSaving ? "Syncing..." : "Migrate to Cloud"}
+                </Button>
+              )}
             </div>
           )}
 
@@ -1325,39 +1348,43 @@ export default function EditFormsPage() {
                                   className="max-h-full max-w-full object-contain drop-shadow-sm"
                                 />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-10 px-4 rounded-xl bg-red-500 hover:bg-red-600 border-0 text-white font-bold"
-                                    onClick={() =>
-                                      updateTemplate("headerLogoImage", null)
-                                    }
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Remove
-                                  </Button>
+                                  {!isViewer && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-10 px-4 rounded-xl bg-red-500 hover:bg-red-600 border-0 text-white font-bold"
+                                      onClick={() =>
+                                        updateTemplate("headerLogoImage", null)
+                                      }
+                                    >
+                                      <Trash2 className="w-4 h-4 mr-2" />
+                                      Remove
+                                    </Button>
+                                  )}
                                 </div>
                               </div>
                             ) : (
-                              <label className="w-full aspect-video bg-white hover:bg-rose-50/50 rounded-2xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all hover:border-[#A4163A] hover:shadow-md group">
-                                <input
-                                  type="file"
-                                  className="hidden"
-                                  accept="image/*"
-                                  onChange={handleLogoUpload}
-                                />
-                                <div className="p-4 bg-rose-50 rounded-full group-hover:bg-rose-100 transition-colors">
-                                  <Upload className="w-8 h-8 text-rose-300 group-hover:text-[#A4163A]" />
-                                </div>
-                                <div className="text-center">
-                                  <span className="block text-[11px] font-black text-slate-600 uppercase tracking-wider">
-                                    Upload Branding Logo
-                                  </span>
-                                  <span className="block text-[9px] text-slate-400 font-bold mt-1 uppercase">
-                                    PNG, JPG up to 2MB
-                                  </span>
-                                </div>
-                              </label>
+                              !isViewer && (
+                                <label className="w-full aspect-video bg-white hover:bg-rose-50/50 rounded-2xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all hover:border-[#A4163A] hover:shadow-md group">
+                                  <input
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleLogoUpload}
+                                  />
+                                  <div className="p-4 bg-rose-50 rounded-full group-hover:bg-rose-100 transition-colors">
+                                    <Upload className="w-8 h-8 text-rose-300 group-hover:text-[#A4163A]" />
+                                  </div>
+                                  <div className="text-center">
+                                    <span className="block text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                                      Upload Branding Logo
+                                    </span>
+                                    <span className="block text-[9px] text-slate-400 font-bold mt-1 uppercase">
+                                      PNG, JPG up to 2MB
+                                    </span>
+                                  </div>
+                                </label>
+                              )
                             )}
                           </div>
                         </div>
@@ -1376,6 +1403,7 @@ export default function EditFormsPage() {
                             }
                             placeholder="Enter company address, contact info..."
                             className="min-h-[160px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
+                            disabled={isViewer}
                           />
                           <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100/50 flex gap-2">
                             <Clock className="w-4 h-4 text-blue-500 mt-0.5" />
@@ -1399,6 +1427,7 @@ export default function EditFormsPage() {
                             updateTemplate("companyName", e.target.value)
                           }
                           className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                          disabled={isViewer}
                         />
                       </div>
 
@@ -1412,6 +1441,7 @@ export default function EditFormsPage() {
                             updateTemplate("title", e.target.value)
                           }
                           className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                          disabled={isViewer}
                         />
                       </div>
 
@@ -1497,6 +1527,7 @@ export default function EditFormsPage() {
                                         )
                                       }
                                       className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                                      disabled={isViewer}
                                     />
                                   </div>
                                   <div className="space-y-2.5">
@@ -1774,6 +1805,7 @@ export default function EditFormsPage() {
                               updateTemplate("body", e.target.value)
                             }
                             className="relative min-h-[400px] bg-white border-rose-100 shadow-inner rounded-xl font-serif text-[15px] leading-relaxed text-[#4A081A] focus:ring-0 focus:border-[#A4163A] transition-all p-6 resize-y"
+                            disabled={isViewer}
                           />
                         </div>
                       </div>

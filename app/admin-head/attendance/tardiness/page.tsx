@@ -1380,10 +1380,12 @@ const CustomTimePicker = ({
   value,
   onChange,
   className,
+  disabled,
 }: {
   value: string;
   onChange: (val: string) => void;
   className?: string;
+  disabled?: boolean;
 }) => {
   const displayTime = value
     ? new Date(`2000-01-01T${value}`).toLocaleTimeString([], {
@@ -1429,10 +1431,12 @@ const CustomTimePicker = ({
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
+      <PopoverTrigger asChild disabled={disabled}>
         <button
+          disabled={disabled}
           className={cn(
             "text-left bg-white border border-slate-200 text-black rounded-lg text-xs font-medium focus-visible:border-rose-200 focus-visible:ring-rose-100 shadow-none transition-all flex items-center gap-2",
+            disabled && "opacity-50 cursor-not-allowed",
             className,
           )}
         >
@@ -1440,14 +1444,20 @@ const CustomTimePicker = ({
           <span className="truncate">{value ? displayTime : "--:-- --"}</span>
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-3 bg-white border border-slate-200 shadow-xl rounded-xl" align="start">
+      <PopoverContent
+        className="w-auto p-3 bg-white border border-slate-200 shadow-xl rounded-xl"
+        align="start"
+      >
         <div className="flex items-center gap-2">
           {/* Hour Scroller */}
           <div className="flex flex-col gap-1">
             <span className="text-[10px] font-bold text-slate-500 uppercase text-center">
               Hour
             </span>
-            <div className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1" style={{ scrollbarWidth: "none" }}>
+            <div
+              className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1"
+              style={{ scrollbarWidth: "none" }}
+            >
               {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => {
                 const sHour = h.toString().padStart(2, "0");
                 return (
@@ -1473,7 +1483,10 @@ const CustomTimePicker = ({
             <span className="text-[10px] font-bold text-slate-500 uppercase text-center">
               Min
             </span>
-            <div className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1" style={{ scrollbarWidth: "none" }}>
+            <div
+              className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1"
+              style={{ scrollbarWidth: "none" }}
+            >
               {Array.from({ length: 60 }, (_, i) => i).map((m) => {
                 const sMin = m.toString().padStart(2, "0");
                 return (
@@ -1527,6 +1540,25 @@ const CustomTimePicker = ({
 
 // ---------- MAIN DASHBOARD ----------
 export default function AttendanceDashboard() {
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.success) {
+          setUserRole(data.user?.role);
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+      }
+    };
+    fetchUserRole();
+  }, []);
+
+  const isViewer = userRole === "super_admin_viewer";
+
   // State for year & month selection
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(
@@ -2222,37 +2254,39 @@ export default function AttendanceDashboard() {
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={handleAddNewYearConfirm}
-                  variant="outline"
-                  className="bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-5 rounded-lg flex items-center gap-2"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>New Year</span>
-                </Button>
-                <Button
-                  onClick={() => setIsEntryFormOpen(!isEntryFormOpen)}
-                  variant="outline"
-                  className={cn(
-                    "bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2",
-                    isEntryFormOpen &&
-                      "bg-rose-100 text-[#4A081A] border-rose-200",
-                  )}
-                >
-                  {isEntryFormOpen ? (
-                    <>
-                      <X className="w-3.5 h-3.5" />
-                      <span>CLOSE</span>
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>NEW RECORD</span>
-                    </>
-                  )}
-                </Button>
-              </div>
+              {!isViewer && (
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={handleAddNewYearConfirm}
+                    variant="outline"
+                    className="bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-5 rounded-lg flex items-center gap-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>New Year</span>
+                  </Button>
+                  <Button
+                    onClick={() => setIsEntryFormOpen(!isEntryFormOpen)}
+                    variant="outline"
+                    className={cn(
+                      "bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2",
+                      isEntryFormOpen &&
+                        "bg-rose-100 text-[#4A081A] border-rose-200",
+                    )}
+                  >
+                    {isEntryFormOpen ? (
+                      <>
+                        <X className="w-3.5 h-3.5" />
+                        <span>CLOSE</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>NEW RECORD</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -2583,6 +2617,7 @@ export default function AttendanceDashboard() {
                   )
                 }
                 totalRecords={sortedFirstEntries.length}
+                isViewer={isViewer}
               />
             )}
 
@@ -2598,6 +2633,7 @@ export default function AttendanceDashboard() {
                   )
                 }
                 totalRecords={sortedSecondEntries.length}
+                isViewer={isViewer}
               />
             )}
           </>
@@ -2710,12 +2746,14 @@ function CutoffTable({
   onUpdateTime,
   onSummaryClick,
   totalRecords,
+  isViewer,
 }: {
   title: string;
   entries: LateEntry[];
   onUpdateTime: (id: string | number, newTime: string) => void;
   onSummaryClick: () => void;
   totalRecords: number;
+  isViewer?: boolean;
 }) {
   return (
     <Card className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden h-full flex flex-col">
@@ -2787,6 +2825,7 @@ function CutoffTable({
                         value={to24h(entry.actual_in || entry.actualIn || "")}
                         onChange={(val) => onUpdateTime(entry.id, val)}
                         className="h-7 w-[105px] px-2 font-bold group-hover/input:border-rose-300"
+                        disabled={isViewer}
                       />
                     </div>
                   </td>

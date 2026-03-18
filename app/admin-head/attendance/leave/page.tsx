@@ -767,9 +767,9 @@ function CalendarView({
                     <span className="font-extrabold text-slate-800 text-base group-hover:text-[#A4163A] transition-colors">
                       {e.employee_name}
                     </span>
-                      <span
-                        className={cn(
-                          "text-[10px] font-extrabold px-3 py-1 rounded tracking-wider",
+                    <span
+                      className={cn(
+                        "text-[10px] font-extrabold px-3 py-1 rounded tracking-wider",
                         e.approved_by === "Declined"
                           ? "bg-red-100 text-red-700 border border-red-200"
                           : e.approved_by === "Pending"
@@ -1012,6 +1012,25 @@ const LeaveSkeleton = () => (
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LeavePage() {
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.success) {
+          setUserRole(data.user?.role);
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+      }
+    };
+    fetchUserRole();
+  }, []);
+
+  const isViewer = userRole === "super_admin_viewer";
+
   const today = new Date();
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
@@ -1679,10 +1698,7 @@ export default function LeavePage() {
       if (filterStatus) {
         const isApproved = !["Pending", "Declined"].includes(e.approved_by);
         if (filterStatus === "Approved" && !isApproved) return false;
-        if (
-          filterStatus !== "Approved" &&
-          e.approved_by !== filterStatus
-        )
+        if (filterStatus !== "Approved" && e.approved_by !== filterStatus)
           return false;
       }
 
@@ -1835,26 +1851,28 @@ export default function LeavePage() {
                   </>
                 )}
               </Button>
-              <Button
-                onClick={() => setAddModalOpen((v) => !v)}
-                variant="outline"
-                className={cn(
-                  "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-1.5",
-                  addModalOpen && "bg-rose-100 text-[#4A081A]",
-                )}
-              >
-                {addModalOpen ? (
-                  <>
-                    <X className="w-3 h-3" />
-                    <span>CLOSE</span>
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-3 h-3" />
-                    <span>ADD LEAVE</span>
-                  </>
-                )}
-              </Button>
+              {!isViewer && (
+                <Button
+                  onClick={() => setAddModalOpen((v) => !v)}
+                  variant="outline"
+                  className={cn(
+                    "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-1.5",
+                    addModalOpen && "bg-rose-100 text-[#4A081A]",
+                  )}
+                >
+                  {addModalOpen ? (
+                    <>
+                      <X className="w-3 h-3" />
+                      <span>CLOSE</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3 h-3" />
+                      <span>ADD LEAVE</span>
+                    </>
+                  )}
+                </Button>
+              )}
               <Link href="/admin-head/attendance/leave/leave-summary">
                 <Button
                   variant="outline"
@@ -2628,7 +2646,7 @@ export default function LeavePage() {
                         <td className="border border-rose-100 px-3 py-2.5 text-center text-slate-500 font-semibold">
                           {entry.employee_id}
                         </td>
-                        <td 
+                        <td
                           className="border border-rose-100 px-4 py-1.5 font-bold text-slate-700 truncate max-w-[150px] whitespace-nowrap"
                           title={entry.employee_name}
                         >
@@ -2643,13 +2661,18 @@ export default function LeavePage() {
                                 : "bg-rose-50 text-rose-600 border border-rose-100",
                             )}
                           >
-                            {entry.category === "half-day" ? "Half-day" : "Whole-day"}
+                            {entry.category === "half-day"
+                              ? "Half-day"
+                              : "Whole-day"}
                           </span>
                         </td>
                         <td className="border border-rose-100 px-3 py-2.5 text-center text-slate-500 italic whitespace-nowrap font-medium">
                           {entry.category === "whole-day"
                             ? "—"
-                            : (entry.shift || "—").replace(/\s+(?=\d|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/g, " - ")}
+                            : (entry.shift || "—").replace(
+                                /\s+(?=\d|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/g,
+                                " - ",
+                              )}
                         </td>
                         <td className="border border-rose-100 px-3 py-2.5 text-center text-slate-600 font-bold whitespace-nowrap">
                           {formatDisplayDate(entry.start_date)}
@@ -2673,7 +2696,13 @@ export default function LeavePage() {
                               ) &&
                                 "bg-green-50 text-green-600 border border-green-100",
                             )}
-                            title={!["Pending", "Declined"].includes(entry.approved_by) ? `Approved by ${entry.approved_by}` : undefined}
+                            title={
+                              !["Pending", "Declined"].includes(
+                                entry.approved_by,
+                              )
+                                ? `Approved by ${entry.approved_by}`
+                                : undefined
+                            }
                           >
                             {entry.approved_by === "Pending"
                               ? "Pending"
@@ -2727,22 +2756,28 @@ export default function LeavePage() {
                           )}
                         </td>
                         <td className="border border-rose-100 px-3 py-2.5 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleEdit(entry)}
-                              className="p-1.5 hover:bg-blue-50 text-blue-600 rounded transition-all border border-transparent hover:border-blue-100"
-                              title="Edit"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(entry.id)}
-                              className="p-1.5 hover:bg-red-50 text-red-600 rounded transition-all border border-transparent hover:border-red-100"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                          {!isViewer ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleEdit(entry)}
+                                className="p-1.5 hover:bg-blue-50 text-blue-600 rounded transition-all border border-transparent hover:border-blue-100"
+                                title="Edit"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(entry.id)}
+                                className="p-1.5 hover:bg-red-50 text-red-600 rounded transition-all border border-transparent hover:border-red-100"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-300 italic text-[10px]">
+                              View Only
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))
