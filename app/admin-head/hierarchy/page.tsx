@@ -6,9 +6,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building2, GitBranch, Plus, ShieldCheck, Users, Clock, X, Save, Edit2, Trash2 } from "lucide-react"
+import { Building2, GitBranch, Plus, ShieldCheck, Users, Clock, X, Save, Edit2, Trash2, Eye } from "lucide-react"
 import { getApiUrl } from "@/lib/api"
 import { toast } from "sonner"
+import { useUserRole } from "@/lib/hooks/useUserRole"
 
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -187,6 +188,14 @@ const HierarchySkeleton = () => (
 )
 
 export default function AdminHeadHierarchyPage() {
+  const { isViewOnly } = useUserRole()
+  const viewOnlyDescription = "Create, update, and delete actions are disabled in view only mode."
+  const notifyViewOnly = () => {
+    toast.warning("View Only Mode", {
+      description: viewOnlyDescription,
+    })
+  }
+
   const [departments, setDepartments] = useState<Department[]>([])
   const [positions, setPositions] = useState<PositionNode[]>([])
   const [availablePositions, setAvailablePositions] = useState<string[]>([])
@@ -248,6 +257,11 @@ export default function AdminHeadHierarchyPage() {
   }, [positions, editingPosition, editDepartment])
 
   const handleUpdatePosition = async () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
+
     if (!editingPosition) return
 
     const cleanTitle = editTitle.trim()
@@ -296,6 +310,11 @@ export default function AdminHeadHierarchyPage() {
   }
 
   const handleDeletePosition = async () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
+
     if (!editingPosition) return
 
     setLoading(true)
@@ -513,6 +532,11 @@ export default function AdminHeadHierarchyPage() {
   }
 
   const handleSaveShiftSchedule = async () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
+
     if (!editingSchedule) return
     setLoading(true)
     try {
@@ -613,6 +637,11 @@ export default function AdminHeadHierarchyPage() {
   }
 
   const handleAddDepartment = async () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
+
     const cleanName = departmentName.trim()
     if (!cleanName || !selectedOffice) {
       toast.error("Please provide department name and select an office.")
@@ -657,6 +686,11 @@ export default function AdminHeadHierarchyPage() {
   }
 
   const handleAddOffice = async () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
+
     const cleanName = officeName.trim()
     if (!cleanName) return
 
@@ -686,6 +720,11 @@ export default function AdminHeadHierarchyPage() {
   }
 
   const handleAddPosition = async () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
+
     const cleanTitle = positionTitle.trim()
 
     if (!cleanTitle || !selectedDepartment) return
@@ -760,6 +799,12 @@ export default function AdminHeadHierarchyPage() {
                 <GitBranch className="w-4 h-4" />
                 Add departments, positions, and roles following your organization flow.
               </p>
+              {isViewOnly && (
+                <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                  <Eye className="w-4 h-4" />
+                  VIEW ONLY MODE - Editing and modifications are disabled
+                </p>
+              )}
             </div>
 
           </div>
@@ -800,7 +845,7 @@ export default function AdminHeadHierarchyPage() {
                   placeholder="Office Name (e.g. ABIC)"
                   className="h-10"
                 />
-                <Button onClick={handleAddOffice} disabled={loading} className="bg-slate-700 hover:bg-slate-800">
+                <Button onClick={handleAddOffice} disabled={isViewOnly || loading} className="bg-slate-700 hover:bg-slate-800">
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -837,7 +882,7 @@ export default function AdminHeadHierarchyPage() {
                   onChange={(event) => setDepartmentColor(event.target.value)}
                   className="h-10 w-20 p-1"
                 />
-                <Button onClick={handleAddDepartment} disabled={loading} className="ml-auto bg-[#A4163A] hover:bg-[#7B0F2B]">
+                <Button onClick={handleAddDepartment} disabled={isViewOnly || loading} className="ml-auto bg-[#A4163A] hover:bg-[#7B0F2B]">
                   <Plus className="h-4 w-4 mr-2" />
                   {loading ? 'Adding...' : 'Add'}
                 </Button>
@@ -935,7 +980,7 @@ export default function AdminHeadHierarchyPage() {
                 </div>
               </div>
 
-              <Button onClick={handleAddPosition} disabled={loading} className="w-full bg-[#630C22] hover:bg-[#4A081A]">
+              <Button onClick={handleAddPosition} disabled={isViewOnly || loading} className="w-full bg-[#630C22] hover:bg-[#4A081A]">
                 <Plus className="h-4 w-4 mr-2" />
                 {loading ? 'Adding...' : 'Add Position to Hierarchy'}
               </Button>
@@ -955,7 +1000,7 @@ export default function AdminHeadHierarchyPage() {
                     <NodePill
                       label={execNode.title}
                       variant="exec"
-                      onEdit={() => setEditingPosition(execNode)}
+                      onEdit={isViewOnly ? undefined : () => setEditingPosition(execNode)}
                     />
                   )}
                   {execNode && adminNode && <div className="h-6 w-px bg-slate-300" />}
@@ -963,7 +1008,7 @@ export default function AdminHeadHierarchyPage() {
                     <NodePill
                       label={adminNode.title}
                       variant="admin"
-                      onEdit={() => setEditingPosition(adminNode)}
+                      onEdit={isViewOnly ? undefined : () => setEditingPosition(adminNode)}
                     />
                   )}
                   {!execNode && !adminNode && (
@@ -984,7 +1029,7 @@ export default function AdminHeadHierarchyPage() {
                   item.id !== adminNode?.id && 
                   item.id !== execNode?.id
                 ).map((item) => (
-                  <HierarchyBranch key={item.id} node={item} allNodes={positions} onEdit={setEditingPosition} execId={execNode?.id} adminId={adminNode?.id} />
+                  <HierarchyBranch key={item.id} node={item} allNodes={positions} onEdit={isViewOnly ? () => {} : setEditingPosition} execId={execNode?.id} adminId={adminNode?.id} />
                 ))}
               </div>
 
@@ -1003,6 +1048,7 @@ export default function AdminHeadHierarchyPage() {
                             size="icon"
                             className="h-7 w-7 text-slate-400 hover:text-[#A4163A] hover:bg-white transition-colors"
                             onClick={() => handleOpenShiftModal(office)}
+                            disabled={isViewOnly}
                           >
                             <Clock className="w-4 h-4" />
                           </Button>
@@ -1039,7 +1085,7 @@ export default function AdminHeadHierarchyPage() {
                                   ) : (
                                      roots.map((root) => (
                                       <div key={root.id} className="w-fit max-w-full">
-                                        <HierarchyBranch node={root} allNodes={positions} onEdit={setEditingPosition} execId={execNode?.id} adminId={adminNode?.id} />
+                                        <HierarchyBranch node={root} allNodes={positions} onEdit={isViewOnly ? () => {} : setEditingPosition} execId={execNode?.id} adminId={adminNode?.id} />
                                       </div>
                                      ))
                                   )}
@@ -1112,7 +1158,11 @@ export default function AdminHeadHierarchyPage() {
                     variant="outline"
                     className="flex-1 h-9 border-dashed border-[#A4163A]/30 text-[#A4163A] hover:bg-[#A4163A]/5 hover:border-[#A4163A]"
                     onClick={addShiftOption}
-                    disabled={editingOptionIndex === null && (editingSchedule?.shift_options?.length ?? 0) >= 2}
+                    disabled={
+                      isViewOnly ||
+                      (editingOptionIndex === null &&
+                        (editingSchedule?.shift_options?.length ?? 0) >= 2)
+                    }
                   >
                     <Plus className="w-4 h-4 mr-2" />
                     {editingOptionIndex !== null ? 'Update Option' : 'Add to Options'}
@@ -1127,6 +1177,7 @@ export default function AdminHeadHierarchyPage() {
                         setNewShiftStart("08:00")
                         setNewShiftEnd("12:00")
                       }}
+                      disabled={isViewOnly}
                     >
                       <X className="w-4 h-4" />
                     </Button>
@@ -1148,6 +1199,7 @@ export default function AdminHeadHierarchyPage() {
                         title="Edit Option"
                         className="h-6 w-6 text-slate-400 hover:text-[#A4163A]"
                         onClick={() => startEditingOption(idx)}
+                        disabled={isViewOnly}
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </Button>
@@ -1157,6 +1209,7 @@ export default function AdminHeadHierarchyPage() {
                         title="Remove Option"
                         className="h-6 w-6 text-slate-400 hover:text-rose-500"
                         onClick={() => removeShiftOption(idx)}
+                        disabled={isViewOnly}
                       >
                         <X className="w-3.5 h-3.5" />
                       </Button>
@@ -1178,7 +1231,7 @@ export default function AdminHeadHierarchyPage() {
             <Button
               className="bg-[#A4163A] hover:bg-[#7B0F2B] text-white"
               onClick={handleSaveShiftSchedule}
-              disabled={loading}
+              disabled={isViewOnly || loading}
             >
               <Save className="w-4 h-4 mr-2" />
               {loading ? 'Saving...' : 'Save Schedule'}
@@ -1246,7 +1299,7 @@ export default function AdminHeadHierarchyPage() {
           <DialogFooter>
             <Button
               onClick={() => setIsDeleteConfirmOpen(true)}
-              disabled={loading || !editingPosition}
+              disabled={isViewOnly || loading || !editingPosition}
               className="mr-auto bg-red-600 hover:bg-red-700 text-white"
             >
               <Trash2 className="w-4 h-4 mr-2" />
@@ -1265,7 +1318,7 @@ export default function AdminHeadHierarchyPage() {
             <Button
               className="bg-[#A4163A] hover:bg-[#7B0F2B] text-white"
               onClick={handleUpdatePosition}
-              disabled={loading}
+              disabled={isViewOnly || loading}
             >
               <Save className="w-4 h-4 mr-2" />
               {loading ? 'Updating...' : 'Update Position'}
@@ -1286,7 +1339,7 @@ export default function AdminHeadHierarchyPage() {
             <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)} disabled={loading}>
               Cancel
             </Button>
-            <Button onClick={handleDeletePosition} disabled={loading} className="bg-red-600 hover:bg-red-700 text-white">
+            <Button onClick={handleDeletePosition} disabled={isViewOnly || loading} className="bg-red-600 hover:bg-red-700 text-white">
               <Trash2 className="w-4 h-4 mr-2" />
               {loading ? 'Deleting...' : 'Confirm Delete'}
             </Button>

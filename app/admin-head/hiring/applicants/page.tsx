@@ -2,11 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit2, Save, ChevronDown, ChevronRight, AlertCircle, Loader2 } from "lucide-react";
+import { Plus, Search, Edit2, Save, ChevronDown, ChevronRight, AlertCircle, Loader2, Eye } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getApiUrl } from "@/lib/api";
 import { toast } from "sonner";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 
 type InterviewStatus = "PENDING" | "CONFIRMED" | "PASSED" | "FAILED";
 
@@ -87,6 +88,7 @@ function normalizePosition(value: string): string {
 }
 
 export default function ApplicantsForInterviewPage() {
+  const { isViewOnly } = useUserRole();
   const [editingInitialId, setEditingInitialId] = useState<number | string | null>(null);
   const [editingFinalId, setEditingFinalId] = useState<number | string | null>(null);
 
@@ -103,6 +105,13 @@ export default function ApplicantsForInterviewPage() {
   const [initialNameErrors, setInitialNameErrors] = useState<Record<string, string>>({});
   const [savingInitialId, setSavingInitialId] = useState<number | string | null>(null);
   const [savingFinalId, setSavingFinalId] = useState<number | string | null>(null);
+
+  const viewOnlyDescription = "Create, update, and delete actions are disabled in view only mode.";
+  const notifyViewOnly = () => {
+    toast.warning("View Only Mode", {
+      description: viewOnlyDescription,
+    });
+  };
 
   const loadData = async () => {
     const apiUrl = getApiUrl();
@@ -176,6 +185,11 @@ export default function ApplicantsForInterviewPage() {
   }, []);
 
   const addInitialRow = () => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     const hasIncompleteDraft = initialRows.some(
       (row) =>
         row.isNew &&
@@ -244,6 +258,11 @@ export default function ApplicantsForInterviewPage() {
   };
 
   const saveInitial = async (row: InterviewRow) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     if (savingInitialId === row.id) return;
     if (!row.date || !row.time) {
       toast.error("Interview date and time are required.");
@@ -329,6 +348,11 @@ export default function ApplicantsForInterviewPage() {
   };
 
   const saveFinal = async (row: InterviewRow) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     if (savingFinalId === row.id) return;
     if (!row.date || !row.time) {
       toast.error("Interview date and time are required.");
@@ -426,6 +450,12 @@ export default function ApplicantsForInterviewPage() {
         <div className="w-full px-4 md:px-8 py-6">
           <h1 className="text-2xl md:text-3xl font-bold mb-2">Hiring Report</h1>
           <p className="text-white/80 text-sm md:text-base">Manage interview applicants and schedules.</p>
+          {isViewOnly && (
+            <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+              <Eye className="w-4 h-4" />
+              VIEW ONLY MODE - Editing and modifications are disabled
+            </p>
+          )}
         </div>
 
         <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm">
@@ -472,9 +502,10 @@ export default function ApplicantsForInterviewPage() {
             <div
               onClick={(e) => {
                 e.stopPropagation();
+                if (isViewOnly) return;
                 addInitialRow();
               }}
-              className="bg-white text-[#A4163A] border-2 border-[#A4163A] rounded-full p-0.5 w-7 h-7 flex items-center justify-center cursor-pointer hover:bg-[#A4163A] hover:text-white transition-colors shadow-sm active:scale-95"
+              className={`bg-white text-[#A4163A] border-2 border-[#A4163A] rounded-full p-0.5 w-7 h-7 flex items-center justify-center transition-colors shadow-sm ${isViewOnly ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-[#A4163A] hover:text-white active:scale-95"}`}
             >
               <Plus size={20} strokeWidth={4} />
             </div>
@@ -493,7 +524,7 @@ export default function ApplicantsForInterviewPage() {
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
                 {filteredInitialRows.map((row) => {
-                  const editable = isInitialEditable(row);
+                  const editable = !isViewOnly && isInitialEditable(row);
                   const isSaving = savingInitialId === row.id;
                   const isMissingDateTime = !row.date || !row.time;
                   const rowNameError = initialNameErrors[String(row.id)] ?? "";
@@ -596,6 +627,7 @@ export default function ApplicantsForInterviewPage() {
                         ) : (
                           <button
                             onClick={() => setEditingInitialId(row.id)}
+                            disabled={isViewOnly}
                             className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-2.5 rounded-lg inline-flex items-center gap-2 cursor-pointer"
                           >
                             <Edit2 className="w-4 h-4" />
@@ -643,7 +675,7 @@ export default function ApplicantsForInterviewPage() {
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
                 {filteredFinalRows.map((row) => {
-                  const editable = isFinalEditable(row);
+                  const editable = !isViewOnly && isFinalEditable(row);
                   const isSaving = savingFinalId === row.id;
                   const isMissingDateTime = !row.date || !row.time;
                   return (
@@ -713,6 +745,7 @@ export default function ApplicantsForInterviewPage() {
                         ) : (
                           <button
                             onClick={() => setEditingFinalId(row.id)}
+                            disabled={isViewOnly}
                             className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-2.5 rounded-lg inline-flex items-center gap-2 cursor-pointer"
                           >
                             <Edit2 className="w-4 h-4" />

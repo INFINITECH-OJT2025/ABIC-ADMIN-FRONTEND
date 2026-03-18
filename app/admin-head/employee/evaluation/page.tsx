@@ -12,6 +12,7 @@ import {
   Search,
   Plus,
   ThumbsUp,
+  Eye,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { format, addMonths } from "date-fns";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 
 interface Employee {
   id: string;
@@ -78,7 +80,16 @@ const EvaluationSkeleton = () => (
 );
 
 export default function EvaluationPage() {
+  const { isViewOnly } = useUserRole();
   const router = useRouter();
+  const viewOnlyDescription =
+    "Create, update, and delete actions are disabled in view only mode.";
+  const notifyViewOnly = () => {
+    toast.warning("View Only Mode", {
+      description: viewOnlyDescription,
+    });
+  };
+
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [evaluations, setEvaluations] = useState<Record<string, Evaluation>>(
     {},
@@ -301,6 +312,11 @@ export default function EvaluationPage() {
   };
 
   const saveEvaluation = async (employeeId: string) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     const currentEval = evaluations[employeeId];
     if (!currentEval) return;
 
@@ -347,6 +363,11 @@ export default function EvaluationPage() {
   };
 
   const requestRegularizationDateSave = (employeeId: string) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     const selectedDate = regularizationDates[employeeId];
     if (!selectedDate) {
       toast.error("Please select a regularization date first");
@@ -357,6 +378,12 @@ export default function EvaluationPage() {
   };
 
   const handleConfirmRegularizationDateSave = async () => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      setConfirmRegularization({ isOpen: false, employeeId: null });
+      return;
+    }
+
     const employeeId = confirmRegularization.employeeId;
     if (!employeeId) return;
 
@@ -506,6 +533,12 @@ export default function EvaluationPage() {
                     <PieChart className="w-4 h-4" />
                     Manage employee evaluations and performance reviews
                   </p>
+                  {isViewOnly && (
+                    <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                      <Eye className="w-4 h-4" />
+                      VIEW ONLY MODE - Editing and modifications are disabled
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -831,6 +864,7 @@ export default function EvaluationPage() {
                                           e.target.value,
                                         )
                                       }
+                                      disabled={isViewOnly}
                                       className="h-7 text-[10px] border-[#A4163A]/30 focus:border-[#A4163A]"
                                       placeholder="Set date"
                                     />
@@ -839,6 +873,7 @@ export default function EvaluationPage() {
                                       size="sm"
                                       className="h-7 px-2 text-[10px] bg-[#A4163A] hover:bg-[#7B0F2B] text-white"
                                       disabled={
+                                        isViewOnly ||
                                         !regularizationDates[emp.id] ||
                                         isActionLoading
                                       }

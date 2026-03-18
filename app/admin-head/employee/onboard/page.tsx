@@ -43,11 +43,13 @@ import {
   Check,
   Loader2,
   ImagePlus,
+  Eye,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 
 // PH Address Data
 import regionsDataRaw from "@/ph-json/region.json";
@@ -235,8 +237,16 @@ const OnboardSkeleton = () => (
 );
 
 function OnboardPageContent() {
+  const { isViewOnly } = useUserRole();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const viewOnlyDescription =
+    "Create, update, and delete actions are disabled in view only mode.";
+  const notifyViewOnly = () => {
+    toast.warning("View Only Mode", {
+      description: viewOnlyDescription,
+    });
+  };
   const employeeIdParam = searchParams.get("id");
   const employeeEmailParam = searchParams.get("email");
   const requestedViewParam = searchParams.get("view");
@@ -1623,6 +1633,11 @@ function OnboardPageContent() {
 
   // Handlers
   const handleStartOnboarding = async () => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     const {
       first_name,
       last_name,
@@ -1816,6 +1831,11 @@ function OnboardPageContent() {
     redirect = true,
     options: { showSuccessToast?: boolean; finalizeRehire?: boolean } = {},
   ) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return false;
+    }
+
     const { showSuccessToast = true, finalizeRehire = false } = options;
     if (!checklistData) return false;
 
@@ -1915,6 +1935,11 @@ function OnboardPageContent() {
   };
 
   const toggleTask = (task: string) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     // Prevent unchecking if already saved
     if (completedTasks[task] && savedTasks.has(task)) {
       toast.error("Saved progress cannot be undone");
@@ -1940,6 +1965,11 @@ function OnboardPageContent() {
   };
 
   const toggleAllTasks = () => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     const allCompleted = onboardingTasks.every((task) => completedTasks[task]);
     if (allCompleted) {
       // Only uncheck what is NOT saved
@@ -2149,6 +2179,12 @@ function OnboardPageContent() {
   const handleProfileImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      event.target.value = "";
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -2316,6 +2352,11 @@ function OnboardPageContent() {
   };
 
   const handleProgressionSave = async () => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     setIsSaving(true);
     try {
       if (Object.keys(completedTasks).length < onboardingTasks.length) {
@@ -2385,6 +2426,11 @@ function OnboardPageContent() {
   };
 
   const handlePartialSave = async () => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     if (!onboardingEmployeeId) return;
     setIsSaving(true);
     try {
@@ -2712,6 +2758,12 @@ function OnboardPageContent() {
                       <ClipboardList className="w-4 h-4" />
                       ABIC REALTY & CONSULTANCY
                     </p>
+                    {isViewOnly && (
+                      <p className="text-yellow-200 text-xs md:text-sm font-semibold flex items-center gap-1">
+                        <Eye className="w-4 h-4" />
+                        VIEW ONLY MODE - Editing and modifications are disabled
+                      </p>
+                    )}
                     {isRehireFlow && (
                       <div className="inline-flex items-center gap-2 rounded-md border border-amber-300/70 bg-amber-100/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-100">
                         <AlertCircle className="h-3 w-3" />
@@ -3068,6 +3120,7 @@ function OnboardPageContent() {
                     <Button
                       onClick={handleStartOnboarding}
                       disabled={
+                        isViewOnly ||
                         isSaving ||
                         (!isRehireFlow &&
                           (emailExists ||
@@ -3161,6 +3214,7 @@ function OnboardPageContent() {
                                     e.stopPropagation();
                                     toggleAllTasks();
                                   }}
+                                  disabled={isViewOnly}
                                   className="h-7 px-3 border-[#A4163A]/20 bg-white hover:bg-[#A4163A]/5 text-[#A4163A] font-black text-[9px] uppercase tracking-widest rounded transition-all shadow-sm flex items-center gap-2"
                                 >
                                   <Check className="h-3 w-3" />
@@ -3205,7 +3259,7 @@ function OnboardPageContent() {
                             <TableRow
                               key={index}
                               onClick={() => {
-                                if (!isSavedLocked) toggleTask(task);
+                                if (!isSavedLocked && !isViewOnly) toggleTask(task);
                               }}
                               className={cn(
                                 "border-b-[1px] border-dashed border-stone-200 last:border-0 transition-colors group",
@@ -3269,7 +3323,7 @@ function OnboardPageContent() {
                   <div className="flex gap-3">
                     <Button
                       onClick={() => confirmSaveProgress("checklist")}
-                      disabled={isSaving}
+                      disabled={isViewOnly || isSaving}
                       variant="outline"
                       className="h-10 px-6 border-stone-300 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-stone-50 transition-all shadow-sm font-sans"
                     >
@@ -3289,6 +3343,7 @@ function OnboardPageContent() {
                         }
                       }}
                       disabled={
+                        isViewOnly ||
                         Object.keys(completedTasks).length <
                           onboardingTasks.length || isSaving
                       }
@@ -4373,7 +4428,7 @@ function OnboardPageContent() {
                                 type="file"
                                 accept="image/png,image/jpeg,image/jpg,image/webp,image/gif,image/heic,image/heif"
                                 onChange={handleProfileImageUpload}
-                                disabled={uploadingProfileImage || isSaving}
+                                disabled={isViewOnly || uploadingProfileImage || isSaving}
                                 className="font-medium"
                               />
                               <p className="text-xs text-slate-500">
@@ -4423,7 +4478,7 @@ function OnboardPageContent() {
                         <div className="flex gap-3">
                           <Button
                             onClick={() => confirmSaveProgress("partial")}
-                            disabled={isSaving}
+                            disabled={isViewOnly || isSaving}
                             variant="outline"
                             className="h-11 px-6 font-bold uppercase tracking-widest text-[10px] border-emerald-200 text-emerald-700 hover:bg-emerald-50 shadow-sm transition-all active:scale-95 rounded-xl"
                           >
@@ -4436,7 +4491,7 @@ function OnboardPageContent() {
                           </Button>
                           <Button
                             onClick={handleProgressionSave}
-                            disabled={isSaving || !isCurrentBatchValid()}
+                            disabled={isViewOnly || isSaving || !isCurrentBatchValid()}
                             className="bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-8 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-200/50 active:scale-95 transition-all rounded-xl disabled:opacity-50"
                           >
                             {isSaving ? "COMPLETING..." : "COMPLETE & FINISH"}
@@ -4449,7 +4504,7 @@ function OnboardPageContent() {
                         <div className="flex gap-3">
                           <Button
                             onClick={() => confirmSaveProgress("partial")}
-                            disabled={isSaving}
+                            disabled={isViewOnly || isSaving}
                             variant="outline"
                             className="h-11 px-6 font-bold uppercase tracking-widest text-[10px] border-emerald-200 text-emerald-700 hover:bg-emerald-50 shadow-sm transition-all active:scale-95 rounded-xl"
                           >
@@ -4462,7 +4517,7 @@ function OnboardPageContent() {
                           </Button>
                           <Button
                             onClick={nextBatch}
-                            disabled={!isCurrentBatchValid()}
+                            disabled={isViewOnly || !isCurrentBatchValid()}
                             className="bg-[#A4163A] hover:bg-[#800020] text-white h-11 px-8 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-rose-200/50 active:scale-95 transition-all rounded-xl disabled:opacity-50"
                           >
                             Next Batch

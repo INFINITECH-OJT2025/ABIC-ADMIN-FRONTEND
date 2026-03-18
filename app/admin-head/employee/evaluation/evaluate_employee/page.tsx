@@ -29,11 +29,13 @@ import {
   TrendingUp,
   PieChart,
   ThumbsUp,
+  Eye,
   X
 } from 'lucide-react'
 import { getApiUrl } from '@/lib/api'
 import { toast } from 'sonner'
 import { format, addMonths } from 'date-fns'
+import { useUserRole } from '@/lib/hooks/useUserRole'
 
 interface Employee {
   id: string
@@ -225,8 +227,16 @@ const EvaluationFormSkeleton = () => (
 )
 
 function EvaluateEmployeeForm() {
+  const { isViewOnly } = useUserRole()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const viewOnlyDescription = 'Create, update, and delete actions are disabled in view only mode.'
+  const notifyViewOnly = () => {
+    toast.warning('View Only Mode', {
+      description: viewOnlyDescription,
+    })
+  }
+
   const [employees, setEmployees] = useState<Employee[]>([])
   const [evaluations, setEvaluations] = useState<Record<string, Evaluation>>({})
   const [departments, setDepartments] = useState<Department[]>([])
@@ -630,11 +640,11 @@ function EvaluateEmployeeForm() {
 
   useEffect(() => {
     if (!selectedEmployee) {
-      setIsEditMode(true)
+      setIsEditMode(!isViewOnly)
       return
     }
-    setIsEditMode(!hasSavedCurrentEvaluation)
-  }, [selectedEmployeeId, selectedEmployee, evaluationContext.targetScore, hasSavedCurrentEvaluation])
+    setIsEditMode(!isViewOnly && !hasSavedCurrentEvaluation)
+  }, [selectedEmployeeId, selectedEmployee, evaluationContext.targetScore, hasSavedCurrentEvaluation, isViewOnly])
 
   const handleScoreChange = (id: CriteriaId, value: string) => {
     const cleaned = value.replace(/[^1-5]/g, '').slice(0, 1)
@@ -744,6 +754,7 @@ function EvaluateEmployeeForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isViewOnly) return notifyViewOnly()
     if (!selectedEmployeeId) return toast.error('Please select an employee')
     if (failedFirstEvaluation && !showSecondEvaluationPanel) {
       return toast.error('Switch to 2nd Evaluation or Both to submit the second evaluation')
@@ -856,6 +867,12 @@ function EvaluateEmployeeForm() {
                 <PieChart className="w-4 h-4" />
                 Manage employee evaluations and performance reviews
               </p>
+              {isViewOnly && (
+                <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                  <Eye className="w-4 h-4" />
+                  VIEW ONLY MODE - Editing and modifications are disabled
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -916,6 +933,7 @@ function EvaluateEmployeeForm() {
               type="button"
               variant="outline"
               onClick={() => setIsEditMode(true)}
+              disabled={isViewOnly}
               className="rounded-none border-[#7B0F2B] text-[#7B0F2B] flex gap-2"
             >
               <Pencil className="w-4 h-4" /> Edit Evaluation
@@ -923,7 +941,7 @@ function EvaluateEmployeeForm() {
           )}
           <Button 
             onClick={handleSubmit} 
-            disabled={isSubmitting || !showSecondEvaluationPanel || !isEditMode}
+            disabled={isViewOnly || isSubmitting || !showSecondEvaluationPanel || !isEditMode}
             className="bg-[#A4163A] text-white rounded-none hover:bg-[#7B0F2B] flex gap-2"
           >
             {isSubmitting ? 'Saving...' : <><Save className="w-4 h-4" /> Save Evaluation</>}

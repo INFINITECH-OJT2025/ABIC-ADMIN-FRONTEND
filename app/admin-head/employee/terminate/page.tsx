@@ -36,13 +36,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { Users, FileText, Check, ChevronsUpDown, X, Search, ArrowUpDown, History, Clock3, ArrowUpAZ, ArrowDownAZ, ChevronLeft } from 'lucide-react'
+import { Users, FileText, Check, ChevronsUpDown, X, Search, ArrowUpDown, History, Clock3, ArrowUpAZ, ArrowDownAZ, ChevronLeft, Eye } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Input } from '@/components/ui/input'
 import {
   Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue
 } from "@/components/ui/select"
+import { useUserRole } from '@/lib/hooks/useUserRole'
 
 interface Employee {
   id: string
@@ -147,6 +148,14 @@ const TerminateSkeleton = () => (
 );
 
 function TerminatePageContent() {
+  const { isViewOnly } = useUserRole()
+  const viewOnlyDescription = 'Create, update, and delete actions are disabled in view only mode.'
+  const notifyViewOnly = () => {
+    toast.warning('View Only Mode', {
+      description: viewOnlyDescription,
+    })
+  }
+
   const [employees, setEmployees] = useState<Employee[]>([])
   const [terminations, setTerminations] = useState<TerminationRecord[]>([])
   const [resigned, setResigned] = useState<TerminationRecord[]>([])
@@ -298,6 +307,11 @@ function TerminatePageContent() {
   }
 
   const handleSaveClearance = async (isFinalSave = false) => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return false
+    }
+
     if (!checklistEmployee) return false
 
     setIsSavingChecklist(true)
@@ -371,6 +385,11 @@ function TerminatePageContent() {
   }
 
   const toggleClearanceTask = (task: string) => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
+
     if (savedClearanceTasks.has(task)) {
        toast.error('Saved progress cannot be undone')
        return
@@ -384,6 +403,11 @@ function TerminatePageContent() {
   }
 
   const toggleAllClearanceTasks = () => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
+
     const allDone = clearanceTasks.every(t => completedClearanceTasks[t])
     if (allDone) {
       const next = { ...completedClearanceTasks }
@@ -782,6 +806,11 @@ function TerminatePageContent() {
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
+
     e.preventDefault()
 
     if (!selectedEmployeeId) {
@@ -958,6 +987,11 @@ function TerminatePageContent() {
   }
 
   const handleRehire = async (employeeId: string) => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
+
     if (!formData.rehire_date) {
       toast.error('Please set a re-hire date and time')
       return
@@ -1141,11 +1175,21 @@ function TerminatePageContent() {
                 <Users className="w-4 h-4" />
                 Process employee exit and manage records
               </p>
+              {isViewOnly && (
+                <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                  <Eye className="w-4 h-4" />
+                  VIEW ONLY MODE - Editing and modifications are disabled
+                </p>
+              )}
             </div>
             <div className="w-full lg:w-auto flex flex-col items-start lg:items-end gap-2">
               <div className="flex items-center gap-2">
                 <Button
                   onClick={() => {
+                    if (isViewOnly) {
+                      notifyViewOnly()
+                      return
+                    }
                     if (isRequestFormOpen && exitActionType === 'terminate') {
                       setIsRequestFormOpen(false)
                     } else {
@@ -1153,6 +1197,7 @@ function TerminatePageContent() {
                       setIsRequestFormOpen(true)
                     }
                   }}
+                  disabled={isViewOnly}
                   className={cn(
                     "font-bold px-5 py-2.5 rounded-lg transition-all duration-300 shadow-lg flex items-center gap-2 h-auto border text-sm uppercase tracking-wider",
                     isRequestFormOpen && exitActionType === 'terminate'
@@ -1165,6 +1210,10 @@ function TerminatePageContent() {
                 </Button>
                 <Button
                   onClick={() => {
+                    if (isViewOnly) {
+                      notifyViewOnly()
+                      return
+                    }
                     if (isRequestFormOpen && exitActionType === 'resigned') {
                       setIsRequestFormOpen(false)
                     } else {
@@ -1172,6 +1221,7 @@ function TerminatePageContent() {
                       setIsRequestFormOpen(true)
                     }
                   }}
+                  disabled={isViewOnly}
                   className={cn(
                     "font-bold px-5 py-2.5 rounded-lg transition-all duration-300 shadow-lg flex items-center gap-2 h-auto border text-sm uppercase tracking-wider",
                     isRequestFormOpen && exitActionType === 'resigned'
@@ -1540,6 +1590,7 @@ function TerminatePageContent() {
               <Button
                 onClick={handleSubmit as any}
                 disabled={
+                  isViewOnly ||
                   submitting ||
                   !selectedEmployeeId ||
                   formData.reason.trim().length < 10 ||
@@ -1689,7 +1740,7 @@ function TerminatePageContent() {
                                       }))
                                       setShowDetailDialog(true)
                                     }}
-                                    disabled={rehireLoading === record.employee_id}
+                                    disabled={isViewOnly || rehireLoading === record.employee_id}
                                   >
                                     {rehireLoading === record.employee_id ? 'Wait...' : 'Re-hire'}
                                   </Button>
@@ -1851,7 +1902,7 @@ function TerminatePageContent() {
                                         }))
                                         setShowDetailDialog(true)
                                       }}
-                                      disabled={rehireLoading === record.employee_id}
+                                      disabled={isViewOnly || rehireLoading === record.employee_id}
                                     >
                                       {rehireLoading === record.employee_id ? 'Wait...' : 'Re-hire'}
                                     </Button>
@@ -2076,7 +2127,7 @@ function TerminatePageContent() {
                       router.push('/admin-head/employee/masterfile')
                     }
                   }}
-                  disabled={isSavingChecklist}
+                  disabled={isViewOnly || isSavingChecklist}
                   variant="outline"
                   className="h-10 px-6 border-stone-300 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-stone-50 transition-all shadow-sm font-sans"
                 >
@@ -2089,7 +2140,7 @@ function TerminatePageContent() {
                       router.push('/admin-head/employee/masterfile')
                     }
                   }}
-                  disabled={completedClearanceCount < clearanceTasks.length || isSavingChecklist}
+                  disabled={isViewOnly || completedClearanceCount < clearanceTasks.length || isSavingChecklist}
                   className="h-10 px-6 bg-[#A4163A] hover:bg-[#800020] text-white rounded-lg font-bold text-[10px] uppercase tracking-wider shadow-md transform active:scale-95 transition-all font-sans"
                 >
                   Complete Clearance
@@ -2200,7 +2251,7 @@ function TerminatePageContent() {
                       handleRehire(selectedTermination.employee_id)
                     }
                   }}
-                  disabled={rehireLoading === selectedTermination?.employee_id}
+                  disabled={isViewOnly || rehireLoading === selectedTermination?.employee_id}
                 >
                   {rehireLoading === selectedTermination?.employee_id ? 'Restoring Access...' : 'Re-hire Employee'}
                 </Button>

@@ -39,6 +39,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getApiUrl } from "@/lib/api";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 
 type Office = {
   id: string;
@@ -377,7 +378,16 @@ const EditorSkeleton = () => (
 );
 
 export default function EditFormsPage() {
+  const { isViewOnly } = useUserRole();
   const router = useRouter();
+  const viewOnlyDescription =
+    "Create, update, and delete actions are disabled in view only mode.";
+  const notifyViewOnly = () => {
+    toast.warning("View Only Mode", {
+      description: viewOnlyDescription,
+    });
+  };
+
   const [activeTab, setActiveTab] = useState("letterhead");
   const [templates, setTemplates] = useState({
     "tardiness-regular": DEFAULT_TARDINESS_REGULAR_TEMPLATE,
@@ -551,6 +561,11 @@ export default function EditFormsPage() {
   }, []);
 
   const handleSave = async (silent = false) => {
+    if (isViewOnly) {
+      if (!silent) notifyViewOnly();
+      return;
+    }
+
     if (!silent) setIsSaving(true);
     try {
       const payload = Object.fromEntries(
@@ -610,6 +625,11 @@ export default function EditFormsPage() {
   };
 
   const resetTemplate = (type: string) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     const defaults: any = {
       "tardiness-regular": DEFAULT_TARDINESS_REGULAR_TEMPLATE,
       "tardiness-probee": DEFAULT_TARDINESS_PROBEE_TEMPLATE,
@@ -1194,6 +1214,12 @@ export default function EditFormsPage() {
                   <Calendar className="w-4 h-4" />
                   ABIC REALTY & CONSULTANCY
                 </p>
+                {isViewOnly && (
+                  <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                    <Eye className="w-4 h-4" />
+                    VIEW ONLY MODE - Editing and modifications are disabled
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-3">
@@ -1307,7 +1333,7 @@ export default function EditFormsPage() {
 
                   <Button
                     onClick={() => handleSave()}
-                    disabled={isSaving}
+                    disabled={isViewOnly || isSaving}
                     className="bg-white text-[#7B0F2B] hover:bg-rose-50 shadow-md hover:shadow-lg transition-all duration-300 text-[10px] font-black uppercase tracking-widest h-10 px-8 rounded-xl flex items-center border-b-4 border-rose-200 active:border-b-0 active:translate-y-1"
                   >
                     {isSaving ? (
@@ -1354,7 +1380,7 @@ export default function EditFormsPage() {
                 variant="outline"
                 size="lg"
                 onClick={() => handleSave()}
-                disabled={isSaving}
+                disabled={isViewOnly || isSaving}
                 className="bg-white hover:bg-amber-600 hover:text-white border-amber-300 text-amber-900 font-black rounded-2xl px-8 h-14 shadow-md transition-all active:scale-95"
               >
                 {isSaving ? "Syncing..." : "Migrate to Cloud"}
@@ -1374,6 +1400,7 @@ export default function EditFormsPage() {
             <div
               className={cn(
                 "space-y-6 transition-all duration-500",
+                isViewOnly && "opacity-75 pointer-events-none",
                 showPreview ? "animate-in slide-in-from-left" : "w-full",
               )}
             >

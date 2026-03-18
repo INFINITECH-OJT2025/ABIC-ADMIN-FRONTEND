@@ -23,9 +23,11 @@ import {
   Save,
   Loader2,
   ChevronUp,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmationModal } from "@/components/ConfirmationModal";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 import {
   Select,
   SelectContent,
@@ -311,6 +313,15 @@ const MasterfileSkeleton = () => (
 );
 
 export default function MasterfilePage() {
+  const { isViewOnly } = useUserRole();
+  const viewOnlyDescription =
+    "Create, update, and delete actions are disabled in view only mode.";
+  const notifyViewOnly = () => {
+    toast.warning("View Only Mode", {
+      description: viewOnlyDescription,
+    });
+  };
+
   const router = useRouter();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -694,6 +705,11 @@ export default function MasterfilePage() {
   const toggleEditSection = async (
     section: "contact" | "current" | "permanent" | "employment" | "personal",
   ) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     if (!selectedEmployee) return;
 
     if (section === "employment") {
@@ -786,6 +802,11 @@ export default function MasterfilePage() {
   const handleSaveSection = async (
     section: "contact" | "current" | "permanent" | "employment" | "personal",
   ) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     if (!selectedEmployee) return;
     setIsActionLoading(true);
     try {
@@ -820,6 +841,11 @@ export default function MasterfilePage() {
   };
 
   const openGlobalEditMode = async () => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     if (!selectedEmployee) return;
 
     setEditFormData({ ...selectedEmployee });
@@ -890,6 +916,11 @@ export default function MasterfilePage() {
   };
 
   const handleSaveAllEdits = async () => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     if (!selectedEmployee) return;
 
     const nameLabels: Record<string, string> = {
@@ -975,6 +1006,12 @@ export default function MasterfilePage() {
   const handleDetailProfileImageUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
   ) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      event.target.value = "";
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -1376,6 +1413,11 @@ export default function MasterfilePage() {
   };
 
   const handleSetAsEmployed = async () => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     if (!selectedEmployee) return;
 
     const { isComplete } = checkCompleteness(selectedEmployee);
@@ -1673,6 +1715,12 @@ export default function MasterfilePage() {
                     <Users className="w-4 h-4" />
                     Manage and monitor employee master data and records.
                   </p>
+                  {isViewOnly && (
+                    <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                      <Eye className="w-4 h-4" />
+                      VIEW ONLY MODE - Editing and modifications are disabled
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -2167,6 +2215,12 @@ export default function MasterfilePage() {
                         View and manage employee profile information and
                         records.
                       </p>
+                      {isViewOnly && (
+                        <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                          <Eye className="w-4 h-4" />
+                          VIEW ONLY MODE - Editing and modifications are disabled
+                        </p>
+                      )}
                     </div>
 
                     {/* Actions */}
@@ -2197,7 +2251,8 @@ export default function MasterfilePage() {
                         ) : (
                           <button
                             onClick={openGlobalEditMode}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2 cursor-pointer"
+                            disabled={isViewOnly}
+                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
                           >
                             <Edit2 className="w-4 h-4" />
                             <span>Edit</span>
@@ -2280,7 +2335,7 @@ export default function MasterfilePage() {
                                   type="file"
                                   accept="image/*"
                                   onChange={handleDetailProfileImageUpload}
-                                  disabled={uploadingProfileImage || isActionLoading}
+                                  disabled={isViewOnly || uploadingProfileImage || isActionLoading}
                                   className="hidden"
                                 />
                                 {Boolean(editFormData.user_profile) && (
@@ -2292,6 +2347,7 @@ export default function MasterfilePage() {
                                         user_profile: "",
                                       }))
                                     }
+                                    disabled={isViewOnly}
                                     className="inline-flex items-center h-7 px-2.5 rounded-md bg-white/10 border border-white/40 text-white text-[11px] font-bold hover:bg-white/20"
                                   >
                                     Remove

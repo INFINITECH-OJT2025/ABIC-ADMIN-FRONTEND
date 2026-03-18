@@ -2,12 +2,13 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit2, Save, ChevronUp, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { Plus, Search, Edit2, Save, ChevronUp, ChevronDown, ChevronRight, Loader2, Eye } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { getApiUrl } from "@/lib/api";
 import { Toaster } from "@/components/ui";
 import { toast } from "sonner";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 
 type SummaryRow = {
   id: number | string;
@@ -143,6 +144,7 @@ function buildOnboardHref(row: JobOfferRow): string {
 }
 
 export default function HiringReportPage() {
+  const { isViewOnly } = useUserRole();
   const [loading, setLoading] = useState(true);
   const [editingSummaryId, setEditingSummaryId] = useState<number | string | null>(null);
   const [editingJobOfferId, setEditingJobOfferId] = useState<number | string | null>(null);
@@ -160,6 +162,13 @@ export default function HiringReportPage() {
   const [positionOptions, setPositionOptions] = useState<string[]>([""]);
 
   const [searchTerm, setSearchTerm] = useState("");
+
+  const viewOnlyDescription = "Create, update, and delete actions are disabled in view only mode.";
+  const notifyViewOnly = () => {
+    toast.warning("View Only Mode", {
+      description: viewOnlyDescription,
+    });
+  };
 
   const applyOnboardedCountsToSummary = (rows: SummaryRow[], onboarded: OnboardedRow[]): SummaryRow[] => {
     const onboardedByPosition = onboarded.reduce<Map<string, number>>((acc, item) => {
@@ -233,6 +242,11 @@ export default function HiringReportPage() {
   }, []);
 
   const addSummaryRow = () => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     const hasIncompleteDraft = summaryRows.some(
       (row) => row.isNew && !String(row.position ?? "").trim(),
     );
@@ -259,6 +273,11 @@ export default function HiringReportPage() {
   };
 
   const addJobOfferRow = () => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     if (jobOfferCandidates.length === 0) {
       toast.error("No passed final interview candidates available.");
       return;
@@ -318,6 +337,11 @@ export default function HiringReportPage() {
   };
 
   const saveSummary = async (row: SummaryRow) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     if (savingSummaryId === row.id) return;
     const apiUrl = getApiUrl();
     const payload = {
@@ -361,6 +385,11 @@ export default function HiringReportPage() {
   };
 
   const saveJobOffer = async (row: JobOfferRow) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
     if (savingJobOfferId === row.id) return;
     const apiUrl = getApiUrl();
     const needsResponseDate = row.status !== "Pending";
@@ -551,6 +580,12 @@ export default function HiringReportPage() {
         <div className="w-full px-4 md:px-8 py-6">
           <h1 className="text-2xl md:text-3xl font-bold mb-2">Hiring Report</h1>
           <p className="text-white/80 text-sm md:text-base">Manage requirements, offers, and onboarding progress.</p>
+          {isViewOnly && (
+            <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+              <Eye className="w-4 h-4" />
+              VIEW ONLY MODE - Editing and modifications are disabled
+            </p>
+          )}
         </div>
 
         <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm">
@@ -597,9 +632,10 @@ export default function HiringReportPage() {
             <div
               onClick={(e) => {
                 e.stopPropagation();
+                if (isViewOnly) return;
                 addSummaryRow();
               }}
-              className="bg-white text-[#A4163A] border-2 border-[#A4163A] rounded-full p-0.5 w-7 h-7 flex items-center justify-center cursor-pointer hover:bg-[#A4163A] hover:text-white transition-colors shadow-sm active:scale-95"
+              className={`bg-white text-[#A4163A] border-2 border-[#A4163A] rounded-full p-0.5 w-7 h-7 flex items-center justify-center transition-colors shadow-sm ${isViewOnly ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-[#A4163A] hover:text-white active:scale-95"}`}
             >
               <Plus size={20} strokeWidth={4} />
             </div>
@@ -618,7 +654,7 @@ export default function HiringReportPage() {
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
                 {filteredSummaryRows.map((row) => {
-                  const editable = row.isNew || editingSummaryId === row.id;
+                  const editable = !isViewOnly && (row.isNew || editingSummaryId === row.id);
                   const isSaving = savingSummaryId === row.id;
                   return (
                     <TableRow key={row.id} className="hover:bg-[#FFE5EC] hover:[&>td]:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group">
@@ -683,7 +719,8 @@ export default function HiringReportPage() {
                         ) : (
                           <button
                             onClick={() => setEditingSummaryId(row.id)}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-2.5 rounded-lg inline-flex items-center gap-2 cursor-pointer"
+                            disabled={isViewOnly}
+                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-2.5 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Edit2 className="w-4 h-4" />
                             <span>Edit</span>
@@ -733,7 +770,7 @@ export default function HiringReportPage() {
               </TableHeader>
               <TableBody className="divide-y divide-stone-100">
                 {filteredJobOffers.map((row) => {
-                  const editable = row.isNew || editingJobOfferId === row.id;
+                  const editable = !isViewOnly && (row.isNew || editingJobOfferId === row.id);
                   const onboarded = isAlreadyOnboarded(row);
                   const isSaving = savingJobOfferId === row.id;
                   const needsResponseDate = row.status !== "Pending";
@@ -839,10 +876,19 @@ export default function HiringReportPage() {
                           <span className="text-green-700 text-[11px] font-bold uppercase tracking-wide">Onboarded</span>
                         ) : row.status === "Accepted" ? (
                           row.startDate && remainingSlots > 0 ? (
-                            <Link href={buildOnboardHref(row)}>
+                            <Link
+                              href={buildOnboardHref(row)}
+                              onClick={(e) => {
+                                if (isViewOnly) {
+                                  e.preventDefault();
+                                  notifyViewOnly();
+                                }
+                              }}
+                            >
                               <button
                                 title="Onboard this applicant"
-                                className="h-9 px-4 text-[11px] font-black uppercase tracking-wide rounded-lg border border-[#800020] text-[#800020] hover:bg-[#800020] hover:text-white transition-colors inline-flex items-center justify-center"
+                                disabled={isViewOnly}
+                                className="h-9 px-4 text-[11px] font-black uppercase tracking-wide rounded-lg border border-[#800020] text-[#800020] hover:bg-[#800020] hover:text-white transition-colors inline-flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 Onboard Applicant
                               </button>
@@ -867,7 +913,8 @@ export default function HiringReportPage() {
                         ) : (
                           <button
                             onClick={() => setEditingJobOfferId(row.id)}
-                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-3 rounded-lg inline-flex items-center gap-2 cursor-pointer"
+                            disabled={isViewOnly}
+                            className="bg-white text-[#7B0F2B] border border-[#7B0F2B] hover:bg-[#FDF2F5] transition-all duration-200 text-[10px] font-bold uppercase tracking-wider h-8 px-3 rounded-lg inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                             <span>Edit</span>
