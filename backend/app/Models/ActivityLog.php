@@ -23,11 +23,13 @@ class ActivityLog extends Model
         'metadata',
         'ip_address',
         'user_agent',
+        'read_at',
     ];
 
     protected $casts = [
         'metadata' => 'array',
         'created_at' => 'datetime',
+        'read_at' => 'datetime',
     ];
 
     /**

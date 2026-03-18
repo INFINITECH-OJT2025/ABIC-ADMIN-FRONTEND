@@ -1,492 +1,622 @@
-"use client"
+"use client";
 
-import React, { useState, useEffect } from 'react'
-import { toast } from 'sonner'
-import { Badge } from '@/components/ui'
-import { Button } from '@/components/ui'
-import {
-  UserPlus,
-  UserMinus,
-  FileText,
-  Clock,
-  Settings,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  Calendar,
-  Search,
-  RefreshCw,
-  Loader2,
-  ChevronDown,
-  Check,
-  Activity,
-  AlertTriangle,
-  TrendingUp
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from '@/components/ui'
-import {
-  fetchActivityLogs,
-  type ActivityLog
-} from '@/lib/api/activity-logs'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { RefreshCw, Trash2, CheckCheck, Bell, Search, ArrowUpDown, ListFilter, Eye, ChevronLeft, Calendar, Users, UserCircle, FileText, GitBranch, Clock, UserPlus, Package, LayoutGrid, Filter } from "lucide-react";
 
-// Activity types
-type ActivityType = 'employee' | 'department' | 'position' | 'attendance' | 'system' | 'auth'
-type ActivityStatus = 'success' | 'warning' | 'error' | 'info'
+type ActivityLogRow = {
+	id: number;
+	activity_type: string;
+	action: string;
+	status: "success" | "warning" | "error" | "info" | string;
+	title: string;
+	description: string;
+	user_name?: string | null;
+	user_email?: string | null;
+	created_at: string;
+	read_at?: string | null;
+};
 
-// Tardiness entry shape from the tardiness API
-interface TardinessEntry {
-  id: string | number
-  employee_name: string
-  date: string
-  actual_in: string
-  minutes_late: number
-  warning_level: number
-  cutoff_period?: string
-  month: string
-  year: number
+const statusClassMap: Record<string, string> = {
+	success: "bg-emerald-100 text-emerald-800",
+	warning: "bg-amber-100 text-amber-800",
+	error: "bg-red-100 text-red-800",
+	info: "bg-sky-100 text-sky-800",
+};
+
+function formatDate(value: string) {
+	const d = new Date(value);
+	if (Number.isNaN(d.getTime())) return value;
+	return d.toLocaleString();
 }
 
-// Human-readable ordinal for warning level
-function warningLabel(level: number): string {
-  if (level === 1) return '1st Warning'
-  if (level === 2) return '2nd Warning'
-  if (level === 3) return '3rd Warning'
-  if (level > 3) return `${level}th Warning`
-  return ''
+const PAGE_STEP = 15;
+
+const MODULE_TYPES = [
+	"attendance",
+	"directory",
+	"employee",
+	"forms",
+	"hierarchy",
+	"tardiness",
+	"hiring",
+	"inventory",
+] as const;
+
+function normalizeType(value: string) {
+	const type = value.toLowerCase();
+	if (type.includes("employee")) return "employee";
+	if (type.includes("attendance")) return "attendance";
+	if (type.includes("directory")) return "directory";
+	if (type.includes("tard")) return "tardiness";
+	if (type.includes("form") || type.includes("warning") || type.includes("checklist") || type.includes("evaluation")) return "forms";
+	if (type.includes("hierarch") || type.includes("department")) return "hierarchy";
+	if (type.includes("hiring")) return "hiring";
+	if (type.includes("inventory") || type.includes("office_supply") || type.includes("office-supply")) return "inventory";
+	return type;
 }
 
-// Format time from 24h or mixed format to 12h AM/PM
-function formatTime12h(timeStr: string): string {
-  if (!timeStr) return timeStr
-  // Handle HH:MM or HH:MM:SS
-  const match24 = timeStr.match(/^(\d{1,2}):(\d{2})/)
-  if (match24) {
-    let h = parseInt(match24[1])
-    const m = match24[2]
-    const ampm = h >= 12 ? 'PM' : 'AM'
-    if (h > 12) h -= 12
-    if (h === 0) h = 12
-    return `${h}:${m} ${ampm}`
-  }
-  return timeStr
-}
+const MODULE_ICONS: Record<string, any> = {
+	attendance: Calendar,
+	directory: Users,
+	employee: UserCircle,
+	forms: FileText,
+	hierarchy: GitBranch,
+	tardiness: Clock,
+	hiring: UserPlus,
+	inventory: Package,
+};
 
-// Format date string to "Month DD, YYYY"
-function formatReadableDate(dateStr: string): string {
-  if (!dateStr) return dateStr
-  const d = new Date(dateStr)
-  if (isNaN(d.getTime())) return dateStr
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-}
+export default function AdminHeadActivityLogsPage() {
+	const [logs, setLogs] = useState<ActivityLogRow[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [typeFilter, setTypeFilter] = useState<string>("all");
+	const [statusFilter, setStatusFilter] = useState<string>("all");
+	const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">("all");
+	const [sortOrder, setSortOrder] = useState<"recent" | "oldest">("recent");
+	const [visibleCount, setVisibleCount] = useState(PAGE_STEP);
+	const [selectedLogId, setSelectedLogId] = useState<number | null>(null);
+	const [workingAction, setWorkingAction] = useState<"refresh" | "read" | "delete" | "single-read" | null>(null);
 
-const getActivityIcon = (type: string, action: string) => {
-  if (type === 'employee') {
-    if (action === 'created') return <UserPlus className="w-5 h-5" />
-    if (action === 'deleted' || action === 'terminated') return <UserMinus className="w-5 h-5" />
-    return <CheckCircle className="w-5 h-5" />
-  }
-  if (type === 'attendance') return <Clock className="w-5 h-5" />
-  if (type === 'department' || type === 'position') return <FileText className="w-5 h-5" />
-  if (type === 'system') return <Settings className="w-5 h-5" />
-  if (type === 'auth') return <Calendar className="w-5 h-5" />
-  return <AlertCircle className="w-5 h-5" />
-}
+	const fetchLogs = useCallback(async () => {
+		setWorkingAction("refresh");
+		setError(null);
 
-export default function AdminHeadPage() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [activeTab, setActiveTab] = useState('all')
-  const [activities, setActivities] = useState<ActivityLog[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+		try {
+			const response = await fetch("/api/laravel/api/activity-logs?per_page=200", {
+				method: "GET",
+			});
+			const result = await response.json();
 
-  // Tardiness entry state
-  const [tardinessEntries, setTardinessEntries] = useState<TardinessEntry[]>([])
-  const [tardinessLoading, setTardinessLoading] = useState(true)
-  const [tardinessError, setTardinessError] = useState<string | null>(null)
+			if (!response.ok || !result?.success) {
+				throw new Error(result?.message || "Failed to load activity logs");
+			}
 
-  const loadActivities = async (showRefreshing = false) => {
-    try {
-      if (showRefreshing) {
-        setRefreshing(true)
-      } else {
-        setLoading(true)
-      }
-      setError(null)
+			setLogs(Array.isArray(result.data) ? result.data : []);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Failed to load activity logs");
+		} finally {
+			setLoading(false);
+			setWorkingAction(null);
+		}
+	}, []);
 
-      const response = await fetchActivityLogs({
-        type: activeTab === 'all' ? undefined : activeTab,
-        search: searchQuery || undefined,
-        page: currentPage,
-        per_page: 15,
-      })
+	const emitUnreadCount = useCallback((nextLogs: ActivityLogRow[]) => {
+		const count = nextLogs.reduce((acc, row) => (row.read_at ? acc : acc + 1), 0);
+		window.dispatchEvent(new CustomEvent("activity-log-unread-changed", { detail: { count } }));
+	}, []);
 
-      setActivities(response.data)
-      setTotalPages(response.pagination.last_page)
-    } catch (err) {
-      setError('Failed to load activity logs. Please try again.')
-      toast.error('Failed to load activity logs', {
-        description: 'Please check your connection and try again.'
-      })
-      console.error('Error loading activities:', err)
-    } finally {
-      setLoading(false)
-      setRefreshing(false)
-    }
-  }
+	const markAllAsRead = useCallback(async () => {
+		setWorkingAction("read");
+		setError(null);
 
-  useEffect(() => {
-    loadActivities()
-  }, [activeTab, currentPage])
+		try {
+			const response = await fetch("/api/laravel/api/activity-logs/mark-all-read", {
+				method: "POST",
+			});
+			const result = await response.json();
 
-  // Debounced search
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (currentPage === 1) {
-        loadActivities()
-      } else {
-        setCurrentPage(1)
-      }
-    }, 500)
+			if (!response.ok || !result?.success) {
+				throw new Error(result?.message || "Failed to mark all as read");
+			}
 
-    return () => clearTimeout(timer)
-  }, [searchQuery])
+			const nextLogs = logs.map((row) => ({ ...row, read_at: row.read_at || new Date().toISOString() }));
+			setLogs(nextLogs);
+			emitUnreadCount(nextLogs);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Failed to mark all as read");
+		} finally {
+			setWorkingAction(null);
+		}
+	}, [emitUnreadCount, logs]);
 
-  const loadTardinessActivities = async () => {
-    try {
-      setTardinessLoading(true)
-      setTardinessError(null)
-      const now = new Date()
-      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
-      const month = monthNames[now.getMonth()]
-      const year = now.getFullYear()
-      const res = await fetch(`/api/admin-head/attendance/tardiness?month=${month}&year=${year}`)
-      const data = await res.json()
-      if (data.success) {
-        // Sort by date descending (most recent first), take top 10
-        const sorted: TardinessEntry[] = (data.data as TardinessEntry[])
-          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-          .slice(0, 10)
-        setTardinessEntries(sorted)
-      } else {
-        setTardinessError('Failed to load tardiness records.')
-      }
-    } catch {
-      setTardinessError('Failed to load tardiness records.')
-    } finally {
-      setTardinessLoading(false)
-    }
-  }
+	const markSingleAsRead = useCallback(async (id: number) => {
+		const target = logs.find((row) => row.id === id);
+		if (!target || target.read_at) return;
 
-  useEffect(() => {
-    loadTardinessActivities()
-  }, [])
+		setWorkingAction("single-read");
+		setError(null);
 
-  const handleRefresh = () => {
-    if (currentPage !== 1) {
-      setCurrentPage(1)
-    } else {
-      loadActivities(true)
-    }
-    loadTardinessActivities()
-  }
+		try {
+			const response = await fetch(`/api/laravel/api/activity-logs/${id}/mark-read`, {
+				method: "PATCH",
+			});
+			const result = await response.json();
 
-  const handleTabChange = (value: string) => {
-    setActiveTab(value)
-    setCurrentPage(1)
-  }
+			if (!response.ok || !result?.success) {
+				throw new Error(result?.message || "Failed to mark activity as read");
+			}
 
-  return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-stone-50 via-white to-red-50 text-stone-900 font-sans pb-2">
-      <div className="relative w-full sticky top-0 z-10">
-        {/* ----- INTEGRATED HEADER & TOOLBAR ----- */}
-        <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md">
-          {/* Main Header Row */}
-          <div className="w-full px-4 md:px-8 py-6">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold mb-1">Activity Logs</h1>
-                <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
-                  <Activity className="w-4 h-4" />
-                  ABIC REALTY & CONSULTANCY - Real-time Monitoring
-                </p>
-              </div>
+			const nowIso = new Date().toISOString();
+			const nextLogs = logs.map((row) => (row.id === id ? { ...row, read_at: row.read_at || nowIso } : row));
+			setLogs(nextLogs);
+			emitUnreadCount(nextLogs);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Failed to mark activity as read");
+		} finally {
+			setWorkingAction(null);
+		}
+	}, [emitUnreadCount, logs]);
 
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={handleRefresh}
-                  disabled={refreshing}
-                  variant="outline"
-                  className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all rounded-full px-5 py-2 h-auto text-sm font-bold uppercase tracking-wider flex items-center gap-2"
-                >
-                  <RefreshCw className={cn("w-4 h-4", refreshing && "animate-spin")} />
-                  <span>REFRESH</span>
-                </Button>
-              </div>
-            </div>
-          </div>
+	const onOpenCard = useCallback(async (id: number) => {
+		setSelectedLogId(id);
+		await markSingleAsRead(id);
+	}, [markSingleAsRead]);
 
-          {/* Secondary Toolbar */}
-          <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm">
-            <div className="w-full px-4 md:px-8 py-3">
-              <div className="flex flex-wrap items-center gap-3 md:gap-4">
-                {/* Category Selection */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-white/70 uppercase tracking-wider">CATEGORY</span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[200px] justify-between shadow-sm font-bold inline-flex items-center whitespace-nowrap rounded-lg cursor-pointer group border-2">
-                        <span className="capitalize">{activeTab} Activities</span>
-                        <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 bg-white border-stone-200 shadow-xl rounded-xl p-1.5" align="start">
-                      {['all', 'employee', 'department', 'position', 'attendance', 'auth'].map(tab => (
-                        <DropdownMenuItem
-                          key={tab}
-                          onClick={() => handleTabChange(tab)}
-                          className={cn(
-                            "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
-                            activeTab === tab ? "bg-red-50 text-red-900 font-semibold" : "text-stone-600 hover:bg-stone-50"
-                          )}
-                        >
-                          <span className="capitalize">{tab}</span>
-                          {activeTab === tab && <Check className="w-4 h-4 text-red-600" />}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+	const deleteAllLogs = useCallback(async () => {
+		const ok = window.confirm("Delete all activity logs?");
+		if (!ok) return;
 
-                {/* Global Search Input */}
-                <div className="relative w-full md:w-[350px]">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#A0153E]" />
-                  <Input
-                    placeholder="Search activity descriptions, users, or titles..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="bg-white border-2 border-[#FFE5EC] text-slate-700 placeholder:text-slate-400 pl-10 h-10 w-full focus:ring-2 focus:ring-[#A0153E] focus:border-[#C9184A] shadow-sm rounded-lg transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+		setWorkingAction("delete");
+		setError(null);
 
-      <div className="w-full pl-6 pr-6 py-6">
-        {/* Activity Feed */}
-        <div className="bg-white rounded-xl shadow-sm border border-stone-200 overflow-hidden">
+		try {
+			const response = await fetch("/api/laravel/api/activity-logs/delete-all", {
+				method: "DELETE",
+			});
+			const result = await response.json();
 
-          {/* Attendance tab: show tardiness entries only */}
-          {activeTab === 'attendance' ? (
-            tardinessLoading ? (
-              <div className="flex flex-col items-center justify-center py-32 space-y-4">
-                <Loader2 className="w-12 h-12 text-[#A4163A] animate-spin" />
-                <p className="text-stone-400 font-medium">Loading tardiness activity...</p>
-              </div>
-            ) : tardinessEntries.length === 0 ? (
-              <div className="text-center py-20 px-4">
-                <Clock className="w-10 h-10 text-stone-300 mx-auto mb-3" />
-                <p className="text-stone-400 text-sm">No tardiness records found for this month.</p>
-              </div>
-            ) : (
-              <div className="divide-y divide-stone-100">
-                {tardinessEntries.map((entry, idx) => {
-                  const warnText = warningLabel(entry.warning_level ?? 0)
-                  const timeText = formatTime12h(entry.actual_in)
-                  const dateText = formatReadableDate(entry.date)
-                  const hasWarning = (entry.warning_level ?? 0) > 0
-                  return (
-                    <div key={`att-${entry.id ?? idx}`} className="p-6 hover:bg-stone-50/50 transition-colors">
-                      <div className="flex items-start gap-4">
-                        <div className={cn(
-                          "flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center border",
-                          hasWarning ? "bg-amber-50 border-amber-200 text-amber-600" : "bg-rose-50 border-rose-100 text-[#A4163A]"
-                        )}>
-                          {hasWarning ? <AlertTriangle className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-1">
-                            <h3 className="font-bold text-stone-900 text-lg">Tardiness Monitoring</h3>
-                            <Badge className={cn(
-                              "text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border-none",
-                              hasWarning ? "bg-amber-100 text-amber-700 hover:bg-amber-100" : "bg-rose-100 text-[#A4163A] hover:bg-rose-100"
-                            )}>
-                              {hasWarning ? warnText : 'Late'}
-                            </Badge>
-                          </div>
-                          <p className="text-stone-500 text-sm font-medium">
-                            Entry added for <span className="font-semibold text-stone-900">{entry.employee_name}</span>{' '}
-                            at <span className="font-medium">{timeText}</span>{' '}
-                            on <span className="font-medium">{dateText}</span>
-                            {hasWarning && <span className="text-amber-700 font-semibold"> - {warnText}</span>}
-                          </p>
-                          <p className="text-stone-400 text-xs mt-0.5">
-                            {entry.minutes_late} min{entry.minutes_late !== 1 ? 's' : ''} late from 8:00 AM
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )
-          ) : (
-            /* All other tabs (all, employee, department, etc.) */
-            loading ? (
-              <div className="flex flex-col items-center justify-center py-32 space-y-4">
-                <Loader2 className="w-12 h-12 text-[#A4163A] animate-spin" />
-                <p className="text-stone-400 font-medium">Loading activities...</p>
-              </div>
-            ) : error ? (
-              <div className="text-center py-20 px-4">
-                <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-                <p className="text-stone-600 font-medium">{error}</p>
-                <Button variant="outline" onClick={() => loadActivities()} className="mt-4">Retry</Button>
-              </div>
-            ) : activities.length === 0 && (activeTab !== 'all' || tardinessEntries.length === 0) ? (
-              <div className="text-center py-20 px-4">
-                <p className="text-stone-400">No activities found matching your criteria.</p>
-              </div>
-            ) : (() => {
-              // Build merged + sorted list for 'all' tab
-              type ApiItem = { _kind: 'api'; _ts: number; activity: typeof activities[0] }
-              type TardItem = { _kind: 'tardiness'; _ts: number; entry: typeof tardinessEntries[0]; idx: number }
-              type MergedItem = ApiItem | TardItem
+			if (!response.ok || !result?.success) {
+				throw new Error(result?.message || "Failed to delete all logs");
+			}
 
-              const merged: MergedItem[] = activeTab === 'all'
-                ? [
-                  ...activities.map(a => ({
-                    _kind: 'api' as const,
-                    _ts: a.created_at ? new Date(a.created_at).getTime() : 0,
-                    activity: a,
-                  })),
-                  ...tardinessEntries.map((e, idx) => ({
-                    _kind: 'tardiness' as const,
-                    _ts: e.date ? new Date(e.date).getTime() : 0,
-                    entry: e,
-                    idx,
-                  })),
-                ].sort((a, b) => b._ts - a._ts)
-                : activities.map(a => ({
-                  _kind: 'api' as const,
-                  _ts: a.created_at ? new Date(a.created_at).getTime() : 0,
-                  activity: a,
-                }))
+			setLogs([]);
+			emitUnreadCount([]);
+		} catch (err) {
+			setError(err instanceof Error ? err.message : "Failed to delete all logs");
+		} finally {
+			setWorkingAction(null);
+		}
+	}, [emitUnreadCount]);
 
-              return (
-                <>
-                  <div className="divide-y divide-stone-100">
-                    {merged.map((item) => {
-                      if (item._kind === 'api') {
-                        const activity = item.activity
-                        return (
-                          <div key={`api-${activity.id}`} className="p-6 hover:bg-stone-50/50 transition-colors group">
-                            <div className="flex items-start gap-4">
-                              <div className="flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center bg-[#EBF5FF] border border-[#D1E9FF] text-[#0066FF]">
-                                {getActivityIcon(activity.activity_type, activity.action)}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-3 mb-1">
-                                  <h3 className="font-bold text-stone-900 text-lg">{activity.title}</h3>
-                                  <Badge className={cn(
-                                    "text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border-none",
-                                    activity.status === 'success'
-                                      ? "bg-[#DCFCE7] text-[#15803D] hover:bg-[#DCFCE7]"
-                                      : "bg-[#FEE2E2] text-[#B91C1C] hover:bg-[#FEE2E2]"
-                                  )}>
-                                    {activity.status}
-                                  </Badge>
-                                </div>
-                                <p className="text-stone-500 text-sm font-medium">{activity.description}</p>
-                              </div>
-                            </div>
-                          </div>
-                        )
-                      }
+	useEffect(() => {
+		void fetchLogs();
+	}, [fetchLogs]);
 
-                      // Tardiness item
-                      const entry = item.entry
-                      const warnText = warningLabel(entry.warning_level ?? 0)
-                      const timeText = formatTime12h(entry.actual_in)
-                      const dateText = formatReadableDate(entry.date)
-                      const hasWarning = (entry.warning_level ?? 0) > 0
-                      return (
-                        <div key={`tard-${entry.id ?? item.idx}`} className="p-6 hover:bg-stone-50/50 transition-colors">
-                          <div className="flex items-start gap-4">
-                            <div className={cn(
-                              "flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center border",
-                              hasWarning ? "bg-amber-50 border-amber-200 text-amber-600" : "bg-rose-50 border-rose-100 text-[#A4163A]"
-                            )}>
-                              {hasWarning ? <AlertTriangle className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-3 mb-1">
-                                <h3 className="font-bold text-stone-900 text-lg">Tardiness Monitoring</h3>
-                                <Badge className={cn(
-                                  "text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border-none",
-                                  hasWarning ? "bg-amber-100 text-amber-700 hover:bg-amber-100" : "bg-rose-100 text-[#A4163A] hover:bg-rose-100"
-                                )}>
-                                  {hasWarning ? warnText : 'Late'}
-                                </Badge>
-                              </div>
-                              <p className="text-stone-500 text-sm font-medium">
-                                Entry added for <span className="font-semibold text-stone-900">{entry.employee_name}</span>{' '}
-                                at <span className="font-medium">{timeText}</span>{' '}
-                                on <span className="font-medium">{dateText}</span>
-                                {hasWarning && <span className="text-amber-700 font-semibold"> - {warnText}</span>}
-                              </p>
-                              <p className="text-stone-400 text-xs mt-0.5">
-                                {entry.minutes_late} min{entry.minutes_late !== 1 ? 's' : ''} late from 8:00 AM
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+	useEffect(() => {
+		emitUnreadCount(logs);
+	}, [emitUnreadCount, logs]);
 
-                  {/* Footer: See previous notification */}
-                  {totalPages > 1 && (
-                    <div className="p-4 bg-stone-50/50 border-t border-stone-100">
-                      <button
-                        suppressHydrationWarning
-                        onClick={() => { if (currentPage < totalPages) setCurrentPage(p => p + 1) }}
-                        className="w-full py-4 bg-[#A4163A]/60 hover:bg-[#A4163A]/70 text-white rounded-md font-bold uppercase tracking-widest text-sm transition-all shadow-sm hover:shadow-md active:scale-[0.99]"
-                      >
-                        See previous notification
-                      </button>
-                    </div>
-                  )}
-                </>
-              )
-            })()
-          )}
-        </div>
-      </div>
+	const unreadCount = useMemo(
+		() => logs.reduce((count, row) => (row.read_at ? count : count + 1), 0),
+		[logs],
+	);
 
-      <style jsx>{`
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
-    </div>
-  )
+	const moduleCounts = useMemo(() => {
+		return MODULE_TYPES.reduce<Record<string, number>>((acc, type) => {
+			acc[type] = logs.filter((row) => normalizeType(row.activity_type) === type).length;
+			return acc;
+		}, {});
+	}, [logs]);
+
+	const availableStatuses = useMemo(() => {
+		const values = Array.from(new Set(logs.map((row) => row.status))).sort();
+		return values;
+	}, [logs]);
+
+	const filteredLogs = useMemo(() => {
+		let rows = [...logs];
+
+		if (typeFilter !== "all") rows = rows.filter((row) => normalizeType(row.activity_type) === typeFilter);
+		if (statusFilter !== "all") rows = rows.filter((row) => row.status === statusFilter);
+		if (readFilter === "read") rows = rows.filter((row) => Boolean(row.read_at));
+		if (readFilter === "unread") rows = rows.filter((row) => !row.read_at);
+
+		if (searchQuery.trim()) {
+			const q = searchQuery.trim().toLowerCase();
+			rows = rows.filter((row) =>
+				`${row.title} ${row.description} ${row.action} ${row.activity_type} ${row.user_name || ""}`
+					.toLowerCase()
+					.includes(q),
+			);
+		}
+
+		rows.sort((a, b) => {
+			const at = new Date(a.created_at).getTime();
+			const bt = new Date(b.created_at).getTime();
+			return sortOrder === "recent" ? bt - at : at - bt;
+		});
+
+		return rows;
+	}, [logs, readFilter, searchQuery, sortOrder, statusFilter, typeFilter]);
+
+	const visibleLogs = useMemo(() => filteredLogs.slice(0, visibleCount), [filteredLogs, visibleCount]);
+	const selectedLog = useMemo(() => logs.find((row) => row.id === selectedLogId) ?? null, [logs, selectedLogId]);
+
+	const hasMore = visibleCount < filteredLogs.length;
+
+	useEffect(() => {
+		setVisibleCount(PAGE_STEP);
+	}, [searchQuery, typeFilter, statusFilter, readFilter, sortOrder]);
+
+	if (selectedLog) {
+		const selectedStatusClass = statusClassMap[selectedLog.status] || statusClassMap.info;
+		const DetailsIcon = MODULE_ICONS[normalizeType(selectedLog.activity_type)];
+
+		return (
+			<section className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-12">
+				<div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-xl relative overflow-hidden">
+					<div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
+					<div className="w-full px-4 md:px-8 py-10 relative z-10">
+						<div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+							<div>
+								<button
+									type="button"
+									onClick={() => setSelectedLogId(null)}
+									className="mb-6 inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-xs font-black text-white hover:bg-white/20 transition-all hover:-translate-x-1 active:scale-95 uppercase tracking-widest"
+								>
+									<ChevronLeft className="h-4 w-4" />
+									Back to Activity Logs
+								</button>
+								<div className="flex items-center gap-3 mb-2">
+									<div className="p-3 bg-white/15 rounded-2xl backdrop-blur-md border border-white/20">
+										{DetailsIcon ? <DetailsIcon className="h-8 w-8 text-white" /> : <Bell className="h-8 w-8 text-white" />}
+									</div>
+									<div>
+										<h1 className="text-3xl md:text-4xl font-black tracking-tight">Log Details</h1>
+										<p className="text-white/70 text-sm font-bold uppercase tracking-widest mt-1">Event Reference #{selectedLog.id}</p>
+									</div>
+								</div>
+							</div>
+							<div className="flex flex-wrap items-center gap-3">
+								<span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-black text-white border border-white/20 backdrop-blur-md shadow-inner">
+									<Bell className="h-4 w-4 text-amber-300 animate-pulse" />
+									{unreadCount} UNREAD
+								</span>
+							</div>
+						</div>
+					</div>
+					<div className="border-t border-white/10 bg-white/5 backdrop-blur-md h-12" />
+				</div>
+
+				<div className="mx-auto max-w-[1000px] px-4 -mt-6 relative z-20">
+					<div className="rounded-3xl border border-slate-200 bg-white p-8 md:p-10 shadow-2xl space-y-10">
+						<div className="flex flex-wrap items-center gap-3">
+							<span className={`rounded-full px-4 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${selectedStatusClass} border-current/10`}>
+								{selectedLog.status}
+							</span>
+							<span className="rounded-full bg-slate-100 border border-slate-200 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-2">
+								{DetailsIcon && <DetailsIcon className="h-3.5 w-3.5" />}
+								{normalizeType(selectedLog.activity_type)}
+							</span>
+							<span className="rounded-full bg-slate-900 border border-slate-800 px-4 py-1.5 text-[10px] font-black uppercase tracking-widest text-white">
+								{selectedLog.action}
+							</span>
+						</div>
+
+						<div>
+							<h2 className="text-3xl md:text-4xl font-black text-slate-900 leading-tight">
+								{selectedLog.title}
+							</h2>
+							<div className="mt-6 p-6 rounded-2xl bg-slate-50 border border-slate-100 italic text-slate-700 text-lg leading-relaxed">
+								"{selectedLog.description}"
+							</div>
+						</div>
+
+						<div className="grid gap-6 md:grid-cols-2">
+							<div className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:border-[#9d1238]/20 hover:shadow-md">
+								<div className="flex items-center gap-3 mb-4">
+									<div className="p-2 bg-slate-100 rounded-lg group-hover:bg-[#9d1238]/10 group-hover:text-[#9d1238] transition-colors">
+										<Clock className="h-5 w-5" />
+									</div>
+									<p className="text-xs font-black uppercase tracking-widest text-slate-400">Time & Date</p>
+								</div>
+								<p className="text-lg font-bold text-slate-900">{formatDate(selectedLog.created_at)}</p>
+								<p className="text-xs text-slate-500 mt-1">System Timestamp</p>
+							</div>
+
+							<div className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:border-[#9d1238]/20 hover:shadow-md">
+								<div className="flex items-center gap-3 mb-4">
+									<div className="p-2 bg-slate-100 rounded-lg group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors">
+										<Eye className="h-5 w-5" />
+									</div>
+									<p className="text-xs font-black uppercase tracking-widest text-slate-400">Read Receipt</p>
+								</div>
+								<p className="text-lg font-bold text-slate-900">
+									{selectedLog.read_at ? `Viewed at ${formatDate(selectedLog.read_at)}` : "Unread by Admin"}
+								</p>
+								<p className="text-xs text-slate-500 mt-1">Status Tracking</p>
+							</div>
+
+							<div className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:border-[#9d1238]/20 hover:shadow-md">
+								<div className="flex items-center gap-3 mb-4">
+									<div className="p-2 bg-slate-100 rounded-lg group-hover:bg-amber-100 group-hover:text-amber-600 transition-colors">
+										<UserCircle className="h-5 w-5" />
+									</div>
+									<p className="text-xs font-black uppercase tracking-widest text-slate-400">Initiated By</p>
+								</div>
+								<p className="text-lg font-bold text-slate-900">{selectedLog.user_name || "System Automated"}</p>
+								<p className="text-xs font-medium text-slate-500 mt-1 truncate">{selectedLog.user_email || "no-reply@system.log"}</p>
+							</div>
+
+							<div className="group rounded-2xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:border-[#9d1238]/20 hover:shadow-md">
+								<div className="flex items-center gap-3 mb-4">
+									<div className="p-2 bg-slate-100 rounded-lg group-hover:bg-emerald-100 group-hover:text-emerald-600 transition-colors">
+										<LayoutGrid className="h-5 w-5" />
+									</div>
+									<p className="text-xs font-black uppercase tracking-widest text-slate-400">System Module</p>
+								</div>
+								<p className="text-lg font-bold text-slate-900 uppercase">{normalizeType(selectedLog.activity_type)}</p>
+								<p className="text-xs text-slate-500 mt-1">Contextual Namespace</p>
+							</div>
+						</div>
+						
+					</div>
+				</div>
+			</section>
+		);
+	}
+
+	return (
+		<section className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+			<div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6">
+				<div className="w-full px-4 md:px-8 py-6">
+					<div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+						<div>
+							<h1 className="text-2xl md:text-3xl font-bold mb-2">Activity Logs</h1>
+							<p className="text-white/80 text-sm md:text-base">Track every insert, update, delete, terminate, and all system actions.</p>
+						</div>
+						<div className="flex flex-wrap items-center gap-3">
+							<span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-bold text-white border border-white/20 backdrop-blur-md shadow-inner">
+								<Bell className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+								{unreadCount} UNREAD
+							</span>
+							<button
+								type="button"
+								onClick={fetchLogs}
+								disabled={workingAction === "refresh"}
+								className="inline-flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-white/20 hover:border-white/50 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 shadow-lg"
+							>
+								<RefreshCw className={`h-4 w-4 ${workingAction === "refresh" ? "animate-spin" : ""}`} />
+								REFRESH
+							</button>
+							<button
+								type="button"
+								onClick={markAllAsRead}
+								disabled={workingAction === "read"}
+								className="inline-flex items-center gap-2 rounded-xl bg-emerald-500/90 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-emerald-600 hover:shadow-emerald-500/20 shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								<CheckCheck className="h-4 w-4" />
+								MARK ALL READ
+							</button>
+							<button
+								type="button"
+								onClick={deleteAllLogs}
+								disabled={workingAction === "delete"}
+								className="inline-flex items-center gap-2 rounded-xl bg-red-500/90 px-4 py-2.5 text-sm font-bold text-white transition-all hover:bg-red-600 hover:shadow-red-500/20 shadow-lg active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+							>
+								<Trash2 className="h-4 w-4" />
+								DELETE ALL
+							</button>
+						</div>
+					</div>
+				</div>
+
+				<div className="border-t border-white/10 bg-white/5 backdrop-blur-sm border-b border-white/5">
+					<div className="w-full px-4 md:px-8 py-4">
+						<div className="flex flex-col gap-5">
+							{/* Top Row: Module Filters */}
+							<div className="flex flex-wrap items-center gap-2">
+								<div className="text-xs font-bold uppercase tracking-wider text-white/50 mr-2 flex items-center gap-1.5">
+									<LayoutGrid className="h-3.5 w-3.5" />
+									Modules
+								</div>
+								<div className="flex flex-wrap items-center bg-black/20 p-1 rounded-xl border border-white/10 gap-1">
+									<button
+										type="button"
+										onClick={() => setTypeFilter("all")}
+										className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200 ${typeFilter === "all" ? "bg-white text-[#9d1238] shadow-lg scale-105" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+									>
+										<span>All</span>
+										<span className={`px-1.5 py-0.5 rounded-md text-[10px] ${typeFilter === "all" ? "bg-[#9d1238]/10 text-[#9d1238]" : "bg-white/10 text-white/50"}`}>
+											{logs.length}
+										</span>
+									</button>
+									{MODULE_TYPES.map((module) => {
+										const Icon = MODULE_ICONS[module];
+										return (
+											<button
+												key={module}
+												type="button"
+												onClick={() => setTypeFilter(module)}
+												className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold uppercase transition-all duration-200 ${typeFilter === module ? "bg-white text-[#9d1238] shadow-lg scale-105" : "text-white/70 hover:bg-white/10 hover:text-white"}`}
+											>
+												{Icon && <Icon className="h-3.5 w-3.5" />}
+												<span>{module}</span>
+												<span className={`px-1.5 py-0.5 rounded-md text-[10px] ${typeFilter === module ? "bg-[#9d1238]/10 text-[#9d1238]" : "bg-white/10 text-white/50"}`}>
+													{moduleCounts[module] ?? 0}
+												</span>
+											</button>
+										);
+									})}
+								</div>
+							</div>
+
+							{/* Bottom Row: Controls */}
+							<div className="flex flex-wrap items-center gap-4">
+								<div className="flex flex-wrap items-center gap-3">
+									<div className="flex items-center bg-black/20 p-1 rounded-xl border border-white/10 gap-1">
+										<button
+											type="button"
+											onClick={() => setReadFilter("all")}
+											className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${readFilter === "all" ? "bg-white text-[#9d1238]" : "text-white/70 hover:bg-white/10"}`}
+										>
+											ALL
+										</button>
+										<button
+											type="button"
+											onClick={() => setReadFilter("unread")}
+											className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${readFilter === "unread" ? "bg-white text-[#9d1238]" : "text-white/70 hover:bg-white/10"}`}
+										>
+											UNREAD
+											<span className={`px-1.5 py-0.5 rounded-md text-[10px] ${readFilter === "unread" ? "bg-[#9d1238]/10 text-[#9d1238]" : "bg-white/10 text-white/50"}`}>
+												{unreadCount}
+											</span>
+										</button>
+										<button
+											type="button"
+											onClick={() => setReadFilter("read")}
+											className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${readFilter === "read" ? "bg-white text-[#9d1238]" : "text-white/70 hover:bg-white/10"}`}
+										>
+											VIEWED
+										</button>
+									</div>
+
+									<div className="relative group">
+										<Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-white/40 group-focus-within:text-white transition-colors" />
+										<input
+											type="text"
+											value={searchQuery}
+											onChange={(event) => setSearchQuery(event.target.value)}
+											placeholder="Search activities..."
+											className="h-10 w-64 rounded-xl border border-white/10 bg-black/20 pl-10 pr-4 text-sm text-white placeholder:text-white/30 outline-none focus:ring-2 focus:ring-white/20 transition-all focus:w-80"
+										/>
+									</div>
+								</div>
+
+								<div className="flex flex-wrap items-center gap-2 ml-auto">
+									<div className="flex items-center gap-2 bg-black/20 p-1 rounded-xl border border-white/10">
+										<Filter className="h-3.5 w-3.5 text-white/40 ml-2" />
+										<select
+											value={statusFilter}
+											onChange={(event) => setStatusFilter(event.target.value)}
+											className="h-8 bg-transparent text-sm font-bold text-white outline-none cursor-pointer pr-2"
+										>
+											<option value="all" className="text-slate-900">All Status</option>
+											{availableStatuses.map((status) => (
+												<option key={status} value={status} className="text-slate-900">{status.toUpperCase()}</option>
+											))}
+										</select>
+									</div>
+
+									<button
+										type="button"
+										onClick={() => setSortOrder((current) => (current === "recent" ? "oldest" : "recent"))}
+										className="inline-flex h-10 items-center gap-2 rounded-xl border border-white/10 bg-black/20 px-4 text-xs font-bold text-white transition-all hover:bg-white/10 active:scale-95"
+									>
+										<ArrowUpDown className="h-3.5 w-3.5 text-white/50" />
+										{sortOrder === "recent" ? "RECENT FIRST" : "OLDEST FIRST"}
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div className="mx-auto max-w-[1200px] px-4 pb-8 md:px-8 md:pb-12">
+
+				{error ? (
+					<div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>
+				) : null}
+
+				{loading ? (
+					<div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">Loading activity logs...</div>
+				) : filteredLogs.length === 0 ? (
+					<div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">No activity logs found.</div>
+				) : (
+					<div className="space-y-3">
+						{visibleLogs.map((log) => {
+							const statusClass = statusClassMap[log.status] || statusClassMap.info;
+							return (
+								<article
+									key={log.id}
+									onClick={() => void onOpenCard(log.id)}
+									className="group cursor-pointer rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all duration-300 hover:border-[#9d1238]/30 hover:shadow-xl hover:shadow-[#9d1238]/5 active:scale-[0.99] relative overflow-hidden"
+								>
+									{!log.read_at && (
+										<div className="absolute left-0 top-0 h-full w-1 bg-[#9d1238]" />
+									)}
+									<div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+										<div className="flex-1">
+											<div className="flex flex-wrap items-center gap-2 mb-1.5">
+												<h2 className={`text-lg font-bold transition-colors ${!log.read_at ? "text-[#9d1238]" : "text-slate-800 group-hover:text-[#9d1238]"}`}>
+													{log.title}
+												</h2>
+												{!log.read_at && (
+													<span className="inline-flex items-center rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-600 tracking-tighter uppercase">
+														NEW
+													</span>
+												)}
+											</div>
+											<p className="text-sm text-slate-600 line-clamp-2 leading-relaxed mb-3">
+												{log.description}
+											</p>
+											<div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-400">
+												<div className="flex items-center gap-1.5">
+													<UserCircle className="h-3.5 w-3.5" />
+													{log.user_name || "System"}
+												</div>
+												<div className="flex items-center gap-1.5">
+													<Clock className="h-3.5 w-3.5" />
+													{formatDate(log.created_at)}
+												</div>
+											</div>
+										</div>
+										<div className="flex flex-wrap items-center gap-2 md:justify-end shrink-0">
+											<span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border transition-colors ${log.read_at ? "bg-slate-50 text-slate-500 border-slate-100" : "bg-blue-50 text-blue-600 border-blue-100"}`}>
+												<Eye className="h-3.5 w-3.5" />
+												{log.read_at ? "Viewed" : "Unread"}
+											</span>
+											<span className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border ${statusClass} border-current/10`}>
+												{log.status}
+											</span>
+											<span className="rounded-full bg-slate-100 border border-slate-200 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-slate-600 flex items-center gap-1">
+												{(() => {
+													const LogIcon = MODULE_ICONS[normalizeType(log.activity_type)];
+													return LogIcon ? <LogIcon className="h-3 w-3" /> : null;
+												})()}
+												{normalizeType(log.activity_type)}
+											</span>
+											<span className="rounded-full bg-slate-900 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white">
+												{log.action}
+											</span>
+										</div>
+									</div>
+								</article>
+							);
+						})}
+
+						{hasMore ? (
+							<div className="pt-4 flex justify-center">
+								<button
+									type="button"
+									onClick={() => setVisibleCount((current) => current + PAGE_STEP)}
+									className="group inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-8 py-4 text-sm font-black text-[#9d1238] hover:border-[#9d1238] hover:bg-[#9d1238] hover:text-white transition-all duration-300 shadow-sm hover:shadow-xl hover:shadow-[#9d1238]/20 active:scale-95"
+								>
+									<RefreshCw className="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" />
+									LOAD MORE ACTIVITIES
+								</button>
+							</div>
+						) : (
+							<div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 p-6 text-center text-sm font-bold text-slate-400">
+								YOU HAVE REACHED THE END OF THE ACTIVITY SYSTEM LOGS
+							</div>
+						)}
+					</div>
+				)}
+			</div>
+		</section>
+	);
 }

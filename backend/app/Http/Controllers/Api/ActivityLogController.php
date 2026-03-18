@@ -140,4 +140,104 @@ class ActivityLogController extends Controller
             ], 404);
         }
     }
+
+    /**
+     * Mark a single activity log as read
+     */
+    public function markRead($id)
+    {
+        try {
+            $activity = ActivityLog::findOrFail($id);
+
+            if (!$activity->read_at) {
+                $activity->read_at = now();
+                $activity->save();
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Activity log marked as read',
+                'data' => $activity,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to mark activity log as read',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Get unread activity log count
+     */
+    public function unreadCount()
+    {
+        try {
+            $count = ActivityLog::whereNull('read_at')->count();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'count' => $count,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to fetch unread count',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Mark all activity logs as read
+     */
+    public function markAllRead()
+    {
+        try {
+            $updated = ActivityLog::whereNull('read_at')->update([
+                'read_at' => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'All activity logs marked as read',
+                'data' => [
+                    'updated_count' => $updated,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to mark activity logs as read',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Delete all activity logs
+     */
+    public function deleteAll()
+    {
+        try {
+            $deleted = ActivityLog::query()->delete();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'All activity logs deleted',
+                'data' => [
+                    'deleted_count' => $deleted,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete activity logs',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
 }

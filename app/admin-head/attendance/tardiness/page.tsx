@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 import {
   ChevronDown,
   Clock,
@@ -19,6 +20,7 @@ import {
   RotateCcw,
   X,
   Calendar,
+  Eye,
 } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { toast } from "sonner";
@@ -73,6 +75,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { cn } from "@/lib/utils";
 import { getApiUrl } from "@/lib/api";
+import { useConfirmation } from "@/components/providers/confirmation-provider";
 
 // --- Skeleton Components ---
 const TardinessSkeleton = () => (
@@ -214,8 +217,17 @@ let DEPT_TO_OFFICE_MAP: Record<string, string> = {};
 
 // Parse start time from shift option string (e.g., "8:00 AM – 12:00 PM" -> 8:00 AM)
 function extractStartTime(shiftOption: string): string {
-  // Support both en-dash (–) and hyphen (-)
-  const parts = shiftOption.split(/\s*[–-]\s*/);
+  if (!shiftOption) return "";
+
+  // 1. Priority Fallback: Robustly match the FIRST valid time pattern (e.g., HH:MM AM/PM)
+  // This is safer than splitting if the separator is unusual or missing
+  const timeMatch = shiftOption.match(/\d{1,2}:\d{2}(?::\d{2})?\s*(?:AM|PM)?/i);
+  if (timeMatch) {
+    return timeMatch[0].trim();
+  }
+
+  // 2. Secondary: Support en-dash (–), em-dash (—), hyphen (-), and the word "to"
+  const parts = shiftOption.split(/\s*[–—-]|(?:\s+to\s+)\s*/i);
   return parts[0].trim();
 }
 
@@ -505,16 +517,31 @@ function formatDate(dateInput: any): string {
   return `${year}-${month}-${day}`;
 }
 
+// Format for display: mm/dd/yyyy
+function formatDisplayDate(dateInput: any): string {
+  if (!dateInput) return "";
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return String(dateInput);
+
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const year = date.getFullYear();
+  return `${month}/${day}/${year}`;
+}
+
 // Recalculate warnings for all entries
 function recalculateWarnings(
   entries: LateEntry[],
   leaves: LeaveEntry[],
 ): LateEntry[] {
-  // First, group by employee ONLY (to allow monthly cumulative counts)
+  // First, group by employee AND cutoff (to enforce separation between cutoffs)
   const entriesByEmployee = new Map<string | number, LateEntry[]>();
 
   entries.forEach((entry) => {
-    const key = entry.employee_id || entry.employee_name;
+    // Unique key per employee + cutoff to ensure counters reset every cutoff
+    const cutoff = entry.cutoffPeriod || entry.cutoff_period || "unknown";
+    const key = `${entry.employee_id || entry.employee_name}-${cutoff}`;
+
     if (!entriesByEmployee.has(key)) {
       entriesByEmployee.set(key, []);
     }
@@ -1044,7 +1071,10 @@ function EmployeeSelector({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between gap-2 h-12 text-sm border-slate-200 hover:bg-stone-50 font-normal text-slate-500 rounded-xl shadow-none px-4"
+          className={cn(
+            "w-full justify-between gap-2 h-9 text-xs border-slate-200 hover:bg-stone-50 rounded-lg shadow-none px-4 transition-all",
+            value ? "text-slate-900 font-bold" : "text-slate-500 font-normal",
+          )}
         >
           <span className="truncate shrink-0">
             {value
@@ -1078,14 +1108,26 @@ function EmployeeSelector({
                     onChange(currentValue === value ? "" : currentValue);
                     setOpen(false);
                   }}
+                  className="flex items-center justify-between py-2.5"
                 >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === employee.name ? "opacity-100" : "opacity-0",
-                    )}
-                  />
-                  {employee.name}
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    <Check
+                      className={cn(
+                        "h-4 w-4 shrink-0",
+                        value === employee.name ? "opacity-100" : "opacity-0",
+                      )}
+                    />
+                    <div className="flex flex-col gap-0.5 overflow-hidden">
+                      <span className="font-bold text-slate-900 truncate shrink-0">
+                        {employee.name}
+                      </span>
+                      {employee.department && (
+                        <span className="text-[10px] text-slate-400 font-medium truncate uppercase tracking-tight">
+                          {employee.department}
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -1210,8 +1252,8 @@ function SummarySheet({
 
   return (
     <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="w-full sm:max-w-2xl bg-white border-l-4 border-[#4A081A] text-slate-900 overflow-y-auto p-0">
-        <SheetHeader className="bg-gradient-to-r from-[#4A081A] via-[#630C22] to-[#7B0F2B] p-8 text-white relative">
+      <SheetContent className="w-full sm:max-w-2xl bg-white border-l-4 border-[#A4163A] text-slate-900 overflow-y-auto p-0">
+        <SheetHeader className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] p-8 text-white relative">
           <div className="flex justify-between items-start">
             <div>
               <SheetTitle className="text-3xl text-white font-bold flex items-center gap-2">
@@ -1230,8 +1272,8 @@ function SummarySheet({
             </button>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-4 mt-6">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#630C22]" />
+            <div className="relative flex-1 w-full text-slate-400">
+              <Search className="absolute left-3 top-2.5 h-4 w-4" />
               <Input
                 placeholder="Search employee..."
                 value={searchQuery}
@@ -1245,7 +1287,7 @@ function SummarySheet({
             <Button
               size="sm"
               onClick={handleExport}
-              className="bg-white text-[#4A081A] hover:bg-rose-50 border-0 text-sm h-10 px-6 flex items-center gap-2 font-bold shadow-lg transition-all duration-300 w-full sm:w-auto"
+              className="bg-white text-[#7B0F2B] hover:bg-rose-50 border-0 text-sm h-10 px-6 flex items-center gap-2 font-bold shadow-lg transition-all duration-300 w-full sm:w-auto"
             >
               <FileDown className="w-4 h-4" />
               Export
@@ -1256,13 +1298,13 @@ function SummarySheet({
         <div className="p-6 space-y-6">
           {/* Summary table - ONLY shows entries from this cutoff */}
           <Card className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden">
-            <CardHeader className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4">
+            <CardHeader className="bg-rose-50/50 pb-3 border-b-2 border-[#A4163A] p-4">
               <div className="flex justify-between items-center">
-                <CardTitle className="text-xl text-[#4A081A] font-bold">
+                <CardTitle className="text-xl text-[#7B0F2B] font-bold">
                   Employee Lates Summary
                 </CardTitle>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-[#630C22]">
+                  <p className="text-sm font-bold text-[#A4163A]">
                     {totalLateMinutes} mins / {totalOccurrences} occ /{" "}
                     <span className="text-red-600">
                       {totalWarnings} warnings
@@ -1270,7 +1312,7 @@ function SummarySheet({
                   </p>
                 </div>
               </div>
-              <CardDescription className="text-[#630C22]/70 text-xs font-medium">
+              <CardDescription className="text-slate-500 text-xs font-medium">
                 Minutes from Assigned Shift • Occurrences after 5min Grace
                 Period • {cutoffTitle} only
               </CardDescription>
@@ -1363,8 +1405,174 @@ function SummarySheet({
   );
 }
 
+// ---------- CUSTOM TIME PICKER ----------
+const CustomTimePicker = ({
+  value,
+  onChange,
+  className,
+  disabled,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  className?: string;
+  disabled?: boolean;
+}) => {
+  const displayTime = value
+    ? new Date(`2000-01-01T${value}`).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : "--:-- --";
+
+  const [hour, setHour] = useState("12");
+  const [minute, setMinute] = useState("00");
+  const [ampm, setAmpm] = useState("AM");
+
+  // Sync internal state with external value changes
+  useEffect(() => {
+    if (value) {
+      let h = parseInt(value.split(":")[0]);
+      let m = value.split(":")[1] || "00";
+      let ap = h >= 12 ? "PM" : "AM";
+      if (h === 0) h = 12;
+      else if (h > 12) h -= 12;
+
+      setHour(h.toString().padStart(2, "0"));
+      setMinute(m);
+      setAmpm(ap);
+    } else {
+      setHour("12");
+      setMinute("00");
+      setAmpm("AM");
+    }
+  }, [value]);
+
+  const handleUpdate = (h: string, m: string, ap: string) => {
+    setHour(h);
+    setMinute(m);
+    setAmpm(ap);
+
+    let hours = parseInt(h);
+    if (ap === "PM" && hours !== 12) hours += 12;
+    if (ap === "AM" && hours === 12) hours = 0;
+
+    onChange(`${hours.toString().padStart(2, "0")}:${m}`);
+  };
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          disabled={disabled}
+          className={cn(
+            "text-left bg-white border border-slate-200 text-black rounded-lg text-xs font-medium focus-visible:border-rose-200 focus-visible:ring-rose-100 shadow-none transition-all flex items-center gap-2",
+            disabled && "opacity-50 cursor-not-allowed bg-slate-50",
+            className,
+          )}
+        >
+          <Clock className="w-4 h-4 text-slate-300 shrink-0 group-hover/input:text-[#A4163A] transition-colors" />
+          <span className="truncate">{value ? displayTime : "--:-- --"}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-auto p-3 bg-white border border-slate-200 shadow-xl rounded-xl"
+        align="start"
+      >
+        <div className="flex items-center gap-2">
+          {/* Hour Scroller */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase text-center">
+              Hour
+            </span>
+            <div
+              className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1"
+              style={{ scrollbarWidth: "none" }}
+            >
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => {
+                const sHour = h.toString().padStart(2, "0");
+                return (
+                  <button
+                    key={h}
+                    onClick={() => handleUpdate(sHour, minute, ampm)}
+                    className={cn(
+                      "px-2 py-1.5 rounded text-xs font-bold transition-all",
+                      hour === sHour
+                        ? "bg-slate-200 text-black"
+                        : "hover:bg-slate-100 text-slate-700",
+                    )}
+                  >
+                    {sHour}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Minute Scroller */}
+          <div className="flex flex-col gap-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase text-center">
+              Min
+            </span>
+            <div
+              className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1"
+              style={{ scrollbarWidth: "none" }}
+            >
+              {Array.from({ length: 60 }, (_, i) => i).map((m) => {
+                const sMin = m.toString().padStart(2, "0");
+                return (
+                  <button
+                    key={m}
+                    onClick={() => handleUpdate(hour, sMin, ampm)}
+                    className={cn(
+                      "px-2 py-1.5 rounded text-xs font-bold transition-all",
+                      minute === sMin
+                        ? "bg-slate-200 text-black"
+                        : "hover:bg-slate-100 text-slate-700",
+                    )}
+                  >
+                    {sMin}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* AM/PM Toggles */}
+          <div className="flex flex-col gap-1 justify-start pt-[20px] h-full">
+            <button
+              onClick={() => handleUpdate(hour, minute, "AM")}
+              className={cn(
+                "w-14 py-2 rounded text-xs font-bold transition-all",
+                ampm === "AM"
+                  ? "bg-slate-200 text-black"
+                  : "hover:bg-slate-100 text-slate-700",
+              )}
+            >
+              AM
+            </button>
+            <button
+              onClick={() => handleUpdate(hour, minute, "PM")}
+              className={cn(
+                "w-14 py-2 rounded text-xs font-bold transition-all",
+                ampm === "PM"
+                  ? "bg-slate-200 text-black"
+                  : "hover:bg-slate-100 text-slate-700",
+              )}
+            >
+              PM
+            </button>
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 // ---------- MAIN DASHBOARD ----------
 export default function AttendanceDashboard() {
+  const { confirm } = useConfirmation();
+  const { isViewOnly } = useUserRole();
+  
   // State for year & month selection
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(
@@ -1412,7 +1620,9 @@ export default function AttendanceDashboard() {
         // 2. Fetch all required supporting data
         const [empRes, hierRes, deptRes, leavesRes, offRes] = await Promise.all(
           [
-            fetch("/api/admin-head/employees?status=employed,rehired,rehired_employee"),
+            fetch(
+              "/api/admin-head/employees?status=employed,rehired,rehired_employee",
+            ),
             fetch(`${getApiUrl()}/api/hierarchies`),
             fetch(`${getApiUrl()}/api/departments`),
             fetch(`${getApiUrl()}/api/leaves`),
@@ -1601,13 +1811,18 @@ export default function AttendanceDashboard() {
 
   // Pagination states for each table removed per user request
 
-  // New Year confirmation state
-  const [showNewYearConfirm, setShowNewYearConfirm] = useState(false);
+  // New Year state
   const [isAddingYear, setIsAddingYear] = useState(false);
 
   // Handler to add a new year after confirmation
   const handleAddNewYearConfirm = () => {
-    setShowNewYearConfirm(true);
+    confirm({
+      title: "Confirm New Year",
+      description: `Are you sure you want to initialize year ${Math.max(...yearsList) + 1}? This will add it to the selection menu.`,
+      icon: Calendar,
+      variant: "info",
+      onConfirm: addNewYear,
+    });
   };
 
   // Handler to undo year addition
@@ -1667,7 +1882,6 @@ export default function AttendanceDashboard() {
     // This allows the user to select the new year immediately and start adding records
     setYearsList((prev) => [...prev, nextYear].sort((a, b) => a - b));
     setSelectedYear(nextYear);
-    setShowNewYearConfirm(false);
 
     try {
       const res = await fetch("/api/admin-head/attendance/tardiness/years", {
@@ -1840,7 +2054,54 @@ export default function AttendanceDashboard() {
     setNewEntryTime("");
   };
 
-  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  // Navigation Guard: Prevent leaving with unsaved changes in the form
+  useEffect(() => {
+    const hasUnsavedChanges = (newEntryEmployee || newEntryTime) && !isSaving;
+
+    // Internal Navigation guard (Next.js links, Sidebar items)
+    const handleInternalNavigation = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest("a");
+
+      if (anchor && hasUnsavedChanges) {
+        // Only block if it looks like a real navigation link
+        const href = anchor.getAttribute("href");
+        if (!href || href === "#" || href.startsWith("javascript:")) return;
+
+        // Skip if it's just opening a new tab
+        if (anchor.target === "_blank") return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        confirm({
+          title: "Unsaved Changes",
+          description: (
+            <>
+              You have an unsaved entry for{" "}
+              <span className="text-[#4A081A] font-black">
+                {newEntryEmployee || "a selected employee"}
+              </span>
+              . Moving to another page will discard your progress.
+            </>
+          ),
+          confirmText: "Discard & Leave",
+          cancelText: "Stay Here",
+          variant: "warning",
+          onConfirm: () => {
+            // Use standard navigation since we are discarding state anyway
+            window.location.href = anchor.href;
+          },
+        });
+      }
+    };
+
+    document.addEventListener("click", handleInternalNavigation, true);
+
+    return () => {
+      document.removeEventListener("click", handleInternalNavigation, true);
+    };
+  }, [newEntryEmployee, newEntryTime, isSaving, confirm]);
 
   // Validation before opening confirmation
   const handleSaveClick = () => {
@@ -1908,7 +2169,18 @@ export default function AttendanceDashboard() {
     }
 
     // If validation passes, open confirmation modal
-    setShowSaveConfirm(true);
+    confirm({
+      title: "Confirm New Entry",
+      description: (
+        <>
+          Are you sure you want to add a late entry for{" "}
+          <span className="text-[#4A081A] font-bold">{newEntryEmployee}</span>{" "}
+          at <span className="text-[#4A081A] font-bold">{newEntryTime}</span>?
+        </>
+      ),
+      icon: Clock,
+      onConfirm: executeSaveEntry,
+    });
   };
 
   // Actual Save Logic (triggered by confirmation modal)
@@ -2009,7 +2281,6 @@ export default function AttendanceDashboard() {
         }
 
         resetAddEntryFields();
-        setShowSaveConfirm(false); // Close modal on success
       } else {
         toast.error(data.message || "Failed to save entry");
       }
@@ -2033,6 +2304,12 @@ export default function AttendanceDashboard() {
     setActiveCutoffSummary(null);
   };
 
+  // Derive schedule for the selected employee in the "New Record" form as a guide
+  const selectedEmpForForm = employees.find((e) => e.name === newEntryEmployee);
+  const selectedEmpSchedule = selectedEmpForForm
+    ? getShiftSchedule(selectedEmpForForm.department)
+    : null;
+
   // ---------- RENDER ----------
 
   if (isLoading) {
@@ -2055,12 +2332,19 @@ export default function AttendanceDashboard() {
                   <Calendar className="w-4 h-4" />
                   ABIC REALTY & CONSULTANCY
                 </p>
+                {isViewOnly && (
+                  <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                    <Eye className="w-4 h-4" />
+                    VIEW ONLY MODE - Editing and modifications are disabled
+                  </p>
+                )}
               </div>
 
               {/* Actions */}
               <div className="flex items-center gap-3">
                 <Button
                   onClick={handleAddNewYearConfirm}
+                  disabled={isViewOnly}
                   variant="outline"
                   className="bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-5 rounded-lg flex items-center gap-2"
                 >
@@ -2069,6 +2353,7 @@ export default function AttendanceDashboard() {
                 </Button>
                 <Button
                   onClick={() => setIsEntryFormOpen(!isEntryFormOpen)}
+                  disabled={isViewOnly}
                   variant="outline"
                   className={cn(
                     "bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2",
@@ -2325,27 +2610,27 @@ export default function AttendanceDashboard() {
           )}
         >
           <div className="flex justify-center pt-2">
-            <div className="w-full bg-white border border-slate-100 shadow-sm rounded-xl p-8">
-              <div className="flex flex-col gap-8">
+            <div className="w-full bg-white border border-slate-100 shadow-sm rounded-xl p-5">
+              <div className="flex flex-col gap-6">
                 {/* Form Header */}
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-[#FFF1F3] rounded-full flex items-center justify-center">
-                    <Plus className="w-6 h-6 text-[#7B0F2B]" />
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#FFF1F3] rounded-full flex items-center justify-center">
+                    <Plus className="w-5 h-5 text-[#7B0F2B]" />
                   </div>
                   <div>
-                    <h2 className="text-xl font-black text-[#4A081A] uppercase tracking-tight">
+                    <h2 className="text-lg font-black text-[#4A081A] uppercase tracking-tight">
                       New Tardiness Entry
                     </h2>
-                    <p className="text-sm font-medium text-slate-400">
+                    <p className="text-[11px] font-medium text-slate-400">
                       Record a late arrival for today
                     </p>
                   </div>
                 </div>
 
                 {/* Form Grid */}
-                <div className="flex flex-wrap items-end gap-6">
-                  <div className="flex-1 min-w-[300px] flex flex-col gap-3">
-                    <label className="text-[11px] font-bold text-[#8A99AF] uppercase tracking-wider ml-1">
+                <div className="flex flex-wrap items-end gap-4">
+                  <div className="flex-1 min-w-[300px] flex flex-col gap-1.5">
+                    <label className="text-[11px] font-bold text-black uppercase tracking-wider ml-1">
                       Select Employee
                     </label>
                     <EmployeeSelector
@@ -2355,39 +2640,49 @@ export default function AttendanceDashboard() {
                     />
                   </div>
 
-                  <div className="flex-1 min-w-[200px] flex flex-col gap-3">
-                    <label className="text-[11px] font-bold text-[#8A99AF] uppercase tracking-wider ml-1">
-                      Actual In Time
+                  <div className="flex-1 min-w-[200px] flex flex-col gap-1.5">
+                    <label className="text-[11px] font-bold text-black uppercase tracking-wider ml-1 flex items-center justify-between">
+                      <span>Actual In Time</span>
+                      {selectedEmpSchedule && (
+                        <span className="text-[10px] text-[#A4163A] font-black lowercase tracking-normal flex items-center gap-1">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          Start Time:{" "}
+                          {extractStartTime(
+                            selectedEmpSchedule.displayName,
+                          ).replace(/\s+/g, "")}
+                        </span>
+                      )}
                     </label>
-                    <div className="relative group">
-                      <Clock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-[#7B0F2B] transition-colors" />
-                      <Input
-                        id="time"
-                        type="time"
+                    <div className="relative group/input">
+                      <CustomTimePicker
                         value={newEntryTime}
-                        onChange={(e) => setNewEntryTime(e.target.value)}
-                        className="bg-white border border-slate-200 text-slate-800 pl-11 pr-4 h-12 w-full rounded-xl text-base font-medium focus-visible:border-rose-200 focus-visible:ring-rose-100 shadow-none transition-all"
+                        onChange={setNewEntryTime}
+                        disabled={isViewOnly}
+                        className="pl-4 pr-4 h-9 w-full"
                       />
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0 mb-0.5">
+                  <div className="flex items-center gap-2 shrink-0 mb-0.5">
                     <Button
                       variant="ghost"
                       onClick={() => {
                         setIsEntryFormOpen(false);
                         resetAddEntryFields();
                       }}
-                      className="h-12 px-6 text-xs font-bold text-[#7B0F2B] uppercase tracking-widest hover:bg-rose-50 rounded-xl transition-all"
+                      disabled={isViewOnly}
+                      className="h-9 px-8 text-[10px] font-black text-[#7B0F2B] uppercase tracking-widest hover:bg-rose-50 rounded-lg transition-all min-w-[128px]"
                     >
                       Cancel
                     </Button>
                     <Button
                       onClick={handleSaveClick}
                       disabled={
-                        isSaving || selectedYear !== new Date().getFullYear()
+                        isViewOnly ||
+                        isSaving ||
+                        selectedYear !== new Date().getFullYear()
                       }
-                      className="h-12 px-10 text-xs font-bold text-white uppercase tracking-widest bg-[#7B0F2B] hover:bg-[#630C22] shadow-lg shadow-rose-900/20 rounded-xl min-w-[160px]"
+                      className="h-9 px-8 text-[10px] font-black text-white uppercase tracking-widest bg-[#7B0F2B] hover:bg-[#630C22] shadow-md shadow-rose-900/10 rounded-lg min-w-[128px]"
                     >
                       {isSaving ? (
                         <>
@@ -2395,7 +2690,7 @@ export default function AttendanceDashboard() {
                           <span>Saving...</span>
                         </>
                       ) : (
-                        "Save Record"
+                        "Save"
                       )}
                     </Button>
                   </div>
@@ -2415,6 +2710,7 @@ export default function AttendanceDashboard() {
                 title={`${selectedMonth} ${selectedYear} – 1-15`}
                 entries={sortedFirstEntries}
                 onUpdateTime={updateFirstCutoffTime}
+                isViewOnly={isViewOnly}
                 onSummaryClick={() =>
                   handleSummaryClick(
                     `${selectedMonth} ${selectedYear} – 1-15`,
@@ -2430,6 +2726,7 @@ export default function AttendanceDashboard() {
                 title={`${selectedMonth} ${selectedYear} – ${selectedMonth === "February" ? "16-28/29" : "16-30/31"}`}
                 entries={sortedSecondEntries}
                 onUpdateTime={updateSecondCutoffTime}
+                isViewOnly={isViewOnly}
                 onSummaryClick={() =>
                   handleSummaryClick(
                     `${selectedMonth} ${selectedYear} – ${selectedMonth === "February" ? "16-28/29" : "16-30/31"}`,
@@ -2461,83 +2758,6 @@ export default function AttendanceDashboard() {
           leaves={leaves}
         />
       )}
-
-      <Dialog open={showNewYearConfirm} onOpenChange={setShowNewYearConfirm}>
-        <DialogContent className="bg-white border-2 border-[#FFE5EC] rounded-2xl max-w-sm">
-          <DialogHeader className="flex flex-col items-center gap-4 text-center">
-            <div className="p-4 bg-red-50 rounded-full">
-              <Calendar className="w-8 h-8 text-[#4A081A]" />
-            </div>
-            <div className="space-y-2">
-              <DialogTitle className="text-2xl font-bold text-[#4A081A]">
-                Confirm New Year
-              </DialogTitle>
-              <DialogDescription className="text-stone-500 font-medium">
-                Are you sure you want to initialize year{" "}
-                {Math.max(...yearsList) + 1}? This will add it to the selection
-                menu.
-              </DialogDescription>
-            </div>
-          </DialogHeader>
-          <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setShowNewYearConfirm(false)}
-              disabled={isAddingYear}
-              className="flex-1 border-2 border-stone-100 text-stone-600 hover:bg-stone-50 font-bold h-12 rounded-xl"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={addNewYear}
-              disabled={isAddingYear}
-              className="flex-1 bg-gradient-to-r from-[#4A081A] to-[#800020] hover:from-[#630C22] hover:to-[#A0153E] text-white font-bold h-12 rounded-xl shadow-md transition-all active:scale-95"
-            >
-              {isAddingYear ? "Initializing..." : "Confirm"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      <Dialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
-        <DialogContent className="bg-white border-2 border-[#FFE5EC] rounded-2xl max-w-sm">
-          <DialogHeader className="flex flex-col items-center gap-4 text-center">
-            <div className="p-4 bg-red-50 rounded-full">
-              <Clock className="w-8 h-8 text-[#4A081A]" />
-            </div>
-            <div className="space-y-2">
-              <DialogTitle className="text-2xl font-bold text-[#4A081A]">
-                Confirm New Entry
-              </DialogTitle>
-              <DialogDescription className="text-stone-500 font-medium">
-                Are you sure you want to add a late entry for{" "}
-                <span className="text-[#4A081A] font-bold">
-                  {newEntryEmployee}
-                </span>{" "}
-                at{" "}
-                <span className="text-[#4A081A] font-bold">{newEntryTime}</span>
-                ?
-              </DialogDescription>
-            </div>
-          </DialogHeader>
-          <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setShowSaveConfirm(false)}
-              disabled={isSaving}
-              className="flex-1 border-2 border-stone-100 text-stone-600 hover:bg-stone-50 font-bold h-12 rounded-xl"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={executeSaveEntry}
-              disabled={isSaving}
-              className="flex-1 bg-gradient-to-r from-[#4A081A] to-[#800020] hover:from-[#630C22] hover:to-[#A0153E] text-white font-bold h-12 rounded-xl shadow-md transition-all active:scale-95"
-            >
-              {isSaving ? "Saving..." : "Confirm"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -2549,35 +2769,37 @@ function CutoffTable({
   onUpdateTime,
   onSummaryClick,
   totalRecords,
+  isViewOnly = false,
 }: {
   title: string;
   entries: LateEntry[];
   onUpdateTime: (id: string | number, newTime: string) => void;
   onSummaryClick: () => void;
   totalRecords: number;
+  isViewOnly?: boolean;
 }) {
   return (
     <Card className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden h-full flex flex-col">
-      <CardHeader className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-1.5">
-          <CardTitle className="text-xl text-[#4A081A] font-bold">
+      <CardHeader className="bg-rose-50/40 pb-2.5 border-b border-rose-100 p-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
+          <CardTitle className="text-lg text-[#7B0F2B] font-black uppercase tracking-tight">
             {title}
           </CardTitle>
           <div className="flex items-center gap-2 w-full md:w-auto">
             <Button
               size="sm"
               onClick={onSummaryClick}
-              className="bg-gradient-to-r from-[#4A081A] to-[#630C22] hover:shadow-lg text-white text-[11px] font-black uppercase tracking-widest h-10 px-6 flex items-center gap-2 shrink-0 transition-all duration-300 rounded-lg"
+              className="bg-gradient-to-r from-[#C9184A] to-[#A4163A] hover:shadow-md text-white text-[10px] font-black uppercase tracking-widest h-8 px-4 flex items-center gap-2 shrink-0 transition-all duration-300 rounded-md active:scale-95 translate-y-[-1px]"
             >
-              <FileDown className="w-4 h-4" />
+              <FileDown className="w-3.5 h-3.5" />
               Summary
             </Button>
           </div>
         </div>
-        <CardDescription className="text-[#A0153E]/70 flex items-center gap-2 text-xs font-medium mt-1">
-          <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#C9184A]" />
+        <CardDescription className="text-slate-400 flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider mt-0.5">
+          <span className="inline-block w-2 h-2 rounded-full bg-[#C9184A]" />
           <span>Minutes from Assigned Shift</span>
-          <span className="text-[#FFE5EC]">|</span>
+          <span>•</span>
           <span>{totalRecords} records</span>
         </CardDescription>
       </CardHeader>
@@ -2587,19 +2809,19 @@ function CutoffTable({
           <table className="w-full text-sm">
             <thead className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC]">
               <tr>
-                <th className="px-3 py-4 text-left font-bold text-[#800020] text-sm md:text-base uppercase tracking-wider w-[30%]">
+                <th className="px-4 py-2.5 text-left font-black text-[#800020] text-[10px] uppercase tracking-widest w-[35%]">
                   Employee Name
                 </th>
-                <th className="px-3 py-4 text-left font-bold text-[#800020] text-sm md:text-base uppercase tracking-wider w-[20%]">
+                <th className="px-4 py-2.5 text-left font-black text-[#800020] text-[10px] uppercase tracking-widest w-[15%]">
                   Date
                 </th>
-                <th className="px-3 py-4 text-left font-bold text-[#800020] text-sm md:text-base uppercase tracking-wider w-[20%]">
+                <th className="px-4 py-2.5 text-left font-black text-[#800020] text-[10px] uppercase tracking-widest w-[20%]">
                   Actual In
                 </th>
-                <th className="px-3 py-4 text-left font-bold text-[#800020] text-sm md:text-base uppercase tracking-wider w-[20%]">
+                <th className="px-4 py-2.5 text-left font-black text-[#800020] text-[10px] uppercase tracking-widest w-[15%]">
                   Minutes Late
                 </th>
-                <th className="px-3 py-4 text-left font-bold text-[#800020] text-sm md:text-base uppercase tracking-wider w-[10%]">
+                <th className="px-4 py-2.5 text-center font-black text-[#800020] text-[10px] uppercase tracking-widest w-[15%]">
                   Warning
                 </th>
               </tr>
@@ -2609,51 +2831,57 @@ function CutoffTable({
               {entries.map((entry) => (
                 <tr
                   key={entry.id}
-                  className="hover:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200"
+                  className="hover:bg-rose-50/50 border-b border-slate-100 transition-colors duration-200 group"
                 >
-                  <td className="px-3 py-5">
-                    <span className="font-bold text-slate-800 text-base md:text-lg">
+                  <td className="px-4 py-2.5">
+                    <span className="font-bold text-slate-800 text-sm">
                       {entry.employeeName}
                     </span>
                   </td>
 
-                  <td className="px-3 py-5 text-slate-600 text-sm md:text-base font-semibold">
-                    {entry.date || "—"}
+                  <td className="px-4 py-2.5 text-slate-500 text-[11px] font-bold tracking-tighter">
+                    {formatDisplayDate(entry.date) || "—"}
                   </td>
-                  <td className="px-3 py-5">
-                    <Input
-                      type="time"
-                      value={to24h(entry.actual_in || entry.actualIn || "")}
-                      onChange={(e) => onUpdateTime(entry.id, e.target.value)}
-                      className="bg-white border-[#FFE5EC] text-slate-800 placeholder:text-slate-300 h-10 text-base md:text-lg w-32 font-bold focus:ring-2 focus:ring-[#A0153E] shadow-sm appearance-none"
-                    />
+                  <td className="px-4 py-2.5">
+                    <div className="relative w-max group/input">
+                      <CustomTimePicker
+                        value={to24h(entry.actual_in || entry.actualIn || "")}
+                        onChange={(val) => {
+                          if (!isViewOnly) {
+                            onUpdateTime(entry.id, val);
+                          }
+                        }}
+                        disabled={isViewOnly}
+                        className="h-7 w-[105px] px-2 font-bold group-hover/input:border-rose-300"
+                      />
+                    </div>
                   </td>
 
-                  <td className="px-2.5 py-5">
+                  <td className="px-4 py-2.5">
                     {entry.minutesLate > 0 ? (
                       <span
                         className={`
-                      inline-block px-4 py-1.5 rounded-full text-base md:text-lg font-bold border
+                      inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black border
                       ${
                         entry.late_occurrence === 2
-                          ? "bg-yellow-100 text-yellow-700 border-yellow-200"
+                          ? "bg-amber-50 text-amber-700 border-amber-200"
                           : entry.late_occurrence && entry.late_occurrence >= 3
-                            ? "bg-red-100 text-red-700 border-red-200 shadow-sm"
-                            : "bg-transparent text-slate-700 border-transparent"
+                            ? "bg-rose-50 text-rose-700 border-rose-200"
+                            : "bg-slate-50 text-slate-600 border-slate-200"
                       }
                     `}
                       >
                         {entry.minutesLate} min
                       </span>
                     ) : (
-                      <span className="text-stone-400 font-bold">—</span>
+                      <span className="text-slate-300 font-bold">—</span>
                     )}
                   </td>
-                  <td className="px-2.5 py-5">
+                  <td className="px-4 py-2.5 text-center">
                     {entry.warningLevel && entry.warningLevel > 0 ? (
-                      <div className="flex items-center gap-2 text-red-600">
-                        <AlertTriangle className="w-5 h-5" />
-                        <span className="text-base md:text-lg font-bold">
+                      <div className="flex items-center justify-center gap-1.5 text-rose-600 font-black text-xs">
+                        <AlertTriangle className="w-3.5 h-3.5" />
+                        <span>
                           {entry.warningLevel}
                           {entry.warningLevel === 1
                             ? "st"
@@ -2665,7 +2893,7 @@ function CutoffTable({
                         </span>
                       </div>
                     ) : (
-                      <span className="text-stone-400 font-bold">—</span>
+                      <span className="text-slate-300 font-bold">—</span>
                     )}
                   </td>
                 </tr>

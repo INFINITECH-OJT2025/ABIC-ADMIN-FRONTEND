@@ -23,9 +23,13 @@ import {
   FileDown,
   Mail,
   Pencil,
-  Search,
   Check,
-  Circle
+  Calendar,
+  UserCheck,
+  TrendingUp,
+  PieChart,
+  ThumbsUp,
+  X
 } from 'lucide-react'
 import { getApiUrl } from '@/lib/api'
 import { toast } from 'sonner'
@@ -75,6 +79,29 @@ interface Office {
   name: string
 }
 
+type EvaluationTemplate = {
+  officeLogos: Record<string, string>
+  officeNameOverrides: Record<string, string>
+  title: string
+  metaNameLabel: string
+  metaDepartmentLabel: string
+  metaRatingPeriodLabel: string
+  criteriaHeader: string
+  ratingHeader: string
+  criteriaOverrides: Record<string, { label: string; desc: string }>
+  agreementText: string
+  ratingScaleTitle: string
+  ratingScaleLines: string
+  interpretationTitle: string
+  interpretationLines: string
+  recommendationLabel: string
+  remarksLabel: string
+  managerSignaturesTitle: string
+  ratedByLabel: string
+  reviewedByLabel: string
+  approvedByLabel: string
+}
+
 type EvaluationView = 'first' | 'second' | 'both'
 type CriteriaId =
   | 'work_attitude'
@@ -101,6 +128,37 @@ const CRITERIA = [
   { id: 'communication', label: '10. COMMUNICATION SKILLS', desc: 'How successful is he in expressing himself orally, verbally and in written form?' }
 ] as const
 
+const DEFAULT_EVALUATION_TEMPLATE = {
+  officeLogos: {},
+  officeNameOverrides: {},
+  title: "PERFORMANCE APPRAISAL",
+  metaNameLabel: "NAME",
+  metaDepartmentLabel: "DEPARTMENT/JOB TITLE",
+  metaRatingPeriodLabel: "RATING PERIOD",
+  criteriaHeader: "CRITERIA",
+  ratingHeader: "RATING",
+  criteriaOverrides: Object.fromEntries(
+    CRITERIA.map((item) => [
+      item.id,
+      { label: item.label, desc: item.desc },
+    ]),
+  ),
+  agreementText:
+    "The above appraisal was discussed with me by my superior and I",
+  ratingScaleTitle: "EMPLOYEE SHALL BE RATED AS FOLLOWS:",
+  ratingScaleLines:
+    "1 - Poor\n2 - Needs Improvement\n3 - Meets Minimum Requirement\n4 - Very Satisfactory\n5 - Outstanding",
+  interpretationTitle: "INTERPRETATION OF TOTAL RATING SCORE:",
+  interpretationLines:
+    "50 - 41 Highly suitable to the position\n40 - 31 Suitable to the position\n30 - 16 Fails to meet minimum requirements of the job\n15 - 0 Employee advise to resign",
+  recommendationLabel: "RECOMMENDATION: REGULAR EMPLOYMENT",
+  remarksLabel: "COMMENTS / REMARKS:",
+  managerSignaturesTitle: "Manager Approval Signatures",
+  ratedByLabel: "Rated by:",
+  reviewedByLabel: "Reviewed by:",
+  approvedByLabel: "Approved by:",
+}
+
 const EMPTY_SCORES: Record<CriteriaId, string> = {
   work_attitude: '',
   job_knowledge: '',
@@ -115,35 +173,52 @@ const EMPTY_SCORES: Record<CriteriaId, string> = {
 }
 
 const EvaluationFormSkeleton = () => (
-  <div className="min-h-screen bg-slate-50 py-10 px-4 animate-pulse">
-    <div className="max-w-[850px] mx-auto mb-4 flex justify-between">
-      <Skeleton className="h-10 w-24 bg-white border border-slate-200 shadow-sm" />
-      <div className="flex gap-2">
-        <Skeleton className="h-10 w-32 bg-white border border-slate-200 shadow-sm" />
-        <Skeleton className="h-10 w-32 bg-white border border-slate-200 shadow-sm" />
-        <Skeleton className="h-10 w-40 bg-white border border-slate-200 shadow-sm" />
+  <div className="min-h-screen bg-slate-50 animate-pulse">
+    <div className="bg-white border-b border-slate-200 shadow-sm mb-6">
+      <div className="w-full px-4 md:px-8 py-6">
+        <Skeleton className="h-8 w-60 bg-slate-200 mb-3" />
+        <Skeleton className="h-4 w-80 bg-slate-100" />
+      </div>
+      <div className="border-t border-slate-200 bg-slate-50/70 px-4 md:px-8 py-3">
+        <div className="flex flex-wrap gap-3">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-9 w-36 bg-slate-100 border border-slate-200" />
+          ))}
+        </div>
       </div>
     </div>
-    <div className="max-w-[850px] mx-auto bg-white shadow-sm p-[60px] border border-slate-200 space-y-10">
-      <div className="text-center space-y-4">
-        <Skeleton className="h-8 w-80 mx-auto bg-slate-200" />
-        <Skeleton className="h-8 w-64 mx-auto bg-slate-100" />
+
+    <div className="px-4 md:px-6">
+      <div className="max-w-[850px] mx-auto mb-4 flex justify-between gap-2">
+        <Skeleton className="h-10 w-24 bg-white border border-slate-200 shadow-sm" />
+        <div className="flex gap-2">
+          <Skeleton className="h-10 w-32 bg-white border border-slate-200 shadow-sm" />
+          <Skeleton className="h-10 w-32 bg-white border border-slate-200 shadow-sm" />
+          <Skeleton className="h-10 w-40 bg-white border border-slate-200 shadow-sm" />
+        </div>
       </div>
-      <div className="space-y-4 pt-6 border-t border-slate-100">
-        <Skeleton className="h-6 w-full bg-slate-50" />
-        <Skeleton className="h-6 w-full bg-slate-50" />
-        <Skeleton className="h-6 w-full bg-slate-50" />
-      </div>
-      <div className="space-y-8">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex gap-4 items-start pt-4 border-t border-slate-100">
-            <div className="flex-1 space-y-3">
-              <Skeleton className="h-5 w-48 bg-slate-200" />
-              <Skeleton className="h-4 w-full bg-slate-50" />
+
+      <div className="max-w-[850px] mx-auto bg-white shadow-sm p-[60px] border border-slate-200 space-y-10">
+        <div className="text-center space-y-4">
+          <Skeleton className="h-8 w-80 mx-auto bg-slate-200" />
+          <Skeleton className="h-8 w-64 mx-auto bg-slate-100" />
+        </div>
+        <div className="space-y-4 pt-6 border-t border-slate-100">
+          <Skeleton className="h-6 w-full bg-slate-50" />
+          <Skeleton className="h-6 w-full bg-slate-50" />
+          <Skeleton className="h-6 w-full bg-slate-50" />
+        </div>
+        <div className="space-y-8">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex gap-4 items-start pt-4 border-t border-slate-100">
+              <div className="flex-1 space-y-3">
+                <Skeleton className="h-5 w-48 bg-slate-200" />
+                <Skeleton className="h-4 w-full bg-slate-50" />
+              </div>
+              <Skeleton className="h-10 w-24 bg-slate-100 rounded-lg" />
             </div>
-            <Skeleton className="h-10 w-24 bg-slate-100 rounded-lg" />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   </div>
@@ -157,6 +232,7 @@ function EvaluateEmployeeForm() {
   const [departments, setDepartments] = useState<Department[]>([])
   const [offices, setOffices] = useState<Office[]>([])
   const [loading, setLoading] = useState(true)
+  const [evaluationTemplate, setEvaluationTemplate] = useState<EvaluationTemplate>(DEFAULT_EVALUATION_TEMPLATE)
   
   // Form State
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>(searchParams?.get('id') || '')
@@ -179,6 +255,72 @@ function EvaluateEmployeeForm() {
 
   useEffect(() => {
     fetchInitialData()
+  }, [])
+
+  useEffect(() => {
+    const loadEvaluationTemplate = async () => {
+      let localTemplate: Partial<EvaluationTemplate> = {}
+
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('warning_letter_templates')
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved)
+            if (parsed?.evaluation) {
+              localTemplate = parsed.evaluation
+            }
+          } catch {
+            // Ignore malformed template cache.
+          }
+        }
+      }
+
+      try {
+        const res = await fetch(`${getApiUrl()}/api/warning-letter-templates/evaluation`)
+        const data = await res.json()
+
+        if (data?.success && data?.data) {
+          const dbTemplate = data.data
+          let parsedBody: Partial<EvaluationTemplate> = {}
+
+          if (typeof dbTemplate.body === 'string' && dbTemplate.body.trim()) {
+            try {
+              const decoded = JSON.parse(dbTemplate.body)
+              if (decoded && typeof decoded === 'object') {
+                parsedBody = decoded
+              }
+            } catch {
+              parsedBody = {}
+            }
+          }
+
+          setEvaluationTemplate({
+            ...DEFAULT_EVALUATION_TEMPLATE,
+            ...localTemplate,
+            ...parsedBody,
+            title: parsedBody.title || dbTemplate.title || DEFAULT_EVALUATION_TEMPLATE.title,
+            officeLogos: {
+              ...((localTemplate.officeLogos as Record<string, string>) || {}),
+              ...((parsedBody.officeLogos as Record<string, string>) || {}),
+            },
+            officeNameOverrides: {
+              ...((localTemplate.officeNameOverrides as Record<string, string>) || {}),
+              ...((parsedBody.officeNameOverrides as Record<string, string>) || {}),
+            },
+          })
+          return
+        }
+      } catch {
+        // Fall back to local template only.
+      }
+
+      setEvaluationTemplate({
+        ...DEFAULT_EVALUATION_TEMPLATE,
+        ...localTemplate,
+      })
+    }
+
+    loadEvaluationTemplate()
   }, [])
 
   useEffect(() => {
@@ -375,17 +517,66 @@ function EvaluateEmployeeForm() {
   const employeeDetails = useMemo(() => {
     if (!selectedEmployee) return null
     const deptObj = departments.find(d => String(d.id) === String(selectedEmployee.department) || d.name === selectedEmployee.department)
+    const officeId = deptObj?.office_id ?? (selectedEmployee as any)?.office_id
+    const officeObj = offices.find(o => String(o.id) === String(officeId))
     const hiredDate = selectedEmployee.date_hired ? new Date(selectedEmployee.date_hired) : null
     return {
       name: `${selectedEmployee.first_name} ${selectedEmployee.last_name}`,
       position: selectedEmployee.position,
       department: deptObj?.name || selectedEmployee.department || 'Not Assigned',
+      office: officeObj?.name || '',
+      officeId: officeObj?.id ? String(officeObj.id) : '',
     }
-  }, [selectedEmployee, departments])
+  }, [selectedEmployee, departments, offices])
+
+  const selectedEvaluationLogo = useMemo(() => {
+    const officeId = employeeDetails?.officeId || ''
+    const officeLogos = (evaluationTemplate.officeLogos || {}) as Record<string, string>
+    if (officeId && officeLogos[officeId]) {
+      return officeLogos[officeId]
+    }
+    return null
+  }, [employeeDetails?.officeId, evaluationTemplate])
+
+  const selectedOfficeDisplayName = useMemo(() => {
+    const officeId = employeeDetails?.officeId || ''
+    const officeNameOverrides = (evaluationTemplate.officeNameOverrides || {}) as Record<string, string>
+    const customName = officeId ? officeNameOverrides[officeId] : ''
+    if (customName && String(customName).trim()) {
+      return String(customName).trim()
+    }
+    if (employeeDetails?.office && String(employeeDetails.office).trim()) {
+      return String(employeeDetails.office).trim()
+    }
+    return 'OFFICE NOT SET'
+  }, [employeeDetails?.office, employeeDetails?.officeId, evaluationTemplate])
 
   const totalScore = useMemo(() => {
     return Object.values(scores).reduce((acc, curr) => acc + (parseInt(curr) || 0), 0)
   }, [scores])
+
+  const ratingScaleLines = useMemo(() => {
+    return String(evaluationTemplate.ratingScaleLines || '')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+  }, [evaluationTemplate])
+
+  const interpretationLines = useMemo(() => {
+    return String(evaluationTemplate.interpretationLines || '')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+  }, [evaluationTemplate])
+
+  const displayCriteria = useMemo(() => {
+    const overrides = evaluationTemplate.criteriaOverrides || {}
+    return CRITERIA.map((criterion) => ({
+      ...criterion,
+      label: overrides[criterion.id]?.label || criterion.label,
+      desc: overrides[criterion.id]?.desc || criterion.desc,
+    }))
+  }, [evaluationTemplate])
 
   useEffect(() => {
     const hasScores = Object.values(scores).some(s => s !== '')
@@ -458,8 +649,21 @@ function EvaluateEmployeeForm() {
 
     setIsExportingPdf(true)
     try {
+      const templateForExport = {
+        ...evaluationTemplate,
+        companyName: selectedOfficeDisplayName,
+        evaluationLogoImage: selectedEvaluationLogo,
+      }
       const response = await fetch(
-        `${getApiUrl()}/api/evaluations/${selectedEmployeeId}/pdf?view=${evaluationView}`
+        `${getApiUrl()}/api/evaluations/${selectedEmployeeId}/pdf`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            view: evaluationView,
+            template: templateForExport
+          })
+        }
       )
       if (!response.ok) {
         throw new Error('Failed to export PDF')
@@ -478,7 +682,13 @@ function EvaluateEmployeeForm() {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `evaluation_${selectedEmployeeId}.pdf`
+      const disposition = response.headers.get('content-disposition') || ''
+      const match = disposition.match(/filename\\*?=(?:UTF-8''|\"?)([^\";]+)\"?/i)
+      const fallbackName = selectedEmployee
+        ? `${selectedEmployee.last_name}, ${selectedEmployee.first_name}_${selectedEmployeeId}.pdf`
+        : `evaluation_${selectedEmployeeId}.pdf`
+      const filename = match ? decodeURIComponent(match[1]) : fallbackName
+      a.download = filename
       document.body.appendChild(a)
       a.click()
       a.remove()
@@ -499,10 +709,18 @@ function EvaluateEmployeeForm() {
 
     setIsEmailSending(true)
     try {
+      const templateForExport = {
+        ...evaluationTemplate,
+        companyName: selectedOfficeDisplayName,
+        evaluationLogoImage: selectedEvaluationLogo,
+      }
       const response = await fetch(`${getApiUrl()}/api/evaluations/${selectedEmployeeId}/email-pdf`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ view: evaluationView })
+        body: JSON.stringify({
+          view: evaluationView,
+          template: templateForExport
+        })
       })
       const raw = await response.text()
       let data: any = null
@@ -611,21 +829,76 @@ function EvaluateEmployeeForm() {
     const criterionId = criterion.id as CriteriaId
     return typeof secondDisplayBreakdown?.[criterionId] === 'number'
   })
+  const totalEmployedCount = employees.filter(
+    (emp) => emp.status === 'employed' || emp.status === 'rehired_employee'
+  ).length
+  const underProbationCount = probeeEmployees.length
+  const forRecommendationCount = Object.values(evaluations).filter(
+    (ev) => ev.status === 'For Recommendation'
+  ).length
+  const regularEmployeesCount = Object.values(evaluations).filter(
+    (ev) => ev.status === 'Regular' || ev.status === 'Regularized'
+  ).length
+  const failedEmployeesCount = Object.values(evaluations).filter(
+    (ev) => String(ev.status).toLowerCase() === 'failed'
+  ).length
 
   return (
-    <div className="min-h-screen bg-slate-200 py-10 px-4 font-serif">
+    <div className="min-h-screen bg-slate-50 pb-10">
+      <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6">
+        <div className="w-full px-4 md:px-8 py-6">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">
+                Employee Evaluation
+              </h1>
+              <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
+                <PieChart className="w-4 h-4" />
+                Manage employee evaluations and performance reviews
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm">
+          <div className="w-full px-4 md:px-8 py-3 flex flex-wrap items-center gap-3 md:gap-4 text-xs font-bold uppercase tracking-wider text-white/85">
+            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              <UserCheck className="h-4 w-4" />
+              Total Employed: {totalEmployedCount}
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              <Calendar className="h-4 w-4" />
+              Under Probation: {underProbationCount}
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              <ThumbsUp className="h-4 w-4" />
+              For Recommendation: {forRecommendationCount}
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              <TrendingUp className="h-4 w-4" />
+              Regular Employees: {regularEmployeesCount}
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
+              <X className="h-4 w-4" />
+              Failed Employees: {failedEmployeesCount}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="px-4 md:px-6 font-serif">
       {/* Action Bar */}
-      <div className={`${showSideBySide ? 'max-w-[1800px]' : 'max-w-[850px]'} mx-auto mb-4 flex justify-between`}>
-        <Button variant="outline" onClick={handleBackWindow} className="rounded-none border-black flex gap-2">
+      <div className={`${showSideBySide ? 'max-w-[1800px]' : 'max-w-[850px]'} mx-auto mb-4 flex flex-wrap justify-between gap-2`}>
+        <Button variant="outline" onClick={handleBackWindow} className="rounded-none border-[#7B0F2B] text-[#7B0F2B] hover:bg-rose-50 flex gap-2">
           <ArrowLeft className="w-4 h-4" /> Back
         </Button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             type="button"
             variant="outline"
             onClick={handleExportPdf}
             disabled={isExportingPdf || !selectedEmployeeId}
-            className="rounded-none border-black flex gap-2"
+            className="rounded-none border-[#7B0F2B] text-[#7B0F2B] hover:bg-rose-50 flex gap-2"
           >
             {isExportingPdf ? 'Exporting...' : <><FileDown className="w-4 h-4" /> Export PDF</>}
           </Button>
@@ -634,7 +907,7 @@ function EvaluateEmployeeForm() {
             variant="outline"
             onClick={handleSendPdfToEmail}
             disabled={isEmailSending || !selectedEmployeeId}
-            className="rounded-none border-black flex gap-2"
+            className="rounded-none border-[#7B0F2B] text-[#7B0F2B] hover:bg-rose-50 flex gap-2"
           >
             {isEmailSending ? 'Sending...' : <><Mail className="w-4 h-4" /> Send to Email</>}
           </Button>
@@ -651,7 +924,7 @@ function EvaluateEmployeeForm() {
           <Button 
             onClick={handleSubmit} 
             disabled={isSubmitting || !showSecondEvaluationPanel || !isEditMode}
-            className="bg-black text-white rounded-none hover:bg-slate-800 flex gap-2"
+            className="bg-[#A4163A] text-white rounded-none hover:bg-[#7B0F2B] flex gap-2"
           >
             {isSubmitting ? 'Saving...' : <><Save className="w-4 h-4" /> Save Evaluation</>}
           </Button>
@@ -697,13 +970,26 @@ function EvaluateEmployeeForm() {
         {showFirstEvaluationPanel && (
           <div className="bg-white shadow-2xl p-[60px] text-[13px] leading-relaxed text-black border border-slate-300">
             <div className="text-center mb-10">
-              <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">INFINITECH ADVERTISING CORPORATION</h1>
-              <h2 className="font-bold text-lg uppercase tracking-wider">PERFORMANCE APPRAISAL</h2>
+            {selectedEvaluationLogo && (
+              <div className="mb-4 flex justify-center">
+                <img
+                  src={selectedEvaluationLogo}
+                  alt="Office Logo"
+                  className="max-h-[84px] max-w-[180px] object-contain"
+                />
+              </div>
+            )}
+            <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">
+              {selectedOfficeDisplayName.toUpperCase()}
+            </h1>
+              <h2 className="font-bold text-lg uppercase tracking-wider">
+                {evaluationTemplate.title}
+              </h2>
             </div>
 
             <div className="space-y-2 mb-10">
               <div className="flex gap-2">
-                <span className="font-bold whitespace-nowrap">NAME</span>
+                <span className="font-bold whitespace-nowrap">{evaluationTemplate.metaNameLabel}</span>
                 <span className="relative inline-flex max-w-full border-b border-black pr-1">
                   <span className="text-[#D32F2F] font-bold">
                     {selectedEmployee ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}` : ''}
@@ -711,7 +997,7 @@ function EvaluateEmployeeForm() {
                 </span>
               </div>
               <div className="flex gap-2">
-                <span className="font-bold whitespace-nowrap">DEPARTMENT/JOB TITLE</span>
+                <span className="font-bold whitespace-nowrap">{evaluationTemplate.metaDepartmentLabel}</span>
                 <span className="relative inline-flex max-w-full border-b border-black pr-1">
                   <span className="text-[#D32F2F] font-bold">
                     {selectedEmployee ? `${employeeDetails?.department} / ${employeeDetails?.position}` : ''}
@@ -719,7 +1005,7 @@ function EvaluateEmployeeForm() {
                 </span>
               </div>
               <div className="flex gap-2">
-                <span className="font-bold whitespace-nowrap">RATING PERIOD</span>
+                <span className="font-bold whitespace-nowrap">{evaluationTemplate.metaRatingPeriodLabel}</span>
                 <span className="relative inline-flex max-w-full border-b border-black pr-1">
                   <span className="text-[#D32F2F] font-bold">
                     {selectedEmployee && (
@@ -734,12 +1020,12 @@ function EvaluateEmployeeForm() {
             </div>
 
             <div className="grid grid-cols-12 mb-4 border-b-2 border-transparent relative">
-              <div className="col-span-10 text-center font-bold underline">CRITERIA</div>
-              <div className="col-span-2 text-center font-bold underline">RATING</div>
+              <div className="col-span-10 text-center font-bold underline">{evaluationTemplate.criteriaHeader}</div>
+              <div className="col-span-2 text-center font-bold underline">{evaluationTemplate.ratingHeader}</div>
             </div>
 
             <div className="space-y-6 mb-10">
-              {CRITERIA.map((criterion) => {
+              {displayCriteria.map((criterion) => {
                 const criterionId = criterion.id as CriteriaId
                 const criterionScore = firstDisplayBreakdown?.[criterionId]
                 return (
@@ -775,7 +1061,7 @@ function EvaluateEmployeeForm() {
 
             <div className="mb-10 text-[12px]">
               <div className="flex flex-wrap items-center gap-x-2">
-                <span>The above appraisal was discussed with me by my superior and I</span>
+                <span>{evaluationTemplate.agreementText}</span>
                 <span className="flex items-center gap-1">
                   <span className="w-3 h-3 border border-black rounded-full flex items-center justify-center">
                     {firstEvaluationAgreement === 'agree' && <div className="w-1.5 h-1.5 bg-black rounded-full" />}
@@ -815,28 +1101,25 @@ function EvaluateEmployeeForm() {
             </div>
 
             <div className="mb-8">
-              <div className="font-bold uppercase mb-2">EMPLOYEE SHALL BE RATED AS FOLLOWS:</div>
+              <div className="font-bold uppercase mb-2">{evaluationTemplate.ratingScaleTitle}</div>
               <div className="ml-10 space-y-0 text-[12px]">
-                <div>1 - Poor</div>
-                <div>2 - Needs Improvement</div>
-                <div>3 - Meets Minimum Requirement</div>
-                <div>4 - Very Satisfactory</div>
-                <div>5 - Outstanding</div>
+                {ratingScaleLines.map((line) => (
+                  <div key={line}>{line}</div>
+                ))}
               </div>
             </div>
 
             <div className="mb-10">
-              <div className="font-bold uppercase mb-2">INTERPRETATION OF TOTAL RATING SCORE:</div>
+              <div className="font-bold uppercase mb-2">{evaluationTemplate.interpretationTitle}</div>
               <div className="space-y-0 text-[12px]">
-                <div>50 - 41 Highly suitable to the position</div>
-                <div>40 - 31 Suitable to the position</div>
-                <div>30 - 16 Fails to meet minimum requirements of the job</div>
-                <div>15 - 0 Employee advise to resign</div>
+                {interpretationLines.map((line) => (
+                  <div key={line}>{line}</div>
+                ))}
               </div>
             </div>
 
             <div className="mb-10 font-bold flex items-center gap-6">
-              <span>RECOMMENDATION: REGULAR EMPLOYMENT</span>
+              <span>{evaluationTemplate.recommendationLabel}</span>
               <div className="flex items-center gap-2">
                 <div className={`w-5 h-5 border-2 border-black flex items-center justify-center ${firstEvaluationPassed ? 'bg-[#D32F2F] border-[#D32F2F]' : 'bg-transparent'}`}>
                   {firstEvaluationPassed && <Check className="w-4 h-4 text-white font-bold" />}
@@ -852,7 +1135,7 @@ function EvaluateEmployeeForm() {
             </div>
 
             <div className="mb-20">
-              <div className="font-bold uppercase mb-2">COMMENTS / REMARKS:</div>
+              <div className="font-bold uppercase mb-2">{evaluationTemplate.remarksLabel}</div>
               <Textarea
                 placeholder="Write your comments here..."
                 className="w-full border-b border-black rounded-none shadow-none focus:ring-0 min-h-[100px] resize-none p-0 text-[13px] leading-relaxed italic"
@@ -863,7 +1146,7 @@ function EvaluateEmployeeForm() {
 
             <div className="grid grid-cols-2 gap-x-20 gap-y-2">
               <div className="flex gap-2">
-                <span className="min-w-[80px]">Rated by:</span>
+                <span className="min-w-[80px]">{evaluationTemplate.ratedByLabel}</span>
                 <div className="flex-1 border-b border-black"></div>
               </div>
               <div className="flex gap-2">
@@ -871,7 +1154,7 @@ function EvaluateEmployeeForm() {
                 <div className="flex-1 border-b border-black"></div>
               </div>
               <div className="flex gap-2">
-                <span className="min-w-[80px]">Reviewed by:</span>
+                <span className="min-w-[80px]">{evaluationTemplate.reviewedByLabel}</span>
                 <div className="flex-1 border-b border-black"></div>
               </div>
               <div className="flex gap-2">
@@ -879,7 +1162,7 @@ function EvaluateEmployeeForm() {
                 <div className="flex-1 border-b border-black"></div>
               </div>
               <div className="flex gap-2">
-                <span className="min-w-[80px]">Approved by:</span>
+                <span className="min-w-[80px]">{evaluationTemplate.approvedByLabel}</span>
                 <div className="flex-1 border-b border-black"></div>
               </div>
               <div className="flex gap-2">
@@ -896,14 +1179,27 @@ function EvaluateEmployeeForm() {
         
         {/* Header */}
         <div className="text-center mb-10">
-          <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">INFINITECH ADVERTISING CORPORATION</h1>
-          <h2 className="font-bold text-lg uppercase tracking-wider">PERFORMANCE APPRAISAL</h2>
+          {selectedEvaluationLogo && (
+            <div className="mb-4 flex justify-center">
+              <img
+                src={selectedEvaluationLogo}
+                alt="Office Logo"
+                className="max-h-[84px] max-w-[180px] object-contain"
+              />
+            </div>
+          )}
+          <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">
+            {selectedOfficeDisplayName.toUpperCase()}
+          </h1>
+          <h2 className="font-bold text-lg uppercase tracking-wider">
+            {evaluationTemplate.title}
+          </h2>
         </div>
 
         {/* Metadata section */}
         <div className="space-y-2 mb-10">
           <div className="flex gap-2">
-            <span className="font-bold whitespace-nowrap">NAME</span>
+            <span className="font-bold whitespace-nowrap">{evaluationTemplate.metaNameLabel}</span>
             <span className={`${isViewDetailsMode ? 'relative inline-flex max-w-full border-b border-black pr-1' : 'w-full relative border-b border-black'}`}>
               <span className={`${isViewDetailsMode ? 'text-[#D32F2F] font-bold' : 'absolute left-0 -top-1 w-full text-[#D32F2F] font-bold'}`}>
                 {isViewDetailsMode ? (
@@ -926,7 +1222,7 @@ function EvaluateEmployeeForm() {
             </span>
           </div>
           <div className="flex gap-2">
-            <span className="font-bold whitespace-nowrap">DEPARTMENT/JOB TITLE</span>
+            <span className="font-bold whitespace-nowrap">{evaluationTemplate.metaDepartmentLabel}</span>
             <span className="relative inline-flex max-w-full border-b border-black pr-1">
               <span className="text-[#D32F2F] font-bold">
                 {selectedEmployee ? `${employeeDetails?.department} / ${employeeDetails?.position}` : ''}
@@ -934,7 +1230,7 @@ function EvaluateEmployeeForm() {
             </span>
           </div>
           <div className="flex gap-2">
-            <span className="font-bold whitespace-nowrap">RATING PERIOD</span>
+            <span className="font-bold whitespace-nowrap">{evaluationTemplate.metaRatingPeriodLabel}</span>
             <span className="relative inline-flex max-w-full border-b border-black pr-1">
               <span className="text-[#D32F2F] font-bold">
                 {selectedEmployee && (
@@ -963,13 +1259,13 @@ function EvaluateEmployeeForm() {
 
         {/* Criteria Header */}
         <div className="grid grid-cols-12 mb-4 border-b-2 border-transparent relative">
-          <div className="col-span-10 text-center font-bold underline">CRITERIA</div>
-          <div className="col-span-2 text-center font-bold underline">RATING</div>
+          <div className="col-span-10 text-center font-bold underline">{evaluationTemplate.criteriaHeader}</div>
+          <div className="col-span-2 text-center font-bold underline">{evaluationTemplate.ratingHeader}</div>
         </div>
 
         {/* Criteria List */}
         <div className="space-y-6 mb-10">
-          {CRITERIA.map((criterion) => (
+          {displayCriteria.map((criterion) => (
             <div key={criterion.id} className="grid grid-cols-12 gap-4 items-start">
               <div className="col-span-9">
                 <div className="font-bold">{criterion.label}</div>
@@ -1002,7 +1298,7 @@ function EvaluateEmployeeForm() {
         {/* Agreement Text */}
         <div className="mb-10 text-[12px]">
           <div className="flex flex-wrap items-center gap-x-2">
-            <span>The above appraisal was discussed with me by my superior and I</span>
+            <span>{evaluationTemplate.agreementText}</span>
             <span className={`flex items-center gap-1 ${isEditMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`} onClick={() => isEditMode && setAgreement('agree')}>
               <span className={`w-3 h-3 border border-black rounded-full flex items-center justify-center`}>
                 {agreement === 'agree' && <div className="w-1.5 h-1.5 bg-black rounded-full"/>}
@@ -1036,30 +1332,27 @@ function EvaluateEmployeeForm() {
 
         {/* Rating Instructions */}
         <div className="mb-8">
-          <div className="font-bold uppercase mb-2">EMPLOYEE SHALL BE RATED AS FOLLOWS:</div>
+          <div className="font-bold uppercase mb-2">{evaluationTemplate.ratingScaleTitle}</div>
           <div className="ml-10 space-y-0 text-[12px]">
-            <div>1 – Poor</div>
-            <div>2 – Needs Improvement</div>
-            <div>3 – Meets Minimum Requirement</div>
-            <div>4 – Very Satisfactory</div>
-            <div>5 – Outstanding</div>
+            {ratingScaleLines.map((line) => (
+              <div key={line}>{line}</div>
+            ))}
           </div>
         </div>
 
         {/* Interpretation */}
         <div className="mb-10">
-          <div className="font-bold uppercase mb-2">INTERPRETATION OF TOTAL RATING SCORE:</div>
+          <div className="font-bold uppercase mb-2">{evaluationTemplate.interpretationTitle}</div>
           <div className="space-y-0 text-[12px]">
-            <div>50 – 41 Highly suitable to the position</div>
-            <div>40 – 31 Suitable to the position</div>
-            <div>30 – 16 Fails to meet minimum requirements of the job</div>
-            <div>15 – 0 Employee advise to resign</div>
+            {interpretationLines.map((line) => (
+              <div key={line}>{line}</div>
+            ))}
           </div>
         </div>
 
         {/* Recommendation */}
         <div className="mb-10 font-bold flex items-center gap-6">
-          <span>RECOMMENDATION: REGULAR EMPLOYMENT</span>
+          <span>{evaluationTemplate.recommendationLabel}</span>
           <div className={`flex items-center gap-2 ${isEditMode ? 'cursor-pointer' : 'cursor-not-allowed opacity-70'}`} onClick={() => isEditMode && setRecommendation('yes')}>
             <div className={`w-5 h-5 border-2 border-black flex items-center justify-center ${recommendation === 'yes' ? 'bg-[#D32F2F] border-[#D32F2F]' : 'bg-transparent'}`}>
               {recommendation === 'yes' && <Check className="w-4 h-4 text-white font-bold" />}
@@ -1076,7 +1369,7 @@ function EvaluateEmployeeForm() {
 
         {/* Comment Lines / Remarks Section */}
         <div className="mb-20">
-          <div className="font-bold uppercase mb-2">COMMENTS / REMARKS:</div>
+          <div className="font-bold uppercase mb-2">{evaluationTemplate.remarksLabel}</div>
           <Textarea 
             placeholder="Write your comments here..."
             className="w-full border-b border-black rounded-none shadow-none focus:ring-0 min-h-[100px] resize-none p-0 text-[13px] leading-relaxed italic"
@@ -1096,10 +1389,10 @@ function EvaluateEmployeeForm() {
 
         {/* Manager Signatures */}
         <div className="mb-10">
-          <div className="font-bold uppercase mb-2 text-[12px]">Manager Approval Signatures</div>
+          <div className="font-bold uppercase mb-2 text-[12px]">{evaluationTemplate.managerSignaturesTitle}</div>
           <div className="grid grid-cols-2 gap-x-20 gap-y-2 bg-slate-50 border border-slate-200 p-4">
             <div className="flex gap-2 items-center">
-              <span className="min-w-[80px] font-semibold">Rated by:</span>
+              <span className="min-w-[80px] font-semibold">{evaluationTemplate.ratedByLabel}</span>
               <input 
                 type="text" 
                 className="flex-1 border-b border-black bg-transparent outline-none disabled:text-slate-500 disabled:cursor-not-allowed text-[13px]"
@@ -1115,7 +1408,7 @@ function EvaluateEmployeeForm() {
             </div>
             
             <div className="flex gap-2 items-center">
-              <span className="min-w-[80px] font-semibold">Reviewed by:</span>
+              <span className="min-w-[80px] font-semibold">{evaluationTemplate.reviewedByLabel}</span>
               <input 
                 type="text" 
                 className="flex-1 border-b border-black bg-transparent outline-none disabled:text-slate-500 disabled:cursor-not-allowed text-[13px]"
@@ -1131,7 +1424,7 @@ function EvaluateEmployeeForm() {
             </div>
             
             <div className="flex gap-2 items-center">
-              <span className="min-w-[80px] font-semibold">Approved by:</span>
+              <span className="min-w-[80px] font-semibold">{evaluationTemplate.approvedByLabel}</span>
               <input 
                 type="text" 
                 className="flex-1 border-b border-black bg-transparent outline-none disabled:text-slate-500 disabled:cursor-not-allowed text-[13px]"
@@ -1151,6 +1444,7 @@ function EvaluateEmployeeForm() {
       </div>
       )}
       </div>
+      </div>
     </div>
   )
 }
@@ -1162,3 +1456,7 @@ export default function EvaluateEmployeePage() {
     </Suspense>
   )
 }
+
+
+
+

@@ -19,6 +19,7 @@ import { getApiUrl } from "@/lib/api";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { format, addMonths } from "date-fns";
+import { ConfirmationModal } from "@/components/ConfirmationModal";
 
 interface Employee {
   id: string;
@@ -96,12 +97,16 @@ export default function EvaluationPage() {
   const [statusFilter, setStatusFilter] = useState<
     "All" | "Probee" | "For Recommendation" | "Regular" | "Failed"
   >("All");
-  const [editingRegularization, setEditingRegularization] = useState<
-    Record<string, boolean>
-  >({});
   const [regularizationDates, setRegularizationDates] = useState<
     Record<string, string>
   >({});
+  const [confirmRegularization, setConfirmRegularization] = useState<{
+    isOpen: boolean;
+    employeeId: string | null;
+  }>({
+    isOpen: false,
+    employeeId: null,
+  });
 
   useEffect(() => {
     fetchData();
@@ -210,13 +215,20 @@ export default function EvaluationPage() {
     }
 
     return {
-      firstEval: format(firstEval, "MMMM d, yyyy"),
-      secondEval: format(secondEval, "MMMM d, yyyy"),
+      firstEval: format(firstEval, "MM/dd/yyyy"),
+      secondEval: format(secondEval, "MM/dd/yyyy"),
       regularization: regularizationDate
-        ? format(regularizationDate, "MMMM d, yyyy")
+        ? format(regularizationDate, "MM/dd/yyyy")
         : "-",
       status,
     };
+  };
+
+  const formatDisplayDate = (dateValue: string | null | undefined) => {
+    if (!dateValue) return "-";
+    const parsed = new Date(dateValue);
+    if (Number.isNaN(parsed.getTime())) return "-";
+    return format(parsed, "MM/dd/yyyy");
   };
 
   const isBenefitQualified = (
@@ -327,48 +339,69 @@ export default function EvaluationPage() {
     }
   };
 
-  const handleRegularizationDateChange = async (
+  const handleRegularizationDateInputChange = (
     employeeId: string,
     date: string,
   ) => {
     setRegularizationDates((prev) => ({ ...prev, [employeeId]: date }));
+  };
 
-    // Auto-save when date is set
-    if (date) {
-      setIsActionLoading(true);
-      try {
-        const currentEval = evaluations[employeeId] ||
-          persistedEvaluations[employeeId] || {
-            employee_id: employeeId,
-            score_1: null,
-            remarks_1: null,
-            score_2: null,
-            remarks_2: null,
-            status: null,
-          };
+  const requestRegularizationDateSave = (employeeId: string) => {
+    const selectedDate = regularizationDates[employeeId];
+    if (!selectedDate) {
+      toast.error("Please select a regularization date first");
+      return;
+    }
 
-        const response = await fetch(`${getApiUrl()}/api/evaluations`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...currentEval,
-            regularization_date: date,
-            status: "Regular",
-          }),
-        });
-        const data = await response.json();
-        if (data.success) {
-          toast.success("Regularization date saved");
-          fetchData();
-        } else {
-          toast.error(data.message || "Failed to save regularization date");
-        }
-      } catch (error) {
-        console.error("Error saving regularization date:", error);
-        toast.error("Connection failed");
-      } finally {
-        setIsActionLoading(false);
+    setConfirmRegularization({ isOpen: true, employeeId });
+  };
+
+  const handleConfirmRegularizationDateSave = async () => {
+    const employeeId = confirmRegularization.employeeId;
+    if (!employeeId) return;
+
+    const selectedDate = regularizationDates[employeeId];
+    if (!selectedDate) {
+      toast.error("Please select a regularization date first");
+      setConfirmRegularization({ isOpen: false, employeeId: null });
+      return;
+    }
+
+    setConfirmRegularization({ isOpen: false, employeeId: null });
+
+    setIsActionLoading(true);
+    try {
+      const currentEval = evaluations[employeeId] ||
+        persistedEvaluations[employeeId] || {
+          employee_id: employeeId,
+          score_1: null,
+          remarks_1: null,
+          score_2: null,
+          remarks_2: null,
+          status: null,
+        };
+
+      const response = await fetch(`${getApiUrl()}/api/evaluations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...currentEval,
+          regularization_date: selectedDate,
+          status: "Regular",
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        toast.success("Regularization date saved");
+        fetchData();
+      } else {
+        toast.error(data.message || "Failed to save regularization date");
       }
+    } catch (error) {
+      console.error("Error saving regularization date:", error);
+      toast.error("Connection failed");
+    } finally {
+      setIsActionLoading(false);
     }
   };
 
@@ -519,33 +552,33 @@ export default function EvaluationPage() {
             </div>
           </div>
 
-          <div className="w-full px-8 pb-12">
+          <div className="w-full px-4 md:px-6 pb-10">
             {/* Monitoring Table Section matching Masterfile design */}
             <div className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-xl flex flex-col">
-              <div className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                  <h3 className="text-2xl text-[#4A081A] font-bold flex items-center gap-3">
-                    <PieChart className="w-6 h-6" />
+                  <h3 className="text-xl text-[#4A081A] font-bold flex items-center gap-3">
+                    <PieChart className="w-5 h-5" />
                     EVALUATION MONITORING FOR {new Date().getFullYear()} -{" "}
                     {new Date().getFullYear() + 1}
                   </h3>
-                  <div className="text-[#A0153E]/70 flex items-center gap-2 text-xs font-bold uppercase mt-1">
-                    <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#C9184A]" />
+                  <div className="text-[#A0153E]/70 flex items-center gap-2 text-[11px] font-bold uppercase mt-1">
+                    <span className="inline-block w-2 h-2 rounded-full bg-[#C9184A]" />
                     <span>Tracking employee progression milestones</span>
                   </div>
                 </div>
 
                 <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-                  <div className="relative w-full md:w-80">
+                  <div className="relative w-full md:w-72">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                     <Input
                       placeholder="Search candidates..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 h-11 bg-stone-50/50 border-[#FFE5EC] focus:border-[#C9184A] rounded-xl text-sm"
+                      className="pl-10 h-9 bg-stone-50/50 border-[#FFE5EC] focus:border-[#C9184A] rounded-xl text-xs"
                     />
                   </div>
-                  <div className="flex items-center gap-2 bg-[#FFE5EC]/40 border border-[#FFE5EC] rounded-xl p-1 h-11">
+                  <div className="flex items-center gap-1.5 bg-[#FFE5EC]/40 border border-[#FFE5EC] rounded-xl p-1 h-9">
                     {(
                       [
                         "All",
@@ -559,7 +592,7 @@ export default function EvaluationPage() {
                         key={status}
                         type="button"
                         onClick={() => setStatusFilter(status)}
-                        className={`px-4 h-9 rounded-lg text-[11px] font-extrabold uppercase tracking-wide transition-all ${
+                        className={`px-3 h-7 rounded-lg text-[10px] font-extrabold uppercase tracking-wide transition-all ${
                           statusFilter === status
                             ? "bg-white text-[#7B0F2B] shadow-sm"
                             : "text-[#7B0F2B]/70 hover:text-[#7B0F2B]"
@@ -573,43 +606,43 @@ export default function EvaluationPage() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-[12px] table-fixed">
                   <thead className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC]">
                     <tr>
-                      <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap">
+                      <th className="px-3 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-24">
                         ID Number
                       </th>
-                      <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap">
+                      <th className="px-3 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-44">
                         Name
                       </th>
-                      <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap">
+                      <th className="px-3 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-28">
                         Date Hired
                       </th>
-                      <th className="px-6 py-4 text-center font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap">
+                      <th className="px-3 py-2 text-center font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-24">
                         Status
                       </th>
-                      <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">
+                      <th className="px-3 py-2 text-center font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-normal leading-tight w-32">
                         Date of 1st Evaluation
                       </th>
-                      <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">
+                      <th className="px-3 py-2 text-center font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-16">
                         Score
                       </th>
-                      <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">
+                      <th className="px-3 py-2 text-center font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-20">
                         Remarks
                       </th>
-                      <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">
+                      <th className="px-3 py-2 text-center font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-normal leading-tight w-32">
                         Date of 2nd Evaluation
                       </th>
-                      <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">
+                      <th className="px-3 py-2 text-center font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-16">
                         Score
                       </th>
-                      <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">
+                      <th className="px-3 py-2 text-center font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-20">
                         Remarks
                       </th>
-                      <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap text-center">
+                      <th className="px-3 py-2 text-center font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-normal leading-tight w-36">
                         Date of Regularization
                       </th>
-                      <th className="px-6 py-4 text-left font-bold text-[#800020] text-[11px] uppercase tracking-wider whitespace-nowrap text-center">
+                      <th className="px-3 py-2 text-center font-bold text-[#800020] text-[10px] uppercase tracking-wider whitespace-nowrap w-24">
                         Action
                       </th>
                     </tr>
@@ -619,7 +652,7 @@ export default function EvaluationPage() {
                       <tr>
                         <td
                           colSpan={12}
-                          className="px-6 py-12 text-center text-slate-400 italic"
+                          className="px-3 py-10 text-center text-slate-400 italic"
                         >
                           No active records found matching your search.
                         </td>
@@ -659,36 +692,31 @@ export default function EvaluationPage() {
                             key={emp.id}
                             className="hover:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group"
                           >
-                            <td className="px-6 py-4 font-bold text-[#630C22] border-r border-rose-50/30 whitespace-nowrap">
+                            <td className="px-3 py-2 font-bold text-[#630C22] border-r border-rose-50/30 whitespace-nowrap">
                               {emp.id}
                             </td>
-                            <td className="px-6 py-4 border-r border-rose-50/30">
+                            <td className="px-3 py-2 border-r border-rose-50/30">
                               <div className="flex items-center gap-2">
-                                <div className="font-bold text-slate-800 text-base group-hover:text-[#630C22] transition-colors">
+                                <div className="font-bold text-slate-800 text-sm group-hover:text-[#630C22] transition-colors">
                                   {emp.first_name} {emp.last_name}
                                 </div>
                                 {isBenefitQualified(
                                   evalData?.regularization_date,
                                 ) && (
-                                  <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[9px] font-black uppercase px-1.5 py-0 h-4 rounded-sm flex items-center gap-0.5">
+                                  <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[8px] font-black uppercase px-1.5 py-0 h-4 rounded-sm flex items-center gap-0.5">
                                     <TrendingUp className="w-2.5 h-2.5" />
                                     Benefit Qualified
                                   </Badge>
                                 )}
                               </div>
-                              <div className="text-slate-500 text-[11px] font-semibold uppercase">
+                              <div className="text-slate-500 text-[10px] font-semibold uppercase">
                                 {emp.position}
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-slate-600 font-medium border-r border-rose-50/30 whitespace-nowrap">
-                              {emp.date_hired
-                                ? format(
-                                    new Date(emp.date_hired),
-                                    "MMM d, yyyy",
-                                  )
-                                : "-"}
+                            <td className="px-3 py-2 text-slate-600 font-medium border-r border-rose-50/30 whitespace-nowrap">
+                              {formatDisplayDate(emp.date_hired)}
                             </td>
-                            <td className="px-6 py-4 border-r border-rose-50/30 text-center">
+                            <td className="px-3 py-2 border-r border-rose-50/30 text-center">
                               <Badge
                                 className={`${
                                   dates?.status === "Regular" ||
@@ -699,16 +727,16 @@ export default function EvaluationPage() {
                                       : dates?.status === "Failed"
                                         ? "bg-rose-50 text-rose-700 border-rose-200"
                                         : "bg-amber-50 text-amber-700 border-amber-200"
-                                } border shadow-none font-bold px-3 py-1 uppercase text-[10px] pointer-events-none rounded-full`}
+                                } border shadow-none font-bold px-2.5 py-0.5 uppercase text-[9px] pointer-events-none rounded-full`}
                               >
                                 {dates?.status}
                               </Badge>
                             </td>
-                            <td className="px-6 py-4 text-slate-500 font-semibold text-[13px] border-r border-rose-50/30 italic whitespace-nowrap text-center">
+                            <td className="px-3 py-2 text-slate-500 font-semibold text-[11px] border-r border-rose-50/30 italic whitespace-nowrap text-center">
                               {dates?.firstEval || "-"}
                             </td>
                             <td
-                              className={`px-6 py-4 font-bold text-[14px] border-r border-rose-50/30 text-center ${
+                              className={`px-3 py-2 font-bold text-[12px] border-r border-rose-50/30 text-center ${
                                 remarks1 === "Passed"
                                   ? "text-emerald-600"
                                   : remarks1 === "Failed"
@@ -717,15 +745,15 @@ export default function EvaluationPage() {
                               }`}
                             >
                               {score1 ?? (
-                                <span className="text-slate-300 italic text-xs font-normal">
+                                <span className="text-slate-300 italic text-[10px] font-normal">
                                   -
                                 </span>
                               )}
                             </td>
-                            <td className="px-6 py-4 border-r border-rose-50/30 text-center">
+                            <td className="px-3 py-2 border-r border-rose-50/30 text-center">
                               <Badge
                                 variant="outline"
-                                className={`font-bold px-2 py-0.5 uppercase text-[9px] rounded-md ${
+                                className={`font-bold px-2 py-0.5 uppercase text-[8px] rounded-md ${
                                   displayRemarks1 === "Regularized"
                                     ? "border-emerald-200 text-emerald-700 bg-emerald-50"
                                     : displayRemarks1 === "Passed"
@@ -738,13 +766,13 @@ export default function EvaluationPage() {
                                 {displayRemarks1}
                               </Badge>
                             </td>
-                            <td className="px-6 py-4 text-slate-500 font-semibold text-[13px] border-r border-rose-50/30 italic whitespace-nowrap text-center">
+                            <td className="px-3 py-2 text-slate-500 font-semibold text-[11px] border-r border-rose-50/30 italic whitespace-nowrap text-center">
                               {shouldShowSecondEvaluationDetails
                                 ? dates?.secondEval || "-"
                                 : "-"}
                             </td>
                             <td
-                              className={`px-6 py-4 font-bold text-[14px] border-r border-rose-50/30 text-center ${
+                              className={`px-3 py-2 font-bold text-[12px] border-r border-rose-50/30 text-center ${
                                 remarks2 === "Passed"
                                   ? "text-emerald-600"
                                   : remarks2 === "Failed"
@@ -754,21 +782,21 @@ export default function EvaluationPage() {
                             >
                               {shouldShowSecondEvaluationDetails ? (
                                 (score2 ?? (
-                                  <span className="text-slate-300 italic text-xs font-normal">
+                                  <span className="text-slate-300 italic text-[10px] font-normal">
                                     -
                                   </span>
                                 ))
                               ) : (
-                                <span className="text-slate-300 italic text-xs font-normal">
+                                <span className="text-slate-300 italic text-[10px] font-normal">
                                   -
                                 </span>
                               )}
                             </td>
-                            <td className="px-6 py-4 border-r border-rose-50/30 text-center">
+                            <td className="px-3 py-2 border-r border-rose-50/30 text-center">
                               {shouldShowSecondEvaluationDetails ? (
                                 <Badge
                                   variant="outline"
-                                  className={`font-bold px-2 py-0.5 uppercase text-[9px] rounded-md ${
+                                  className={`font-bold px-2 py-0.5 uppercase text-[8px] rounded-md ${
                                     displayRemarks2 === "Regularized"
                                       ? "border-emerald-200 text-emerald-700 bg-emerald-50"
                                       : displayRemarks2 === "Passed"
@@ -781,40 +809,58 @@ export default function EvaluationPage() {
                                   {displayRemarks2}
                                 </Badge>
                               ) : (
-                                <span className="text-slate-300 italic text-xs font-normal">
+                                <span className="text-slate-300 italic text-[10px] font-normal">
                                   -
                                 </span>
                               )}
                             </td>
-                            <td className="px-6 py-4 text-sm whitespace-nowrap text-center border-r border-rose-50/30">
+                            <td className="px-3 py-2 text-[11px] whitespace-nowrap text-center border-r border-rose-50/30">
                               {hasPassedEvaluation ? (
-                                <Input
-                                  type="date"
-                                  value={
-                                    regularizationDates[emp.id] ||
-                                    evalData?.regularization_date ||
-                                    ""
-                                  }
-                                  onChange={(e) =>
-                                    handleRegularizationDateChange(
-                                      emp.id,
-                                      e.target.value,
-                                    )
-                                  }
-                                  className="h-8 text-xs border-[#A4163A]/30 focus:border-[#A4163A]"
-                                  placeholder="Set date"
-                                />
+                                evalData?.regularization_date ? (
+                                  <span className="text-slate-600 font-semibold text-[11px]">
+                                    {formatDisplayDate(evalData.regularization_date)}
+                                  </span>
+                                ) : (
+                                  <div className="flex items-center gap-2 justify-center">
+                                    <Input
+                                      type="date"
+                                      value={regularizationDates[emp.id] || ""}
+                                      onChange={(e) =>
+                                        handleRegularizationDateInputChange(
+                                          emp.id,
+                                          e.target.value,
+                                        )
+                                      }
+                                      className="h-7 text-[10px] border-[#A4163A]/30 focus:border-[#A4163A]"
+                                      placeholder="Set date"
+                                    />
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      className="h-7 px-2 text-[10px] bg-[#A4163A] hover:bg-[#7B0F2B] text-white"
+                                      disabled={
+                                        !regularizationDates[emp.id] ||
+                                        isActionLoading
+                                      }
+                                      onClick={() =>
+                                        requestRegularizationDateSave(emp.id)
+                                      }
+                                    >
+                                      Save
+                                    </Button>
+                                  </div>
+                                )
                               ) : (
-                                <span className="text-slate-300 italic text-xs font-normal">
+                                <span className="text-slate-300 italic text-[10px] font-normal">
                                   -
                                 </span>
                               )}
                             </td>
-                            <td className="px-6 py-4 text-center">
+                            <td className="px-3 py-2 text-center">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="rounded-lg font-bold transition-all text-[#630C22] border-[#630C22] hover:bg-[#630C22] hover:text-white"
+                                className="rounded-lg font-bold transition-all text-[#630C22] border-[#630C22] hover:bg-[#630C22] hover:text-white h-7 px-2 text-[10px]"
                                 onClick={() =>
                                   router.push(
                                     `/admin-head/employee/evaluation/evaluate_employee?id=${emp.id}`,
@@ -835,6 +881,20 @@ export default function EvaluationPage() {
           </div>
         </>
       )}
+
+      <ConfirmationModal
+        isOpen={confirmRegularization.isOpen}
+        onClose={() =>
+          setConfirmRegularization({ isOpen: false, employeeId: null })
+        }
+        onConfirm={handleConfirmRegularizationDateSave}
+        title="Confirm Regularization Date"
+        description="This will save and lock the regularization date. You cannot edit it after saving."
+        confirmText="Yes, Save and Lock"
+        cancelText="Cancel"
+        variant="warning"
+        isLoading={isActionLoading}
+      />
     </div>
   );
 }

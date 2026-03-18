@@ -25,20 +25,23 @@ class ActivityLogService
      */
     public function logEmployeeCreated($employee, $performedBy = null, ?Request $request = null)
     {
+        $actorName = $performedBy ? "{$performedBy->first_name} {$performedBy->last_name}" : 'System';
+
         return $this->log([
             'activity_type' => 'employee',
             'action' => 'created',
             'status' => 'success',
-            'title' => 'New Employee Registered',
-            'description' => "{$employee->first_name} {$employee->last_name} has been successfully registered in the system",
+            'title' => 'Employee Record Added',
+            'description' => "{$employee->first_name} {$employee->last_name} profile was added by {$actorName}",
             'user_id' => $performedBy?->id,
-            'user_name' => $performedBy ? "{$performedBy->first_name} {$performedBy->last_name}" : 'System',
+            'user_name' => $actorName,
             'user_email' => $performedBy?->email ?? 'system@abic.com',
             'target_id' => $employee->id,
             'target_type' => 'Employee',
             'metadata' => [
                 'employee_email' => $employee->email,
                 'employee_name' => "{$employee->first_name} {$employee->last_name}",
+                'inserted_by' => $actorName,
             ],
         ], $request);
     }
@@ -50,22 +53,24 @@ class ActivityLogService
     {
         $changedFields = array_keys($changes);
         $fieldsList = implode(', ', $changedFields);
+        $employeeName = "{$employee->first_name} {$employee->last_name}";
 
         return $this->log([
             'activity_type' => 'employee',
             'action' => 'updated',
             'status' => 'success',
             'title' => 'Employee Profile Updated',
-            'description' => "{$employee->first_name} {$employee->last_name} updated their profile" .
-                ($fieldsList ? " (Changed: {$fieldsList})" : ""),
+            'description' => "{$employeeName} profile was updated",
             'user_id' => $performedBy?->id ?? $employee->id,
-            'user_name' => $performedBy ? "{$performedBy->first_name} {$performedBy->last_name}" : "{$employee->first_name} {$employee->last_name}",
+            'user_name' => $performedBy ? "{$performedBy->first_name} {$performedBy->last_name}" : $employeeName,
             'user_email' => $performedBy?->email ?? $employee->email,
             'target_id' => $employee->id,
             'target_type' => 'Employee',
             'metadata' => [
                 'changes' => $changes,
-                'employee_name' => "{$employee->first_name} {$employee->last_name}",
+                'changed_fields' => $changedFields,
+                'changed_fields_text' => $fieldsList,
+                'employee_name' => $employeeName,
             ],
         ], $request);
     }
@@ -75,20 +80,23 @@ class ActivityLogService
      */
     public function logEmployeeDeleted($employee, $performedBy = null, ?Request $request = null)
     {
+        $actorName = $performedBy ? "{$performedBy->first_name} {$performedBy->last_name}" : 'Admin';
+
         return $this->log([
             'activity_type' => 'employee',
             'action' => 'deleted',
             'status' => 'error',
             'title' => 'Employee Deleted',
-            'description' => "{$employee->first_name} {$employee->last_name} has been removed from the system",
+            'description' => "{$employee->first_name} {$employee->last_name} profile was deleted by {$actorName}",
             'user_id' => $performedBy?->id,
-            'user_name' => $performedBy ? "{$performedBy->first_name} {$performedBy->last_name}" : 'Admin',
+            'user_name' => $actorName,
             'user_email' => $performedBy?->email ?? 'admin@abic.com',
             'target_id' => $employee->id,
             'target_type' => 'Employee',
             'metadata' => [
                 'employee_email' => $employee->email,
                 'employee_name' => "{$employee->first_name} {$employee->last_name}",
+                'deleted_by' => $actorName,
             ],
         ], $request);
     }

@@ -80,12 +80,17 @@ Route::post('/employees/{id}/additional-values', [EmployeeAdditionalFieldControl
 // Activity Log API Routes
 Route::get('/activity-logs', [ActivityLogController::class, 'index']);
 Route::get('/activity-logs/stats', [ActivityLogController::class, 'stats']);
+Route::get('/activity-logs/unread-count', [ActivityLogController::class, 'unreadCount']);
+Route::post('/activity-logs/mark-all-read', [ActivityLogController::class, 'markAllRead']);
+Route::patch('/activity-logs/{id}/mark-read', [ActivityLogController::class, 'markRead']);
+Route::delete('/activity-logs/delete-all', [ActivityLogController::class, 'deleteAll']);
 Route::get('/activity-logs/{id}', [ActivityLogController::class, 'show']);
 
 // Evaluation API Routes
 Route::get('/evaluations', [EvaluationController::class, 'index']);
 Route::post('/evaluations', [EvaluationController::class, 'store']);
 Route::get('/evaluations/{employeeId}/pdf', [EvaluationController::class, 'downloadPdf']);
+Route::post('/evaluations/{employeeId}/pdf', [EvaluationController::class, 'downloadPdf']);
 Route::post('/evaluations/{employeeId}/email-pdf', [EvaluationController::class, 'emailPdf']);
 
 

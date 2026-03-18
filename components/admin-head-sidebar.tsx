@@ -1,7 +1,7 @@
 //Side
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import {
   ChevronDown,
@@ -38,6 +38,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { getApiUrl } from "@/lib/api";
 
 export default function AdminHeadSidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -47,6 +48,8 @@ export default function AdminHeadSidebar() {
   const [isHiringOpen, setIsHiringOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingEmployeeCount, setPendingEmployeeCount] = useState(0);
   const router = useRouter();
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
@@ -55,6 +58,110 @@ export default function AdminHeadSidebar() {
     // Perform any logout logic here (e.g., clearing tokens)
     router.push("/logout");
   };
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const response = await fetch('/api/laravel/api/activity-logs/unread-count', { cache: "no-store" });
+      const result = await response.json();
+      if (response.ok && result?.success) {
+        setUnreadCount(Number(result?.data?.count ?? 0));
+      }
+    } catch {
+      // Ignore sidebar counter failures.
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchUnreadCount();
+    const intervalId = setInterval(fetchUnreadCount, 1000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void fetchUnreadCount();
+      }
+    };
+
+    const handleFocus = () => {
+      void fetchUnreadCount();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [fetchUnreadCount]);
+
+  const fetchPendingEmployeeCount = useCallback(async () => {
+    try {
+      const response = await fetch(`${getApiUrl()}/api/employees`, {
+        headers: { Accept: "application/json" },
+        cache: "no-store",
+      });
+      const result = await response.json();
+      if (!response.ok) return;
+
+      const rows = Array.isArray(result?.data)
+        ? result.data
+        : Array.isArray(result)
+          ? result
+          : [];
+      const pendingStatuses = new Set([
+        "pending",
+        "rehire_pending",
+        "termination_pending",
+        "resignation_pending",
+      ]);
+      const count = rows.filter((emp: any) =>
+        pendingStatuses.has(String(emp?.status ?? "").toLowerCase()),
+      ).length;
+      setPendingEmployeeCount(count);
+    } catch {
+      // Ignore sidebar counter failures.
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchPendingEmployeeCount();
+    const intervalId = setInterval(fetchPendingEmployeeCount, 10000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void fetchPendingEmployeeCount();
+      }
+    };
+
+    const handleFocus = () => {
+      void fetchPendingEmployeeCount();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, [fetchPendingEmployeeCount]);
+
+  useEffect(() => {
+    const onUnreadChanged = (event: Event) => {
+      const customEvent = event as CustomEvent<{ count: number }>;
+      if (typeof customEvent.detail?.count === 'number') {
+        setUnreadCount(customEvent.detail.count);
+      }
+    };
+
+    window.addEventListener('activity-log-unread-changed', onUnreadChanged as EventListener);
+
+    return () => {
+      window.removeEventListener('activity-log-unread-changed', onUnreadChanged as EventListener);
+    };
+  }, []);
 
   return (
     <div
@@ -136,10 +243,10 @@ export default function AdminHeadSidebar() {
         </div>
       )}
 
-      {/* Navigation Menu - Alphabetically Ordered */}
+      {/* Navigation Menu */}
       <nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar py-2">
         {/* ACTIVITY LOGS */}
-        <div className="group relative">
+        {/* <div className="group relative">
           <Link
             href="/admin-head"
             className={cn(
@@ -149,8 +256,20 @@ export default function AdminHeadSidebar() {
           >
             <Activity size={22} className="shrink-0" />
             {!isCollapsed && (
-              <span className="font-medium whitespace-nowrap">
-                ACTIVITY LOGS
+              <div className="flex items-center gap-2">
+                <span className="font-medium whitespace-nowrap">
+                  ACTIVITY LOGS
+                </span>
+                {unreadCount > 0 && (
+                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold leading-none text-[#7B0F2B]">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </div>
+            )}
+            {isCollapsed && unreadCount > 0 && (
+              <span className="absolute right-4 top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1 py-0.5 text-[10px] font-bold leading-none text-[#7B0F2B]">
+                {unreadCount > 99 ? '99+' : unreadCount}
               </span>
             )}
           </Link>
@@ -168,103 +287,7 @@ export default function AdminHeadSidebar() {
               </Link>
             </div>
           )}
-        </div>
-
-        {/* ATTENDANCE with Dropdown */}
-        <div className="group relative">
-          <button
-            suppressHydrationWarning
-            onClick={() => setIsAttendanceOpen(!isAttendanceOpen)}
-            className={cn(
-              "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
-              isCollapsed ? "justify-center" : "justify-between",
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <Calendar size={22} className="shrink-0" />
-              {!isCollapsed && (
-                <span className="font-medium whitespace-nowrap">
-                  ATTENDANCE
-                </span>
-              )}
-            </div>
-            {!isCollapsed && (
-              <ChevronDown
-                size={16}
-                className={`transition-transform shrink-0 ${isAttendanceOpen ? "rotate-180" : ""} group-hover:rotate-180`}
-              />
-            )}
-          </button>
-
-          {/* Attendance Dropdown Menu (Hover + Click) */}
-          <div
-            className={`${isCollapsed ? "fixed left-20 top-auto w-56 z-50" : "ml-10 mt-1"} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isAttendanceOpen ? "block" : "hidden"} group-hover:block`}
-          >
-            {isCollapsed && (
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
-                ATTENDANCE
-              </div>
-            )}
-            <Link
-              href="/admin-head/attendance/leave"
-              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-            >
-              <LogOut size={18} />
-              <span>Leave</span>
-            </Link>
-            <Link
-              href="/admin-head/attendance/leave-credits"
-              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-            >
-              <CalendarDays size={18} />
-              <span>Leave Credits</span>
-            </Link>
-            <Link
-              href="/admin-head/attendance/tardiness"
-              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-            >
-              <Clock size={18} />
-              <span>Tardiness</span>
-            </Link>
-            <Link
-              href="/admin-head/attendance/warning-letter"
-              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-            >
-              <FileText size={18} />
-              <span>Warning Letter</span>
-            </Link>
-          </div>
-        </div>
-
-        {/* DIRECTORY */}
-        <div className="group relative">
-          <Link
-            href="/admin-head/directory"
-            className={cn(
-              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : "",
-            )}
-          >
-            <BookOpen size={22} className="shrink-0" />
-            {!isCollapsed && (
-              <span className="font-medium whitespace-nowrap">DIRECTORY</span>
-            )}
-          </Link>
-          {isCollapsed && (
-            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
-                DIRECTORY
-              </div>
-              <Link
-                href="/admin-head/directory"
-                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-              >
-                <BookOpen size={18} />
-                <span>Directory</span>
-              </Link>
-            </div>
-          )}
-        </div>
+        </div> */}
 
         {/* EMPLOYEE with Dropdown */}
         <div className="group relative">
@@ -279,7 +302,14 @@ export default function AdminHeadSidebar() {
             <div className="flex items-center gap-3">
               <Users size={22} className="shrink-0" />
               {!isCollapsed && (
-                <span className="font-medium whitespace-nowrap">EMPLOYEE</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium whitespace-nowrap">EMPLOYEE</span>
+                  {pendingEmployeeCount > 0 && (
+                    <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold leading-none text-[#7B0F2B]">
+                      {pendingEmployeeCount > 99 ? "99+" : pendingEmployeeCount}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
             {!isCollapsed && (
@@ -289,6 +319,11 @@ export default function AdminHeadSidebar() {
               />
             )}
           </button>
+          {isCollapsed && pendingEmployeeCount > 0 && (
+            <span className="absolute right-4 top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1 py-0.5 text-[10px] font-bold leading-none text-[#7B0F2B]">
+              {pendingEmployeeCount > 99 ? "99+" : pendingEmployeeCount}
+            </span>
+          )}
 
           {/* Employee Dropdown Menu (Hover + Click) */}
           <div
@@ -380,34 +415,70 @@ export default function AdminHeadSidebar() {
           </div>
         </div>
 
-        {/* HIERARCHY */}
+        {/* ATTENDANCE with Dropdown */}
         <div className="group relative">
-          <Link
-            href="/admin-head/hierarchy"
+          <button
+            suppressHydrationWarning
+            onClick={() => setIsAttendanceOpen(!isAttendanceOpen)}
             className={cn(
-              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : "",
+              "w-full flex items-center px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base group",
+              isCollapsed ? "justify-center" : "justify-between",
             )}
           >
-            <GitBranch size={22} className="shrink-0" />
-            {!isCollapsed && (
-              <span className="font-medium whitespace-nowrap">HIERARCHY</span>
-            )}
-          </Link>
-          {isCollapsed && (
-            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
-                HIERARCHY
-              </div>
-              <Link
-                href="/admin-head/hierarchy"
-                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-              >
-                <GitBranch size={18} />
-                <span>Hierarchy</span>
-              </Link>
+            <div className="flex items-center gap-3">
+              <Calendar size={22} className="shrink-0" />
+              {!isCollapsed && (
+                <span className="font-medium whitespace-nowrap">
+                  ATTENDANCE
+                </span>
+              )}
             </div>
-          )}
+            {!isCollapsed && (
+              <ChevronDown
+                size={16}
+                className={`transition-transform shrink-0 ${isAttendanceOpen ? "rotate-180" : ""} group-hover:rotate-180`}
+              />
+            )}
+          </button>
+
+          {/* Attendance Dropdown Menu (Hover + Click) */}
+          <div
+            className={`${isCollapsed ? "fixed left-20 top-auto w-56 z-50" : "ml-10 mt-1"} space-y-1 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md transition-all duration-200 ${isAttendanceOpen ? "block" : "hidden"} group-hover:block`}
+          >
+            {isCollapsed && (
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                ATTENDANCE
+              </div>
+            )}
+            <Link
+              href="/admin-head/attendance/leave"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <LogOut size={18} />
+              <span>Leave</span>
+            </Link>
+            <Link
+              href="/admin-head/attendance/leave-credits"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <CalendarDays size={18} />
+              <span>Leave Credits</span>
+            </Link>
+            <Link
+              href="/admin-head/attendance/tardiness"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <Clock size={18} />
+              <span>Tardiness</span>
+            </Link>
+            <Link
+              href="/admin-head/attendance/warning-letter"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <FileText size={18} />
+              <span>Warning Letter</span>
+            </Link>
+          </div>
         </div>
 
         {/* HIRING with Dropdown */}
@@ -460,6 +531,66 @@ export default function AdminHeadSidebar() {
           </div>
         </div>
 
+        {/* FORM TEMPLATES */}
+        <div className="group relative">
+          <Link
+            href="/admin-head/attendance/warning-letter/edit_forms"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
+              isCollapsed ? "justify-center" : "",
+            )}
+          >
+            <FilePlus size={22} className="shrink-0" />
+            {!isCollapsed && (
+              <span className="font-medium whitespace-nowrap">FORM TEMPLATES</span>
+            )}
+          </Link>
+          {isCollapsed && (
+            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                FORM TEMPLATES
+              </div>
+              <Link
+                href="/admin-head/attendance/warning-letter/edit_forms"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+              >
+                <FilePlus size={18} />
+                <span>Form Templates</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* HIERARCHY */}
+        <div className="group relative">
+          <Link
+            href="/admin-head/hierarchy"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
+              isCollapsed ? "justify-center" : "",
+            )}
+          >
+            <GitBranch size={22} className="shrink-0" />
+            {!isCollapsed && (
+              <span className="font-medium whitespace-nowrap">HEIRARCHY</span>
+            )}
+          </Link>
+          {isCollapsed && (
+            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                HEIRARCHY
+              </div>
+              <Link
+                href="/admin-head/hierarchy"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+              >
+                <GitBranch size={18} />
+                <span>Heirarchy</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
         {/* INVENTORY */}
         <div className="group relative">
           <Link
@@ -481,6 +612,36 @@ export default function AdminHeadSidebar() {
               >
                 <Boxes size={18} />
                 <span>Inventory</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* DIRECTORY */}
+        <div className="group relative">
+          <Link
+            href="/admin-head/directory"
+            className={cn(
+              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
+              isCollapsed ? "justify-center" : "",
+            )}
+          >
+            <BookOpen size={22} className="shrink-0" />
+            {!isCollapsed && (
+              <span className="font-medium whitespace-nowrap">DIRECTORY</span>
+            )}
+          </Link>
+          {isCollapsed && (
+            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                DIRECTORY
+              </div>
+              <Link
+                href="/admin-head/directory"
+                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+              >
+                <BookOpen size={18} />
+                <span>Directory</span>
               </Link>
             </div>
           )}

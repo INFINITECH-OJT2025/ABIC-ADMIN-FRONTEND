@@ -65,6 +65,7 @@ interface Employee {
     | "pending"
     | "employed"
     | "terminated"
+    | "resigned"
     | "rehire_pending"
     | "rehired_employee"
     | "termination_pending"
@@ -125,6 +126,7 @@ const statusBadgeColors = {
   pending: "bg-amber-50 text-amber-700 border-amber-200",
   employed: "bg-emerald-50 text-emerald-700 border-emerald-200",
   terminated: "bg-rose-50 text-rose-700 border-rose-200",
+  resigned: "bg-rose-50 text-rose-700 border-rose-200",
   rehire_pending: "bg-orange-50 text-orange-700 border-orange-200",
   rehired_employee: "bg-blue-50 text-blue-700 border-blue-200",
   termination_pending:
@@ -137,6 +139,7 @@ const statusLabels = {
   pending: "Pending",
   employed: "Employed",
   terminated: "Terminated",
+  resigned: "Resigned",
   rehire_pending: "Rehire Pending",
   rehired_employee: "Rehired Employee",
   termination_pending: "Pending Termination",
@@ -1499,7 +1502,7 @@ export default function MasterfilePage() {
     ),
   );
   const terminatedList = filterEmployees(
-    employees.filter((e) => e.status === "terminated"),
+    employees.filter((e) => e.status === "terminated" || e.status === "resigned"),
   );
   const pendingList = filterEmployees(
     employees.filter((e) =>
@@ -1522,7 +1525,7 @@ export default function MasterfilePage() {
     list: Employee[];
     emptyMessage: string;
   }) => (
-    <div className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-lg flex flex-col">
+    <div className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-xl flex flex-col">
       <div className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4 flex justify-between items-center">
         <h3 className="text-xl text-[#4A081A] font-bold capitalize">
           {activeTab} Employees Master List
@@ -1539,25 +1542,25 @@ export default function MasterfilePage() {
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-[12px] table-fixed">
             <thead className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC]">
               <tr>
-                <th className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">
+                <th className="px-5 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-56">
                   Name
                 </th>
-                <th className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">
+                <th className="px-5 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-56">
                   Email/Contact
                 </th>
-                <th className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">
+                <th className="px-5 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-44">
                   Position
                 </th>
-                <th className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">
+                <th className="px-5 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-28">
                   Status
                 </th>
-                <th className="px-6 py-4 text-left font-bold text-[#800020] text-sm uppercase tracking-wider">
+                <th className="px-5 py-2 text-left font-bold text-[#800020] text-[10px] uppercase tracking-wider border-r border-[#FFE5EC]/50 whitespace-nowrap w-28">
                   Date
                 </th>
-                <th className="px-6 py-4 text-right font-bold text-[#800020] text-sm uppercase tracking-wider">
+                <th className="px-5 py-2 text-right font-bold text-[#800020] text-[10px] uppercase tracking-wider whitespace-nowrap w-32">
                   Action
                 </th>
               </tr>
@@ -1568,35 +1571,35 @@ export default function MasterfilePage() {
                   key={employee.id}
                   className="hover:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group"
                 >
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-slate-800 text-base group-hover:text-[#630C22] transition-colors">
+                  <td className="px-5 py-2 border-r border-rose-50/40">
+                    <div className="font-bold text-slate-800 text-sm group-hover:text-[#630C22] transition-colors leading-tight">
                       {employee.first_name} {employee.last_name}
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-slate-600">
+                  <td className="px-5 py-2 text-slate-600 border-r border-rose-50/40">
                     <div className="flex flex-col">
-                      <span className="text-sm font-medium">
+                      <span className="text-[12px] font-medium truncate">
                         {employee.email}
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <span className="text-slate-700 font-semibold">
+                  <td className="px-5 py-2 border-r border-rose-50/40">
+                    <span className="text-slate-700 font-semibold text-[12px]">
                       {employee.position || "-"}
                     </span>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-5 py-2 border-r border-rose-50/40">
                     <Badge
-                      className={`${statusBadgeColors[employee.status]} border shadow-none font-bold px-3 py-1 uppercase text-[10px] pointer-events-none rounded-full`}
+                      className={`${statusBadgeColors[employee.status]} border shadow-none font-bold px-2.5 py-0.5 uppercase text-[9px] pointer-events-none rounded-full`}
                     >
                       {statusLabels[employee.status]}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 text-slate-500">
+                  <td className="px-5 py-2 text-slate-500 border-r border-rose-50/40">
                     {employee.status === "terminated" &&
                     employee.termination_date ? (
                       <div className="flex flex-col">
-                        <span className="font-bold text-rose-700">
+                        <span className="font-bold text-rose-700 text-[12px]">
                           {new Date(
                             employee.termination_date,
                           ).toLocaleDateString()}
@@ -1606,15 +1609,15 @@ export default function MasterfilePage() {
                         </span>
                       </div>
                     ) : (
-                      <span className="font-medium">
+                      <span className="font-medium text-[12px]">
                         {new Date(employee.created_at).toLocaleDateString()}
                       </span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-5 py-2 text-right">
                     <button
                       onClick={() => fetchEmployeeDetails(employee.id)}
-                      className="px-6 py-2 bg-white border-2 border-[#A4163A] text-[#A4163A] font-bold rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ease-in-out hover:bg-[#A4163A] hover:text-white hover:border-[#A4163A] cursor-pointer"
+                      className="rounded-lg font-bold transition-all text-[#630C22] border border-[#630C22] hover:bg-[#630C22] hover:text-white h-8 px-4 text-[12px] bg-white cursor-pointer"
                     >
                       View Details
                     </button>
@@ -1718,8 +1721,9 @@ export default function MasterfilePage() {
                     >
                       Terminated (
                       {
-                        employees.filter((e) => e.status === "terminated")
-                          .length
+                        employees.filter(
+                          (e) => e.status === "terminated" || e.status === "resigned",
+                        ).length
                       }
                       )
                     </button>

@@ -3,6 +3,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -325,6 +326,7 @@ const parseBackendDateMs = (value: string | null | undefined): number => {
 };
 
 export default function GovernmentDirectoryPage() {
+  const { isViewOnly } = useUserRole();
   const deleteDialogTitleRef = useRef<HTMLHeadingElement | null>(null);
   const agencyUploadInputRef = useRef<HTMLInputElement | null>(null);
   const agencyUploadTargetRef = useRef<string>("");
@@ -1546,6 +1548,11 @@ export default function GovernmentDirectoryPage() {
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white to-transparent" />
 
         <div className="w-full px-4 md:px-8 py-7 md:py-8 relative z-10">
+          {isViewOnly && (
+            <div className="mb-3 inline-block bg-yellow-100 text-yellow-800 px-3 py-1 rounded text-xs font-bold">
+              VIEW ONLY MODE
+            </div>
+          )}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
             <div>
               <h1 className="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-3">
@@ -1573,7 +1580,7 @@ export default function GovernmentDirectoryPage() {
                       </Button>
                       <Button
                         onClick={saveDirectoryChanges}
-                        disabled={savingChanges || !draft}
+                        disabled={savingChanges || !draft || isViewOnly}
                         variant="default"
                         className="font-bold text-[#A4163A] bg-white hover:bg-stone-100"
                       >
@@ -1588,6 +1595,7 @@ export default function GovernmentDirectoryPage() {
                   ) : (
                     <Button
                       onClick={startEditMode}
+                      disabled={isViewOnly}
                       className="bg-white text-[#A4163A] hover:bg-rose-50 font-black rounded-lg"
                     >
                       <Edit3 className="w-4 h-4 mr-2" />
@@ -1731,7 +1739,7 @@ export default function GovernmentDirectoryPage() {
                       <Button
                         onClick={() => void saveGeneralContacts()}
                         className="bg-[#A4163A] hover:bg-[#8D1332] text-white"
-                        disabled={savingGeneralContacts}
+                        disabled={savingGeneralContacts || isViewOnly}
                       >
                         {savingGeneralContacts ? (
                           <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1745,7 +1753,7 @@ export default function GovernmentDirectoryPage() {
                     <Button
                       onClick={startGeneralContactsEdit}
                       className="bg-[#A4163A] hover:bg-[#8D1332] text-white"
-                      disabled={loadingGeneralContacts}
+                      disabled={loadingGeneralContacts || isViewOnly}
                     >
                       <Edit3 className="w-4 h-4 mr-2" />
                       Edit Contacts
@@ -1782,6 +1790,7 @@ export default function GovernmentDirectoryPage() {
                       size="sm"
                       variant="outline"
                       className="text-[#A4163A] border-[#A4163A]/30"
+                      disabled={isViewOnly}
                       onClick={addGeneralContactRow}
                     >
                       <Plus className="w-4 h-4 mr-2" />
@@ -1855,6 +1864,7 @@ export default function GovernmentDirectoryPage() {
                                       size="sm"
                                       variant="outline"
                                       className="h-8 px-2"
+                                      disabled={isViewOnly}
                                     >
                                       <ImageIcon className="h-3.5 w-3.5 mr-1.5" />
                                       Avatar
@@ -1944,6 +1954,7 @@ export default function GovernmentDirectoryPage() {
                                       e.target.value,
                                     )
                                   }
+                                  disabled={isViewOnly}
                                   minLength={
                                     VALIDATION_CONSTRAINTS.directory
                                       .generalEstablishment.min
@@ -1965,6 +1976,7 @@ export default function GovernmentDirectoryPage() {
                                       e.target.value,
                                     )
                                   }
+                                  disabled={isViewOnly}
                                   maxLength={
                                     VALIDATION_CONSTRAINTS.directory
                                       .generalServices.max
@@ -1984,6 +1996,7 @@ export default function GovernmentDirectoryPage() {
                                       e.target.value,
                                     )
                                   }
+                                  disabled={isViewOnly}
                                   maxLength={
                                     VALIDATION_CONSTRAINTS.directory
                                       .generalContactPerson.max
@@ -2001,6 +2014,7 @@ export default function GovernmentDirectoryPage() {
                                       e.target.value,
                                     )
                                   }
+                                  disabled={isViewOnly}
                                   minLength={
                                     VALIDATION_CONSTRAINTS.directory
                                       .generalValue.min
@@ -2016,7 +2030,12 @@ export default function GovernmentDirectoryPage() {
                                 <Button
                                   size="icon"
                                   variant="ghost"
-                                  onClick={() => removeGeneralContactRow(index)}
+                                  onClick={() => {
+                                    if (!isViewOnly) {
+                                      removeGeneralContactRow(index)
+                                    }
+                                  }}
+                                  disabled={isViewOnly}
                                   className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 h-9 w-9 rounded-lg"
                                   aria-label="Remove row"
                                 >
@@ -2221,7 +2240,7 @@ export default function GovernmentDirectoryPage() {
                   {/* Upload Buttons */}
                   <Button
                     onClick={() => startAgencyUpload(activeAgency)}
-                    disabled={updatingImage}
+                    disabled={updatingImage || isViewOnly}
                     className="bg-[#A4163A] hover:bg-[#8a1230] text-white border-none rounded-lg px-6 shadow-lg shadow-red-900/20 font-bold"
                   >
                     {updatingImage ? (
@@ -2239,7 +2258,7 @@ export default function GovernmentDirectoryPage() {
                         agencyCode: activeAgency,
                       })
                     }
-                    disabled={loadingCloudinaryImages || updatingImage}
+                    disabled={loadingCloudinaryImages || updatingImage || isViewOnly}
                     className="bg-[#A4163A] hover:bg-[#8a1230] text-white border-none rounded-lg px-6 shadow-lg shadow-red-900/20 font-bold"
                   >
                     {loadingCloudinaryImages ? (
@@ -2268,6 +2287,7 @@ export default function GovernmentDirectoryPage() {
                         onChange={(e) =>
                           setDraft({ ...draft, name: e.target.value })
                         }
+                        disabled={isViewOnly}
                         minLength={
                           VALIDATION_CONSTRAINTS.directory.agencyName.min
                         }
@@ -2289,6 +2309,7 @@ export default function GovernmentDirectoryPage() {
                         onChange={(e) =>
                           setDraft({ ...draft, full_name: e.target.value })
                         }
+                        disabled={isViewOnly}
                         maxLength={
                           VALIDATION_CONSTRAINTS.directory.agencyFullName.max
                         }
@@ -2342,6 +2363,7 @@ export default function GovernmentDirectoryPage() {
                           onChange={(e) => {
                             setDraft({ ...draft, summary: e.target.value });
                           }}
+                          disabled={isViewOnly}
                           maxLength={
                             VALIDATION_CONSTRAINTS.directory.agencySummary.max
                           }
@@ -2402,6 +2424,7 @@ export default function GovernmentDirectoryPage() {
                       <div className="bg-slate-50 p-3 border-b border-slate-100 flex justify-end">
                         <Button
                           onClick={addProcessStep}
+                          disabled={isViewOnly}
                           size="sm"
                           variant="outline"
                           className="text-[#A4163A] border-[#A4163A]/20 bg-[#A4163A]/5 hover:bg-[#A4163A]/10 rounded-lg"
@@ -2465,6 +2488,7 @@ export default function GovernmentDirectoryPage() {
                                             e.target.value,
                                           )
                                         }
+                                        disabled={isViewOnly}
                                         minLength={
                                           VALIDATION_CONSTRAINTS.directory
                                             .processStep.min
@@ -2490,7 +2514,12 @@ export default function GovernmentDirectoryPage() {
                                       <Button
                                         size="icon"
                                         variant="ghost"
-                                        onClick={() => removeProcessAt(index)}
+                                        onClick={() => {
+                                          if (!isViewOnly) {
+                                            removeProcessAt(index)
+                                          }
+                                        }}
+                                        disabled={isViewOnly}
                                         className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 shrink-0 h-9 w-9 rounded-lg"
                                       >
                                         <Trash2 className="w-4 h-4" />
@@ -2560,6 +2589,7 @@ export default function GovernmentDirectoryPage() {
                 <div className="mb-4 flex justify-end">
                   <Button
                     onClick={addContact}
+                    disabled={isViewOnly}
                     variant="outline"
                     className="text-[#A4163A] border-[#A4163A]/20 bg-white shadow-sm rounded-lg"
                   >
@@ -2617,6 +2647,7 @@ export default function GovernmentDirectoryPage() {
                                 onChange={(e) =>
                                   updateContactAt(idx, "type", e.target.value)
                                 }
+                                disabled={isViewOnly}
                                 maxLength={
                                   VALIDATION_CONSTRAINTS.directory.contactType
                                     .max
@@ -2630,6 +2661,7 @@ export default function GovernmentDirectoryPage() {
                                 onChange={(e) =>
                                   updateContactAt(idx, "label", e.target.value)
                                 }
+                                disabled={isViewOnly}
                                 maxLength={
                                   VALIDATION_CONSTRAINTS.directory.contactLabel
                                     .max
@@ -2644,6 +2676,7 @@ export default function GovernmentDirectoryPage() {
                               onChange={(e) =>
                                 updateContactAt(idx, "value", e.target.value)
                               }
+                              disabled={isViewOnly}
                               minLength={
                                 VALIDATION_CONSTRAINTS.directory.contactValue
                                   .min
@@ -2683,7 +2716,12 @@ export default function GovernmentDirectoryPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => removeContactAt(idx)}
+                              onClick={() => {
+                                if (!isViewOnly) {
+                                  removeContactAt(idx)
+                                }
+                              }}
+                              disabled={isViewOnly}
                               className="text-rose-500 w-full hover:bg-rose-50 rounded-lg h-8"
                             >
                               <Trash2 className="w-4 h-4 mr-2" /> Remove
