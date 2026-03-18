@@ -111,7 +111,9 @@ const toIsoDate = (value: unknown): string => {
   return "";
 };
 
-const splitFullName = (fullName: string): { first_name: string; last_name: string } => {
+const splitFullName = (
+  fullName: string,
+): { first_name: string; last_name: string } => {
   const cleaned = toPlainString(fullName).replace(/\s+/g, " ").trim();
   if (!cleaned) return { first_name: "", last_name: "" };
   const parts = cleaned.split(" ");
@@ -792,7 +794,12 @@ function OnboardPageContent() {
   ]);
 
   useEffect(() => {
-    if (!onboardFormData.position || positions.length === 0 || departments.length === 0) return;
+    if (
+      !onboardFormData.position ||
+      positions.length === 0 ||
+      departments.length === 0
+    )
+      return;
 
     const resolvedDepartment = resolveDepartmentFromHierarchy(
       onboardFormData.position,
@@ -800,13 +807,22 @@ function OnboardPageContent() {
       departments,
     );
 
-    if (!resolvedDepartment || resolvedDepartment === onboardFormData.department) return;
+    if (
+      !resolvedDepartment ||
+      resolvedDepartment === onboardFormData.department
+    )
+      return;
 
     setOnboardFormData((prev) => ({
       ...prev,
       department: resolvedDepartment,
     }));
-  }, [onboardFormData.position, onboardFormData.department, positions, departments]);
+  }, [
+    onboardFormData.position,
+    onboardFormData.department,
+    positions,
+    departments,
+  ]);
 
   useEffect(() => {
     if (!regions.length) return;
@@ -1078,7 +1094,9 @@ function OnboardPageContent() {
         if (!found && firstName && lastName) {
           found = source.find((item: any) => {
             const candidate = normalizeName(item?.name);
-            return candidate.includes(firstName) && candidate.includes(lastName);
+            return (
+              candidate.includes(firstName) && candidate.includes(lastName)
+            );
           });
         }
 
@@ -1640,7 +1658,10 @@ function OnboardPageContent() {
     setIsSaving(true);
     try {
       const parsedJobOfferId = Number(prefillJobOfferIdParam);
-      const jobOfferId = Number.isInteger(parsedJobOfferId) && parsedJobOfferId > 0 ? parsedJobOfferId : null;
+      const jobOfferId =
+        Number.isInteger(parsedJobOfferId) && parsedJobOfferId > 0
+          ? parsedJobOfferId
+          : null;
 
       if (isRehireFlow && onboardingEmployeeId) {
         const onboardResponse = await fetch(
@@ -2771,7 +2792,7 @@ function OnboardPageContent() {
                         <p className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">
                           {view === "checklist"
                             ? "Last Updated"
-                                            : `Batch ${currentBatch} of ${lastBatchId}`}
+                            : `Batch ${currentBatch} of ${lastBatchId}`}
                         </p>
                         <p className="text-lg font-bold text-white tracking-tight leading-none">
                           {view === "checklist"
@@ -3079,7 +3100,10 @@ function OnboardPageContent() {
                       variant="outline"
                       onClick={handleCancelOnboarding}
                       disabled={isSaving}
-                      className={cn("flex-1 border-slate-200 text-slate-600 font-bold h-12 rounded-xl", isViewer && "w-full")}
+                      className={cn(
+                        "flex-1 border-slate-200 text-slate-600 font-bold h-12 rounded-xl",
+                        isViewer && "w-full",
+                      )}
                     >
                       {isViewer ? "BACK TO MASTERFILE" : "CANCEL"}
                     </Button>
@@ -3185,59 +3209,60 @@ function OnboardPageContent() {
                             </TableCell>
                           </TableRow>
                         ) : (
-                          onboardingTasks.map((task, index) => (
+                          onboardingTasks.map((task, index) =>
                             (() => {
                               const isSavedLocked =
                                 Boolean(completedTasks[task]) &&
                                 savedTasks.has(task);
                               return (
-                            <TableRow
-                              key={index}
-                              onClick={() => {
-                                if (!isSavedLocked && !isViewer) toggleTask(task);
-                              }}
-                              className={cn(
-                                "border-b-[1px] border-dashed border-stone-200 last:border-0 transition-colors group",
-                                isSavedLocked || isViewer
-                                  ? "cursor-not-allowed bg-stone-50/70"
-                                  : "hover:bg-stone-50 cursor-pointer",
-                              )}
-                            >
-                              <TableCell className="text-center py-2 text-[11px] font-medium text-stone-400">
-                                {completedTasks[task] || "PENDING"}
-                              </TableCell>
-                              <TableCell className="py-2">
-                                <div className="flex justify-center">
-                                  <div
-                                    className={cn(
-                                      "w-6 h-6 rounded-full border-[1.5px] flex items-center justify-center transition-all",
-                                      completedTasks[task]
-                                        ? "border-[#A4163A] bg-[#A4163A]/10 text-[#A4163A] scale-110 shadow-sm"
-                                        : "border-stone-300 group-hover:border-[#A4163A]",
-                                    )}
-                                  >
-                                    {completedTasks[task] && (
-                                      <Check className="h-4 w-4 stroke-[3px]" />
-                                    )}
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="py-2 px-6">
-                                <span
+                                <TableRow
+                                  key={index}
+                                  onClick={() => {
+                                    if (!isSavedLocked && !isViewer)
+                                      toggleTask(task);
+                                  }}
                                   className={cn(
-                                    "text-sm font-medium transition-all duration-500",
-                                    completedTasks[task]
-                                      ? "text-stone-300 line-through"
-                                      : "text-stone-700",
+                                    "border-b-[1px] border-dashed border-stone-200 last:border-0 transition-colors group",
+                                    isSavedLocked || isViewer
+                                      ? "cursor-not-allowed bg-stone-50/70"
+                                      : "hover:bg-stone-50 cursor-pointer",
                                   )}
                                 >
-                                  {task}
-                                </span>
-                              </TableCell>
-                            </TableRow>
+                                  <TableCell className="text-center py-2 text-[11px] font-medium text-stone-400">
+                                    {completedTasks[task] || "PENDING"}
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <div className="flex justify-center">
+                                      <div
+                                        className={cn(
+                                          "w-6 h-6 rounded-full border-[1.5px] flex items-center justify-center transition-all",
+                                          completedTasks[task]
+                                            ? "border-[#A4163A] bg-[#A4163A]/10 text-[#A4163A] scale-110 shadow-sm"
+                                            : "border-stone-300 group-hover:border-[#A4163A]",
+                                        )}
+                                      >
+                                        {completedTasks[task] && (
+                                          <Check className="h-4 w-4 stroke-[3px]" />
+                                        )}
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-2 px-6">
+                                    <span
+                                      className={cn(
+                                        "text-sm font-medium transition-all duration-500",
+                                        completedTasks[task]
+                                          ? "text-stone-300 line-through"
+                                          : "text-stone-700",
+                                      )}
+                                    >
+                                      {task}
+                                    </span>
+                                  </TableCell>
+                                </TableRow>
                               );
-                            })()
-                          ))
+                            })(),
+                          )
                         )}
                       </TableBody>
                     </Table>
@@ -4313,7 +4338,8 @@ function OnboardPageContent() {
                     {currentBatch === 8 && (
                       <div className="space-y-6">
                         <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 text-sm text-slate-600">
-                          Uploading a profile picture is optional. If skipped, onboarding can still be completed.
+                          Uploading a profile picture is optional. If skipped,
+                          onboarding can still be completed.
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-[220px,1fr] gap-6 items-start">
@@ -4368,7 +4394,8 @@ function OnboardPageContent() {
                                 className="font-medium"
                               />
                               <p className="text-xs text-slate-500">
-                                Allowed: JPG, PNG, GIF, WebP, HEIC, HEIF. Max size: 20MB.
+                                Allowed: JPG, PNG, GIF, WebP, HEIC, HEIF. Max
+                                size: 20MB.
                               </p>
                             </div>
 
@@ -4460,7 +4487,10 @@ function OnboardPageContent() {
                           <Button
                             onClick={nextBatch}
                             disabled={!isCurrentBatchValid()}
-                            className={cn("bg-[#A4163A] hover:bg-[#800020] text-white h-11 px-8 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-rose-200/50 active:scale-95 transition-all rounded-xl disabled:opacity-50", isViewer && "w-full")}
+                            className={cn(
+                              "bg-[#A4163A] hover:bg-[#800020] text-white h-11 px-8 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-rose-200/50 active:scale-95 transition-all rounded-xl disabled:opacity-50",
+                              isViewer && "w-full",
+                            )}
                           >
                             Next Batch
                             <ChevronRight className="h-4 w-4 ml-2" />
