@@ -24,13 +24,8 @@ import {
   Mail,
   Pencil,
   Check,
-  Calendar,
-  UserCheck,
-  TrendingUp,
   PieChart,
-  ThumbsUp,
-  Eye,
-  X
+  Eye
 } from 'lucide-react'
 import { getApiUrl } from '@/lib/api'
 import { toast } from 'sonner'
@@ -840,23 +835,9 @@ function EvaluateEmployeeForm() {
     const criterionId = criterion.id as CriteriaId
     return typeof secondDisplayBreakdown?.[criterionId] === 'number'
   })
-  const totalEmployedCount = employees.filter(
-    (emp) => emp.status === 'employed' || emp.status === 'rehired_employee'
-  ).length
-  const underProbationCount = probeeEmployees.length
-  const forRecommendationCount = Object.values(evaluations).filter(
-    (ev) => ev.status === 'For Recommendation'
-  ).length
-  const regularEmployeesCount = Object.values(evaluations).filter(
-    (ev) => ev.status === 'Regular' || ev.status === 'Regularized'
-  ).length
-  const failedEmployeesCount = Object.values(evaluations).filter(
-    (ev) => String(ev.status).toLowerCase() === 'failed'
-  ).length
-
   return (
     <div className="min-h-screen bg-slate-50 pb-10">
-      <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6">
+      <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6 sticky top-0 z-50">
         <div className="w-full px-4 md:px-8 py-6">
           <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
             <div>
@@ -874,81 +855,62 @@ function EvaluateEmployeeForm() {
                 </p>
               )}
             </div>
+            <Button
+              variant="outline"
+              onClick={handleBackWindow}
+              className="bg-white text-[#7B0F2B] hover:bg-white hover:text-[#7B0F2B] border-transparent shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back</span>
+            </Button>
           </div>
         </div>
 
-        <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm">
-          <div className="w-full px-4 md:px-8 py-3 flex flex-wrap items-center gap-3 md:gap-4 text-xs font-bold uppercase tracking-wider text-white/85">
-            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
-              <UserCheck className="h-4 w-4" />
-              Total Employed: {totalEmployedCount}
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
-              <Calendar className="h-4 w-4" />
-              Under Probation: {underProbationCount}
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
-              <ThumbsUp className="h-4 w-4" />
-              For Recommendation: {forRecommendationCount}
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
-              <TrendingUp className="h-4 w-4" />
-              Regular Employees: {regularEmployeesCount}
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2">
-              <X className="h-4 w-4" />
-              Failed Employees: {failedEmployeesCount}
+        <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm overflow-x-auto no-scrollbar">
+          <div className="w-full px-4 md:px-8 py-3">
+            <div className="flex items-center justify-end gap-3 md:gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleExportPdf}
+                  disabled={isExportingPdf || !selectedEmployeeId}
+                  className="h-10 px-4 rounded-lg font-bold bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all text-sm uppercase tracking-wider gap-2"
+                >
+                  {isExportingPdf ? 'Exporting...' : <><FileDown className="w-4 h-4" /> Export PDF</>}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendPdfToEmail}
+                  disabled={isEmailSending || !selectedEmployeeId}
+                  className="h-10 px-4 rounded-lg font-bold bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all text-sm uppercase tracking-wider gap-2"
+                >
+                  {isEmailSending ? 'Sending...' : <><Mail className="w-4 h-4" /> Send to Email</>}
+                </Button>
+                {hasSavedCurrentEvaluation && !isEditMode && showSecondEvaluationPanel && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditMode(true)}
+                    disabled={isViewOnly}
+                    className="h-10 px-4 rounded-lg font-bold bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all text-sm uppercase tracking-wider gap-2"
+                  >
+                    <Pencil className="w-4 h-4" /> Edit Evaluation
+                  </Button>
+                )}
+                <Button
+                  onClick={handleSubmit}
+                  disabled={isViewOnly || isSubmitting || !showSecondEvaluationPanel || !isEditMode}
+                  className="h-10 px-4 rounded-lg font-bold bg-white border border-white text-[#A4163A] hover:bg-rose-100 shadow-md transition-all text-sm uppercase tracking-wider gap-2"
+                >
+                  {isSubmitting ? 'Saving...' : <><Save className="w-4 h-4" /> Save Evaluation</>}
+                </Button>
             </div>
           </div>
         </div>
       </div>
 
       <div className="px-4 md:px-6 font-serif">
-      {/* Action Bar */}
-      <div className={`${showSideBySide ? 'max-w-[1800px]' : 'max-w-[850px]'} mx-auto mb-4 flex flex-wrap justify-between gap-2`}>
-        <Button variant="outline" onClick={handleBackWindow} className="rounded-none border-[#7B0F2B] text-[#7B0F2B] hover:bg-rose-50 flex gap-2">
-          <ArrowLeft className="w-4 h-4" /> Back
-        </Button>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleExportPdf}
-            disabled={isExportingPdf || !selectedEmployeeId}
-            className="rounded-none border-[#7B0F2B] text-[#7B0F2B] hover:bg-rose-50 flex gap-2"
-          >
-            {isExportingPdf ? 'Exporting...' : <><FileDown className="w-4 h-4" /> Export PDF</>}
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleSendPdfToEmail}
-            disabled={isEmailSending || !selectedEmployeeId}
-            className="rounded-none border-[#7B0F2B] text-[#7B0F2B] hover:bg-rose-50 flex gap-2"
-          >
-            {isEmailSending ? 'Sending...' : <><Mail className="w-4 h-4" /> Send to Email</>}
-          </Button>
-          {hasSavedCurrentEvaluation && !isEditMode && showSecondEvaluationPanel && (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsEditMode(true)}
-              disabled={isViewOnly}
-              className="rounded-none border-[#7B0F2B] text-[#7B0F2B] flex gap-2"
-            >
-              <Pencil className="w-4 h-4" /> Edit Evaluation
-            </Button>
-          )}
-          <Button 
-            onClick={handleSubmit} 
-            disabled={isViewOnly || isSubmitting || !showSecondEvaluationPanel || !isEditMode}
-            className="bg-[#A4163A] text-white rounded-none hover:bg-[#7B0F2B] flex gap-2"
-          >
-            {isSubmitting ? 'Saving...' : <><Save className="w-4 h-4" /> Save Evaluation</>}
-          </Button>
-        </div>
-      </div>
-
       {failedFirstEvaluation && (
         <div className={`${showSideBySide ? 'max-w-[1800px]' : 'max-w-[850px]'} mx-auto mb-4 bg-white border border-slate-300 p-4`}>
           <div className="flex flex-wrap items-center gap-3">
