@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { format } from "date-fns";
 import Link from "next/link";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 import {
   ChevronLeft,
   ChevronRight,
@@ -1013,6 +1014,8 @@ const LeaveSkeleton = () => (
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LeavePage() {
   const today = new Date();
+  const { isViewOnly } = useUserRole();
+  
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
   const [showCalendar, setShowCalendar] = useState(true);
@@ -1822,10 +1825,17 @@ export default function LeavePage() {
                 <Calendar className="w-3 h-3" />
                 ABIC REALTY &amp; CONSULTANCY
               </p>
+              {isViewOnly && (
+                <p className="text-yellow-200 text-[9px] md:text-xs font-semibold mt-2 flex items-center gap-1">
+                  <Eye className="w-3 h-3" />
+                  VIEW ONLY MODE - Editing and modifications are disabled
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <Button
                 onClick={() => setShowCalendar((v) => !v)}
+                disabled={isViewOnly}
                 variant="outline"
                 className={cn(
                   "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-1.5",
@@ -1846,6 +1856,7 @@ export default function LeavePage() {
               </Button>
               <Button
                 onClick={() => setAddModalOpen((v) => !v)}
+                disabled={isViewOnly}
                 variant="outline"
                 className={cn(
                   "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-1.5",
@@ -2486,7 +2497,7 @@ export default function LeavePage() {
                       <Button
                         type="button"
                         onClick={handleInlineSave}
-                        disabled={inlineSaving}
+                        disabled={inlineSaving || isViewOnly}
                         className="flex-1 md:flex-none h-[44px] px-8 text-[11px] font-black uppercase tracking-widest rounded-lg bg-[#800020] hover:bg-[#4A081A] shadow-md shadow-rose-100 transition-all text-white min-w-[140px]"
                       >
                         {inlineSaving
@@ -2768,15 +2779,31 @@ export default function LeavePage() {
                         <td className="border border-rose-100 px-3 py-2.5 text-center">
                           <div className="flex items-center justify-center gap-2">
                             <button
-                              onClick={() => handleEdit(entry)}
-                              className="p-1.5 hover:bg-blue-50 text-blue-600 rounded transition-all border border-transparent hover:border-blue-100"
+                              onClick={() => {
+                                if (!isViewOnly) {
+                                  handleEdit(entry);
+                                }
+                              }}
+                              disabled={isViewOnly}
+                              className={cn(
+                                "p-1.5 hover:bg-blue-50 text-blue-600 rounded transition-all border border-transparent hover:border-blue-100",
+                                isViewOnly && "opacity-50 cursor-not-allowed hover:bg-transparent"
+                              )}
                               title="Edit"
                             >
                               <Pencil className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDelete(entry.id)}
-                              className="p-1.5 hover:bg-red-50 text-red-600 rounded transition-all border border-transparent hover:border-red-100"
+                              onClick={() => {
+                                if (!isViewOnly) {
+                                  handleDelete(entry.id);
+                                }
+                              }}
+                              disabled={isViewOnly}
+                              className={cn(
+                                "p-1.5 hover:bg-red-50 text-red-600 rounded transition-all border border-transparent hover:border-red-100",
+                                isViewOnly && "opacity-50 cursor-not-allowed hover:bg-transparent"
+                              )}
                               title="Delete"
                             >
                               <Trash2 className="w-4 h-4" />

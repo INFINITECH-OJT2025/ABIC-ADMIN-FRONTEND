@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 import {
   Check,
   ChevronDown,
@@ -21,6 +22,7 @@ import {
   History,
   X,
   ScrollText,
+  Eye,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -176,6 +178,8 @@ const months = [
 
 export default function WarningLetterPage() {
   const router = useRouter();
+  const { isViewOnly } = useUserRole();
+  
   const [selectedMonth, setSelectedMonth] = useState(
     months[new Date().getMonth()],
   );
@@ -571,6 +575,12 @@ export default function WarningLetterPage() {
                 <Calendar className="w-4 h-4" />
                 ABIC REALTY & CONSULTANCY
               </p>
+              {isViewOnly && (
+                <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                  <Eye className="w-4 h-4" />
+                  VIEW ONLY MODE - Editing and modifications are disabled
+                </p>
+              )}
             </div>
 
             {/* Optional Actions Group */}
@@ -581,6 +591,7 @@ export default function WarningLetterPage() {
                     "/admin-head/attendance/warning-letter/edit_forms",
                   )
                 }
+                disabled={isViewOnly}
                 variant="outline"
                 className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg cursor-pointer"
               >
@@ -840,11 +851,11 @@ export default function WarningLetterPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() =>
+                            onClick={() => {
                               router.push(
                                 `/admin-head/attendance/warning-letter/forms-letter?employeeId=${entry.employee_id}&type=late&month=${selectedMonth}&year=${selectedYear}&cutoff=${(entry as any).cutoff}`,
                               )
-                            }
+                            }}
                             className="text-[#800020] hover:text-[#800020] hover:bg-rose-50/50 rounded-xl font-bold gap-2 text-xs h-10 px-6 border border-transparent hover:border-rose-100 transition-all shadow-none hover:shadow-sm cursor-pointer"
                           >
                             <FileText className="w-4 h-4 text-[#800020]" />
@@ -989,11 +1000,11 @@ export default function WarningLetterPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() =>
+                            onClick={() => {
                               router.push(
                                 `/admin-head/attendance/warning-letter/forms-letter?employeeId=${entry.employee_id}&type=leave&month=${selectedMonth}&year=${selectedYear}&cutoff=${(entry as any).cutoff}`,
                               )
-                            }
+                            }}
                             className="text-[#800020] hover:text-[#800020] hover:bg-rose-50/50 rounded-xl font-bold gap-2 text-xs h-10 px-6 border border-transparent hover:border-rose-100 transition-all shadow-none hover:shadow-sm cursor-pointer"
                           >
                             <FileText className="w-4 h-4 text-[#800020]" />
@@ -1201,11 +1212,11 @@ export default function WarningLetterPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() =>
+                        onClick={() => {
                           router.push(
                             `/admin-head/attendance/warning-letter/forms-letter?employeeId=${letter.employee_id}&type=${letter.type}&month=${letter.month}&year=${letter.year}&cutoff=${letter.cutoff}&mode=review&letterId=${letter.id}`,
                           )
-                        }
+                        }}
                         className="h-8 px-3 text-[10px] font-bold uppercase tracking-wider text-[#A4163A] border-rose-200 hover:bg-rose-50 hover:text-[#7B0F2B]"
                       >
                         <FileText className="w-3.5 h-3.5 mr-1.5" />

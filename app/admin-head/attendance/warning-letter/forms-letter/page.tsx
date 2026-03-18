@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 import {
   ChevronLeft,
   Printer,
@@ -320,6 +321,8 @@ function parseTimeToMinutes(timeStr: string): number {
 function FormLetterContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { isViewOnly } = useUserRole();
+  
   const employeeId = searchParams.get("employeeId");
   const type = searchParams.get("type"); // 'late' or 'leave'
   const month = searchParams.get("month");
@@ -1451,6 +1454,7 @@ function FormLetterContent() {
 
               <Button
                 onClick={() => setIsEditMode(!isEditMode)}
+                disabled={isViewOnly}
                 variant="outline"
                 className={cn(
                   "h-10 px-4 rounded-lg font-bold gap-2 active:scale-95 transition-all text-sm uppercase tracking-wider",
@@ -1489,7 +1493,10 @@ function FormLetterContent() {
               <Popover open={isActionOpen} onOpenChange={setIsActionOpen}>
                 <PopoverTrigger asChild>
                   {!isReviewMode && (
-                    <Button className="h-10 px-6 rounded-lg font-black gap-2 bg-white border border-white text-[#A4163A] hover:bg-rose-100 shadow-md active:scale-95 transition-all w-auto uppercase tracking-widest">
+                    <Button
+                      disabled={isViewOnly}
+                      className="h-10 px-6 rounded-lg font-black gap-2 bg-white border border-white text-[#A4163A] hover:bg-rose-100 shadow-md active:scale-95 transition-all w-auto uppercase tracking-widest"
+                    >
                       <Mail className="w-4 h-4" />
                       Send via Email
                       <ChevronDown className="w-4 h-4" />
@@ -1529,20 +1536,24 @@ function FormLetterContent() {
                           selectedForms.includes("form1")
                             ? "bg-rose-50 border border-rose-100"
                             : "hover:bg-slate-50",
-                          !hasSupervisor &&
+                          (!hasSupervisor || isViewOnly) &&
                             "opacity-50 grayscale pointer-events-none",
                         )}
                       >
                         <Checkbox
                           id="form1"
                           checked={selectedForms.includes("form1")}
-                          onCheckedChange={() => toggleForm("form1")}
-                          disabled={!hasSupervisor}
+                          onCheckedChange={() => {
+                            if (!isViewOnly) {
+                              toggleForm("form1");
+                            }
+                          }}
+                          disabled={!hasSupervisor || isViewOnly}
                         />
                         <div
                           className="flex-1 cursor-pointer"
                           onClick={() => {
-                            if (hasSupervisor) toggleForm("form1");
+                            if (hasSupervisor && !isViewOnly) toggleForm("form1");
                           }}
                         >
                           <p className="font-bold text-sm leading-none">
@@ -1559,16 +1570,31 @@ function FormLetterContent() {
                       </div>
 
                       <div
-                        className={`p-3 rounded-xl flex items-center gap-3 transition-colors ${selectedForms.includes("form2") ? "bg-rose-50 border border-rose-100" : "hover:bg-slate-50"}`}
+                        className={cn(
+                          "p-3 rounded-xl flex items-center gap-3 transition-colors",
+                          selectedForms.includes("form2")
+                            ? "bg-rose-50 border border-rose-100"
+                            : "hover:bg-slate-50",
+                          isViewOnly && "opacity-50 grayscale pointer-events-none"
+                        )}
                       >
                         <Checkbox
                           id="form2"
                           checked={selectedForms.includes("form2")}
-                          onCheckedChange={() => toggleForm("form2")}
+                          onCheckedChange={() => {
+                            if (!isViewOnly) {
+                              toggleForm("form2");
+                            }
+                          }}
+                          disabled={isViewOnly}
                         />
                         <div
                           className="flex-1 cursor-pointer"
-                          onClick={() => toggleForm("form2")}
+                          onClick={() => {
+                            if (!isViewOnly) {
+                              toggleForm("form2");
+                            }
+                          }}
                         >
                           <p className="font-bold text-sm leading-none">
                             Form 2
@@ -1590,6 +1616,7 @@ function FormLetterContent() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          disabled={isViewOnly}
                           className="h-6 text-[10px] font-bold text-[#A4163A] hover:bg-rose-50 rounded-lg gap-1 border border-rose-100"
                           onClick={handleAddRecipient}
                         >
@@ -1645,8 +1672,13 @@ function FormLetterContent() {
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                disabled={isViewOnly}
                                 className="h-5 w-5 p-0 text-slate-400 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => handleRemoveRecipient(idx)}
+                                onClick={() => {
+                                  if (!isViewOnly) {
+                                    handleRemoveRecipient(idx)
+                                  }
+                                }}
                               >
                                 <Trash2 className="w-3 h-3" />
                               </Button>
@@ -1655,9 +1687,12 @@ function FormLetterContent() {
                               type="email"
                               placeholder="Enter email address"
                               value={r.email}
-                              onChange={(e) =>
-                                updateRecipient(idx, e.target.value)
-                              }
+                              onChange={(e) => {
+                                if (!isViewOnly) {
+                                  updateRecipient(idx, e.target.value)
+                                }
+                              }}
+                              disabled={isViewOnly}
                               className="h-9 text-xs rounded-lg border-slate-200 focus-visible:ring-[#A4163A] bg-white shadow-sm"
                             />
                           </div>
@@ -1668,10 +1703,12 @@ function FormLetterContent() {
 
                   <Button
                     onClick={() => {
-                      handleSendEmail();
-                      setIsActionOpen(false);
+                      if (!isViewOnly) {
+                        handleSendEmail();
+                        setIsActionOpen(false);
+                      }
                     }}
-                    disabled={isSending || selectedForms.length === 0}
+                    disabled={isSending || selectedForms.length === 0 || isViewOnly}
                     className="w-full rounded-none h-12 font-bold bg-[#A4163A] hover:bg-[#7B0F2B] text-white gap-2 uppercase tracking-widest"
                   >
                     {isSending ? (

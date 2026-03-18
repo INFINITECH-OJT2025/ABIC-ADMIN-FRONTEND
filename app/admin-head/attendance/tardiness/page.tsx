@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 import {
   ChevronDown,
   Clock,
@@ -19,6 +20,7 @@ import {
   RotateCcw,
   X,
   Calendar,
+  Eye,
 } from "lucide-react";
 import * as XLSX from "xlsx-js-style";
 import { toast } from "sonner";
@@ -1408,10 +1410,12 @@ const CustomTimePicker = ({
   value,
   onChange,
   className,
+  disabled,
 }: {
   value: string;
   onChange: (val: string) => void;
   className?: string;
+  disabled?: boolean;
 }) => {
   const displayTime = value
     ? new Date(`2000-01-01T${value}`).toLocaleTimeString([], {
@@ -1459,8 +1463,10 @@ const CustomTimePicker = ({
     <Popover>
       <PopoverTrigger asChild>
         <button
+          disabled={disabled}
           className={cn(
             "text-left bg-white border border-slate-200 text-black rounded-lg text-xs font-medium focus-visible:border-rose-200 focus-visible:ring-rose-100 shadow-none transition-all flex items-center gap-2",
+            disabled && "opacity-50 cursor-not-allowed bg-slate-50",
             className,
           )}
         >
@@ -1565,6 +1571,8 @@ const CustomTimePicker = ({
 // ---------- MAIN DASHBOARD ----------
 export default function AttendanceDashboard() {
   const { confirm } = useConfirmation();
+  const { isViewOnly } = useUserRole();
+  
   // State for year & month selection
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(
@@ -2324,12 +2332,19 @@ export default function AttendanceDashboard() {
                   <Calendar className="w-4 h-4" />
                   ABIC REALTY & CONSULTANCY
                 </p>
+                {isViewOnly && (
+                  <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                    <Eye className="w-4 h-4" />
+                    VIEW ONLY MODE - Editing and modifications are disabled
+                  </p>
+                )}
               </div>
 
               {/* Actions */}
               <div className="flex items-center gap-3">
                 <Button
                   onClick={handleAddNewYearConfirm}
+                  disabled={isViewOnly}
                   variant="outline"
                   className="bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-5 rounded-lg flex items-center gap-2"
                 >
@@ -2338,6 +2353,7 @@ export default function AttendanceDashboard() {
                 </Button>
                 <Button
                   onClick={() => setIsEntryFormOpen(!isEntryFormOpen)}
+                  disabled={isViewOnly}
                   variant="outline"
                   className={cn(
                     "bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2",
@@ -2641,6 +2657,7 @@ export default function AttendanceDashboard() {
                       <CustomTimePicker
                         value={newEntryTime}
                         onChange={setNewEntryTime}
+                        disabled={isViewOnly}
                         className="pl-4 pr-4 h-9 w-full"
                       />
                     </div>
@@ -2653,6 +2670,7 @@ export default function AttendanceDashboard() {
                         setIsEntryFormOpen(false);
                         resetAddEntryFields();
                       }}
+                      disabled={isViewOnly}
                       className="h-9 px-8 text-[10px] font-black text-[#7B0F2B] uppercase tracking-widest hover:bg-rose-50 rounded-lg transition-all min-w-[128px]"
                     >
                       Cancel
@@ -2660,7 +2678,9 @@ export default function AttendanceDashboard() {
                     <Button
                       onClick={handleSaveClick}
                       disabled={
-                        isSaving || selectedYear !== new Date().getFullYear()
+                        isViewOnly ||
+                        isSaving ||
+                        selectedYear !== new Date().getFullYear()
                       }
                       className="h-9 px-8 text-[10px] font-black text-white uppercase tracking-widest bg-[#7B0F2B] hover:bg-[#630C22] shadow-md shadow-rose-900/10 rounded-lg min-w-[128px]"
                     >
@@ -2690,6 +2710,7 @@ export default function AttendanceDashboard() {
                 title={`${selectedMonth} ${selectedYear} – 1-15`}
                 entries={sortedFirstEntries}
                 onUpdateTime={updateFirstCutoffTime}
+                isViewOnly={isViewOnly}
                 onSummaryClick={() =>
                   handleSummaryClick(
                     `${selectedMonth} ${selectedYear} – 1-15`,
@@ -2705,6 +2726,7 @@ export default function AttendanceDashboard() {
                 title={`${selectedMonth} ${selectedYear} – ${selectedMonth === "February" ? "16-28/29" : "16-30/31"}`}
                 entries={sortedSecondEntries}
                 onUpdateTime={updateSecondCutoffTime}
+                isViewOnly={isViewOnly}
                 onSummaryClick={() =>
                   handleSummaryClick(
                     `${selectedMonth} ${selectedYear} – ${selectedMonth === "February" ? "16-28/29" : "16-30/31"}`,
@@ -2747,12 +2769,14 @@ function CutoffTable({
   onUpdateTime,
   onSummaryClick,
   totalRecords,
+  isViewOnly = false,
 }: {
   title: string;
   entries: LateEntry[];
   onUpdateTime: (id: string | number, newTime: string) => void;
   onSummaryClick: () => void;
   totalRecords: number;
+  isViewOnly?: boolean;
 }) {
   return (
     <Card className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden h-full flex flex-col">
@@ -2822,7 +2846,12 @@ function CutoffTable({
                     <div className="relative w-max group/input">
                       <CustomTimePicker
                         value={to24h(entry.actual_in || entry.actualIn || "")}
-                        onChange={(val) => onUpdateTime(entry.id, val)}
+                        onChange={(val) => {
+                          if (!isViewOnly) {
+                            onUpdateTime(entry.id, val);
+                          }
+                        }}
+                        disabled={isViewOnly}
                         className="h-7 w-[105px] px-2 font-bold group-hover/input:border-rose-300"
                       />
                     </div>
