@@ -1447,6 +1447,7 @@ export default function EditFormsPage() {
                               updateTemplate("metaNameLabel", e.target.value)
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                         <div className="space-y-2.5">
@@ -1464,6 +1465,7 @@ export default function EditFormsPage() {
                               )
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                         <div className="space-y-2.5">
@@ -1482,6 +1484,7 @@ export default function EditFormsPage() {
                               )
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                       </div>
@@ -1538,6 +1541,7 @@ export default function EditFormsPage() {
                                         )
                                       }
                                       className="min-h-[90px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[13px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-4 resize-none"
+                                      disabled={isViewer}
                                     />
                                   </div>
                                 </div>
@@ -1558,6 +1562,7 @@ export default function EditFormsPage() {
                               updateTemplate("criteriaHeader", e.target.value)
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                         <div className="space-y-2.5">
@@ -1570,6 +1575,7 @@ export default function EditFormsPage() {
                               updateTemplate("ratingHeader", e.target.value)
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                       </div>
@@ -1584,6 +1590,7 @@ export default function EditFormsPage() {
                             updateTemplate("agreementText", e.target.value)
                           }
                           className="min-h-[120px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
+                          disabled={isViewer}
                         />
                       </div>
 
@@ -1600,6 +1607,7 @@ export default function EditFormsPage() {
                               updateTemplate("ratingScaleTitle", e.target.value)
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                         <div className="space-y-2.5">
@@ -1614,6 +1622,7 @@ export default function EditFormsPage() {
                               updateTemplate("ratingScaleLines", e.target.value)
                             }
                             className="min-h-[120px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
+                            disabled={isViewer}
                           />
                         </div>
                       </div>
@@ -1634,6 +1643,7 @@ export default function EditFormsPage() {
                               )
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                         <div className="space-y-2.5">
@@ -1651,6 +1661,7 @@ export default function EditFormsPage() {
                               )
                             }
                             className="min-h-[120px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
+                            disabled={isViewer}
                           />
                         </div>
                       </div>
@@ -1671,6 +1682,7 @@ export default function EditFormsPage() {
                               )
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                         <div className="space-y-2.5">
@@ -1683,6 +1695,7 @@ export default function EditFormsPage() {
                               updateTemplate("remarksLabel", e.target.value)
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                       </div>
@@ -1702,6 +1715,7 @@ export default function EditFormsPage() {
                             )
                           }
                           className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                          disabled={isViewer}
                         />
                       </div>
 
@@ -1716,6 +1730,7 @@ export default function EditFormsPage() {
                               updateTemplate("ratedByLabel", e.target.value)
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                         <div className="space-y-2.5">
@@ -1730,6 +1745,7 @@ export default function EditFormsPage() {
                               updateTemplate("reviewedByLabel", e.target.value)
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                         <div className="space-y-2.5">
@@ -1744,6 +1760,7 @@ export default function EditFormsPage() {
                               updateTemplate("approvedByLabel", e.target.value)
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                       </div>
@@ -1761,6 +1778,7 @@ export default function EditFormsPage() {
                               updateTemplate("title", e.target.value)
                             }
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            disabled={isViewer}
                           />
                         </div>
                       </div>
@@ -1775,6 +1793,7 @@ export default function EditFormsPage() {
                             updateTemplate("subject", e.target.value)
                           }
                           className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                          disabled={isViewer}
                         />
                       </div>
 
@@ -1819,6 +1838,7 @@ export default function EditFormsPage() {
                               }
                               placeholder="AIZLE MARIE M. ATIENZA"
                               className="bg-white border-rose-100 shadow-sm rounded-xl font-bold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                              disabled={isViewer}
                             />
                           </div>
                           <div className="space-y-2.5">
@@ -1831,6 +1851,7 @@ export default function EditFormsPage() {
                                 updateTemplate("footer", e.target.value)
                               }
                               className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                              disabled={isViewer}
                             />
                           </div>
                         </div>

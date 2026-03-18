@@ -267,17 +267,18 @@ export default function WarningLetterPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [empRes, leavesRes, entRes, evalRes, creditsRes] = await Promise.all([
-        fetch(
-          "/api/admin-head/employees?status=employed,rehired,rehired_employee",
-        ),
-        fetch(`${getApiUrl()}/api/leaves`),
-        fetch(
-          `${getApiUrl()}/api/admin-head/attendance/tardiness?month=${selectedMonth}&year=${selectedYear}`,
-        ),
-        fetch(`${getApiUrl()}/api/evaluations`),
-        fetch(`${getApiUrl()}/api/leaves/credits`),
-      ]);
+      const [empRes, leavesRes, entRes, evalRes, creditsRes] =
+        await Promise.all([
+          fetch(
+            "/api/admin-head/employees?status=employed,rehired,rehired_employee",
+          ),
+          fetch(`${getApiUrl()}/api/leaves`),
+          fetch(
+            `${getApiUrl()}/api/admin-head/attendance/tardiness?month=${selectedMonth}&year=${selectedYear}`,
+          ),
+          fetch(`${getApiUrl()}/api/evaluations`),
+          fetch(`${getApiUrl()}/api/leaves/credits`),
+        ]);
 
       const empData = await empRes.json();
       const leavesData = await leavesRes.json();
@@ -293,21 +294,29 @@ export default function WarningLetterPage() {
 
       const creditsMap = new Map<string, any>();
       if (creditsData.success) {
-        creditsData.data.forEach((c: any) => creditsMap.set(String(c.employee_id), c));
+        creditsData.data.forEach((c: any) =>
+          creditsMap.set(String(c.employee_id), c),
+        );
       }
 
       // Group and summarize leave entries for ALL months in the selected year to calculate warning levels
       // For SL and VL, we deduct from credits first if eligible
       const runningCredits = new Map<string, { vl: number; sl: number }>();
-      
+
       const allLeaveGroups = new Map<string, any>();
-      
+
       // Sort leaves chronologically to correctly deduct from annual credits
-      const sortedLeaves = [...currentLeaves].filter((entry: any) => {
-        const isApproved = entry.approved_by !== "Pending" && entry.approved_by !== "Declined";
-        const date = new Date(entry.start_date);
-        return isApproved && date.getFullYear() === selectedYear;
-      }).sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+      const sortedLeaves = [...currentLeaves]
+        .filter((entry: any) => {
+          const isApproved =
+            entry.approved_by !== "Pending" && entry.approved_by !== "Declined";
+          const date = new Date(entry.start_date);
+          return isApproved && date.getFullYear() === selectedYear;
+        })
+        .sort(
+          (a, b) =>
+            new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
+        );
 
       sortedLeaves.forEach((entry: any) => {
         const date = new Date(entry.start_date);
@@ -316,19 +325,19 @@ export default function WarningLetterPage() {
         const cutoff = day <= 15 ? "cutoff1" : "cutoff2";
         const key = `${entry.employee_id}-${months[m]}-${cutoff}`;
         const empId = String(entry.employee_id);
-        
+
         const creditInfo = creditsMap.get(empId);
         const isEligible = creditInfo?.has_one_year_regular;
-        
+
         let daysToCount = Number(entry.number_of_days);
-        
+
         if (isEligible) {
           if (!runningCredits.has(empId)) {
             runningCredits.set(empId, { vl: 15, sl: 15 });
           }
           const running = runningCredits.get(empId)!;
           const remarks = String(entry.remarks || "").toLowerCase();
-          
+
           if (remarks.includes("sick")) {
             const deduct = Math.min(daysToCount, running.sl);
             running.sl -= deduct;
@@ -354,10 +363,7 @@ export default function WarningLetterPage() {
           const existing = allLeaveGroups.get(key);
           existing.total_days += daysToCount;
           existing.actual_total_days += Number(entry.number_of_days);
-          if (
-            entry.remarks &&
-            !existing.remarks_list.includes(entry.remarks)
-          ) {
+          if (entry.remarks && !existing.remarks_list.includes(entry.remarks)) {
             existing.remarks_list.push(entry.remarks);
           }
           if (

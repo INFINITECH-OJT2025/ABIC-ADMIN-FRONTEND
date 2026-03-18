@@ -827,7 +827,9 @@ function FormLetterContent() {
 
           const creditsMap = new Map<string, any>();
           if (creditsData.success) {
-            creditsData.data.forEach((c: any) => creditsMap.set(String(c.employee_id), c));
+            creditsData.data.forEach((c: any) =>
+              creditsMap.set(String(c.employee_id), c),
+            );
           }
 
           const runningCredits = { vl: 15, sl: 15 };
@@ -836,8 +838,12 @@ function FormLetterContent() {
 
           // Group by month and cutoff to identify qualifying incidents (>= 3 days)
           // We must process ALL leaves for the year to correctly deduct credits chronologically
-          const yearLeavesSorted = [...empLeaves].sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-          
+          const yearLeavesSorted = [...empLeaves].sort(
+            (a, b) =>
+              new Date(a.start_date).getTime() -
+              new Date(b.start_date).getTime(),
+          );
+
           const leaveGroups = new Map<string, any>();
           yearLeavesSorted.forEach((e: any) => {
             const date = new Date(e.start_date);
