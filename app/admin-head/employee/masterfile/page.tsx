@@ -100,7 +100,11 @@ interface Department {
 }
 
 const getInitials = (firstName?: string, lastName?: string) =>
-  `${String(firstName ?? "").trim().charAt(0)}${String(lastName ?? "").trim().charAt(0)}`.toUpperCase();
+  `${String(firstName ?? "")
+    .trim()
+    .charAt(0)}${String(lastName ?? "")
+    .trim()
+    .charAt(0)}`.toUpperCase();
 
 const toEmployeeProfileImageUrl = (profileRef?: string | null) => {
   const normalized = String(profileRef ?? "").trim();
@@ -177,7 +181,7 @@ const DetailSkeleton = () => (
         <Skeleton className="h-12 w-40 bg-slate-100 rounded-lg" />
       </div>
     </div>
-    
+
     <div className="max-w-7xl mx-auto w-full px-8 space-y-8 animate-pulse">
       <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-slate-200">
         <div className="bg-slate-50/50 p-8 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -302,7 +306,10 @@ const MasterfileSkeleton = () => (
           {Array(5)
             .fill(0)
             .map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full rounded-lg bg-slate-100" />
+              <Skeleton
+                key={i}
+                className="h-12 w-full rounded-lg bg-slate-100"
+              />
             ))}
         </div>
       </div>
@@ -325,6 +332,20 @@ export default function MasterfilePage() {
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const isViewer = userRole === "super_admin_viewer";
+
+  const fetchUserRole = async () => {
+    try {
+      const response = await fetch("/api/auth/me");
+      if (response.ok) {
+        const data = await response.json();
+        setUserRole(data.role);
+      }
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+    }
+  };
 
   // Editing States
   const [isEditingContact, setIsEditingContact] = useState(false);
@@ -394,7 +415,11 @@ export default function MasterfilePage() {
       const next: Record<string, number> = {};
       Object.entries(parsed || {}).forEach(([id, value]) => {
         const batch = Number(value);
-        if (Number.isFinite(batch) && batch >= 1 && batch <= MAX_ONBOARDING_BATCH) {
+        if (
+          Number.isFinite(batch) &&
+          batch >= 1 &&
+          batch <= MAX_ONBOARDING_BATCH
+        ) {
           next[String(id)] = batch;
         }
       });
@@ -461,6 +486,7 @@ export default function MasterfilePage() {
   }, [imagePreview.isOpen]);
 
   useEffect(() => {
+    fetchUserRole();
     fetchEmployees();
     fetchRegions();
     fetchPositionsAndDepartments();
@@ -910,12 +936,16 @@ export default function MasterfilePage() {
       if (!text) continue;
 
       if (text.length > 50) {
-        toast.error(`${nameLabels[field] || "Name"} must not exceed 50 characters`);
+        toast.error(
+          `${nameLabels[field] || "Name"} must not exceed 50 characters`,
+        );
         return;
       }
 
       if (!/^[A-Za-z\s]+$/.test(text)) {
-        toast.error(`${nameLabels[field] || "Name"} must contain letters and spaces only`);
+        toast.error(
+          `${nameLabels[field] || "Name"} must contain letters and spaces only`,
+        );
         return;
       }
     }
@@ -939,7 +969,9 @@ export default function MasterfilePage() {
       if (!text) continue;
 
       if (!/^(?=.*\d)[0-9-]+$/.test(text)) {
-        toast.error(`${govIdLabels[field] || "Government ID"} must include at least one number and use '-' only as special character`);
+        toast.error(
+          `${govIdLabels[field] || "Government ID"} must include at least one number and use '-' only as special character`,
+        );
         return;
       }
     }
@@ -1196,7 +1228,9 @@ export default function MasterfilePage() {
               const doneCount = tasks.filter(
                 (t: any) => String(t?.status ?? "").toUpperCase() === "DONE",
               ).length;
-              const checklistStatus = String(checklist?.status ?? "").toUpperCase();
+              const checklistStatus = String(
+                checklist?.status ?? "",
+              ).toUpperCase();
               const checklistUpdatedAt = new Date(
                 checklist?.updated_at ?? checklist?.created_at ?? 0,
               ).getTime();
@@ -1502,7 +1536,9 @@ export default function MasterfilePage() {
     ),
   );
   const terminatedList = filterEmployees(
-    employees.filter((e) => e.status === "terminated" || e.status === "resigned"),
+    employees.filter(
+      (e) => e.status === "terminated" || e.status === "resigned",
+    ),
   );
   const pendingList = filterEmployees(
     employees.filter((e) =>
@@ -1631,8 +1667,6 @@ export default function MasterfilePage() {
     </div>
   );
 
-
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-red-50 text-stone-900 font-sans flex flex-col">
       {/* ----- GLOBAL LOADING OVERLAY (For Actions Only) ----- */}
@@ -1722,7 +1756,9 @@ export default function MasterfilePage() {
                       Terminated (
                       {
                         employees.filter(
-                          (e) => e.status === "terminated" || e.status === "resigned",
+                          (e) =>
+                            e.status === "terminated" ||
+                            e.status === "resigned",
                         ).length
                       }
                       )
@@ -1887,7 +1923,8 @@ export default function MasterfilePage() {
                         const batchLabel =
                           batchLabelById[displayBatchId] || "Employee Details";
                         const unresolvedBatchStatus = `BATCH ${displayBatchId}: ${batchLabel.toUpperCase()}`;
-                        const isPendingDataEntry = checklistTasksComplete && !isComplete;
+                        const isPendingDataEntry =
+                          checklistTasksComplete && !isComplete;
 
                         // For termination, it's not complete until status changes to 'terminated' or 'resigned' in the db
                         const displayStatus =
@@ -1927,7 +1964,9 @@ export default function MasterfilePage() {
                               <div className="flex items-center gap-3 flex-1 min-w-0">
                                 {employee.user_profile ? (
                                   <img
-                                    src={toEmployeeProfileImageUrl(employee.user_profile)}
+                                    src={toEmployeeProfileImageUrl(
+                                      employee.user_profile,
+                                    )}
                                     alt={`${employee.first_name} ${employee.last_name}`}
                                     className="w-14 h-14 md:w-16 md:h-16 min-w-[3.5rem] md:min-w-[4rem] rounded-xl object-cover shadow-sm border border-slate-200 cursor-zoom-in"
                                     onClick={(e) => {
@@ -1952,7 +1991,10 @@ export default function MasterfilePage() {
                                             : "bg-orange-100 text-orange-700 group-hover:bg-orange-500 group-hover:text-white"
                                     }`}
                                   >
-                                    {getInitials(employee.first_name, employee.last_name)}
+                                    {getInitials(
+                                      employee.first_name,
+                                      employee.last_name,
+                                    )}
                                   </div>
                                 )}
                                 <div className="overflow-hidden flex flex-col justify-center min-w-0 flex-1">
@@ -1977,81 +2019,86 @@ export default function MasterfilePage() {
                             </div>
 
                             {/* Action Buttons Row */}
-                            {(isTerminationPending ||
-                              isRehirePending ||
-                              (employee.status === "pending" &&
-                                (!isComplete ||
-                                  !employee.onboarding_tasks?.isComplete))) && (
-                              <div
-                                className="mb-3 flex items-center gap-2"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                {isTerminationPending && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() =>
-                                      router.push(
-                                        `/admin-head/employee/terminate?view=history&action=checklist&employeeId=${employee.id}`,
-                                      )
-                                    }
-                                    className="h-8 px-3 text-[11px] font-bold border rounded-lg transition-all text-rose-600 bg-rose-50 hover:bg-rose-100 border-rose-100 animate-pulse hover:animate-none whitespace-nowrap"
-                                  >
-                                    Continue Clearance
-                                  </Button>
-                                )}
-                                {isRehirePending && !isFullyComplete && (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() =>
-                                      router.push(
-                                        !employee.onboarding_tasks?.isComplete
-                                          ? `/admin-head/employee/onboard?id=${employee.id}&view=checklist&rehire=1&batch=${displayBatchId}`
-                                          : `/admin-head/employee/onboard?id=${employee.id}&view=update-info&rehire=1&batch=${displayBatchId}`,
-                                      )
-                                    }
-                                    className={`h-8 px-3 text-[11px] font-bold border rounded-lg transition-all whitespace-nowrap ${
-                                      isRehirePending
-                                        ? "text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 animate-pulse hover:animate-none"
-                                        : employee.onboarding_tasks?.isComplete
-                                          ? "text-[#630C22] bg-rose-50 hover:bg-rose-100 border-rose-100"
-                                          : "text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-100 animate-pulse hover:animate-none"
-                                    }`}
-                                  >
-                                    {isRehirePending
-                                      ? "Continue Rehire"
-                                      : employee.onboarding_tasks?.isComplete
-                                        ? "Update Profile"
-                                        : "Continue Onboarding"}
-                                  </Button>
-                                )}
-                                {employee.status === "pending" &&
+                            {!isViewer &&
+                              (isTerminationPending ||
+                                isRehirePending ||
+                                (employee.status === "pending" &&
                                   (!isComplete ||
-                                    !employee.onboarding_tasks?.isComplete) && (
+                                    !employee.onboarding_tasks
+                                      ?.isComplete))) && (
+                                <div
+                                  className="mb-3 flex items-center gap-2"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {isTerminationPending && (
                                     <Button
                                       variant="ghost"
                                       size="sm"
                                       onClick={() =>
                                         router.push(
-                                          employee.onboarding_tasks?.isComplete
-                                            ? `/admin-head/employee/onboard?id=${employee.id}&batch=${checkCompleteness(employee as any).batchId}`
-                                            : `/admin-head/employee/onboard?id=${employee.id}&view=checklist&batch=${checkCompleteness(employee as any).batchId}`,
+                                          `/admin-head/employee/terminate?view=history&action=checklist&employeeId=${employee.id}`,
+                                        )
+                                      }
+                                      className="h-8 px-3 text-[11px] font-bold border rounded-lg transition-all text-rose-600 bg-rose-50 hover:bg-rose-100 border-rose-100 animate-pulse hover:animate-none whitespace-nowrap"
+                                    >
+                                      Continue Clearance
+                                    </Button>
+                                  )}
+                                  {isRehirePending && !isFullyComplete && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() =>
+                                        router.push(
+                                          !employee.onboarding_tasks?.isComplete
+                                            ? `/admin-head/employee/onboard?id=${employee.id}&view=checklist&rehire=1&batch=${displayBatchId}`
+                                            : `/admin-head/employee/onboard?id=${employee.id}&view=update-info&rehire=1&batch=${displayBatchId}`,
                                         )
                                       }
                                       className={`h-8 px-3 text-[11px] font-bold border rounded-lg transition-all whitespace-nowrap ${
-                                        employee.onboarding_tasks?.isComplete
-                                          ? "text-[#630C22] bg-rose-50 hover:bg-rose-100 border-rose-100"
-                                          : "text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-100 animate-pulse hover:animate-none"
+                                        isRehirePending
+                                          ? "text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 animate-pulse hover:animate-none"
+                                          : employee.onboarding_tasks
+                                                ?.isComplete
+                                            ? "text-[#630C22] bg-rose-50 hover:bg-rose-100 border-rose-100"
+                                            : "text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-100 animate-pulse hover:animate-none"
                                       }`}
                                     >
-                                      {employee.onboarding_tasks?.isComplete
-                                        ? "Update Profile"
-                                        : "Continue Onboarding"}
+                                      {isRehirePending
+                                        ? "Continue Rehire"
+                                        : employee.onboarding_tasks?.isComplete
+                                          ? "Update Profile"
+                                          : "Continue Onboarding"}
                                     </Button>
                                   )}
-                              </div>
-                            )}
+                                  {employee.status === "pending" &&
+                                    (!isComplete ||
+                                      !employee.onboarding_tasks
+                                        ?.isComplete) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() =>
+                                          router.push(
+                                            employee.onboarding_tasks
+                                              ?.isComplete
+                                              ? `/admin-head/employee/onboard?id=${employee.id}&batch=${checkCompleteness(employee as any).batchId}`
+                                              : `/admin-head/employee/onboard?id=${employee.id}&view=checklist&batch=${checkCompleteness(employee as any).batchId}`,
+                                          )
+                                        }
+                                        className={`h-8 px-3 text-[11px] font-bold border rounded-lg transition-all whitespace-nowrap ${
+                                          employee.onboarding_tasks?.isComplete
+                                            ? "text-[#630C22] bg-rose-50 hover:bg-rose-100 border-rose-100"
+                                            : "text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-100 animate-pulse hover:animate-none"
+                                        }`}
+                                      >
+                                        {employee.onboarding_tasks?.isComplete
+                                          ? "Update Profile"
+                                          : "Continue Onboarding"}
+                                      </Button>
+                                    )}
+                                </div>
+                              )}
 
                             {/* Bottom Row: Status Badges */}
                             <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
@@ -2107,12 +2154,12 @@ export default function MasterfilePage() {
                                     (isPendingDataEntry ||
                                       (!checklistTasksComplete &&
                                         !isPendingDataEntry)) && (
-                                    <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap">
-                                      {isPendingDataEntry
-                                        ? `Batch ${displayBatchId}: ${batchLabel}`
-                                        : `Tasks: ${employee.onboarding_tasks.done}/${employee.onboarding_tasks.total}`}
-                                    </span>
-                                  )}
+                                      <span className="text-[9px] font-bold text-slate-500 whitespace-nowrap">
+                                        {isPendingDataEntry
+                                          ? `Batch ${displayBatchId}: ${batchLabel}`
+                                          : `Tasks: ${employee.onboarding_tasks.done}/${employee.onboarding_tasks.total}`}
+                                      </span>
+                                    )}
                                 </>
                               )}
                             </div>
@@ -2172,6 +2219,7 @@ export default function MasterfilePage() {
                     {/* Actions */}
                     <div className="flex items-center gap-3">
                       {selectedEmployee &&
+                        !isViewer &&
                         (isEditingAll ? (
                           <>
                             <button
@@ -2223,9 +2271,11 @@ export default function MasterfilePage() {
                       <div className="flex flex-wrap items-center gap-4 md:gap-6">
                         {/* Employee Badge */}
                         <div className="flex items-center gap-3">
-                          {(isEditingAll
-                            ? editFormData.user_profile
-                            : selectedEmployee?.user_profile) ? (
+                          {(
+                            isEditingAll
+                              ? editFormData.user_profile
+                              : selectedEmployee?.user_profile
+                          ) ? (
                             <img
                               src={toEmployeeProfileImageUrl(
                                 String(
@@ -2265,7 +2315,7 @@ export default function MasterfilePage() {
                               {selectedEmployee?.first_name}{" "}
                               {selectedEmployee?.last_name}
                             </p>
-                            {isEditingAll && (
+                            {isEditingAll && !isViewer && (
                               <div className="mt-2 flex items-center gap-2">
                                 <label
                                   htmlFor="masterfile_profile_upload"
@@ -2280,7 +2330,9 @@ export default function MasterfilePage() {
                                   type="file"
                                   accept="image/*"
                                   onChange={handleDetailProfileImageUpload}
-                                  disabled={uploadingProfileImage || isActionLoading}
+                                  disabled={
+                                    uploadingProfileImage || isActionLoading
+                                  }
                                   className="hidden"
                                 />
                                 {Boolean(editFormData.user_profile) && (
@@ -3292,7 +3344,9 @@ export default function MasterfilePage() {
                                             </label>
                                             <Input
                                               name="mlast_name"
-                                              value={editFormData.mlast_name || ""}
+                                              value={
+                                                editFormData.mlast_name || ""
+                                              }
                                               onChange={handleEditChange}
                                               className="h-9"
                                             />
@@ -3303,7 +3357,9 @@ export default function MasterfilePage() {
                                             </label>
                                             <Input
                                               name="mfirst_name"
-                                              value={editFormData.mfirst_name || ""}
+                                              value={
+                                                editFormData.mfirst_name || ""
+                                              }
                                               onChange={handleEditChange}
                                               className="h-9"
                                             />
@@ -3338,7 +3394,9 @@ export default function MasterfilePage() {
                                             </label>
                                             <Input
                                               name="flast_name"
-                                              value={editFormData.flast_name || ""}
+                                              value={
+                                                editFormData.flast_name || ""
+                                              }
                                               onChange={handleEditChange}
                                               className="h-9"
                                             />
@@ -3349,7 +3407,9 @@ export default function MasterfilePage() {
                                             </label>
                                             <Input
                                               name="ffirst_name"
-                                              value={editFormData.ffirst_name || ""}
+                                              value={
+                                                editFormData.ffirst_name || ""
+                                              }
                                               onChange={handleEditChange}
                                               className="h-9"
                                             />
@@ -3401,7 +3461,9 @@ export default function MasterfilePage() {
                                         </label>
                                         <Input
                                           name="philhealth_number"
-                                          value={editFormData.philhealth_number || ""}
+                                          value={
+                                            editFormData.philhealth_number || ""
+                                          }
                                           onChange={handleEditChange}
                                           className="h-9"
                                         />
@@ -3412,7 +3474,9 @@ export default function MasterfilePage() {
                                         </label>
                                         <Input
                                           name="pagibig_number"
-                                          value={editFormData.pagibig_number || ""}
+                                          value={
+                                            editFormData.pagibig_number || ""
+                                          }
                                           onChange={handleEditChange}
                                           className="h-9"
                                         />
@@ -3437,7 +3501,9 @@ export default function MasterfilePage() {
                                       />
                                       <DetailItem
                                         label="PhilHealth No."
-                                        value={selectedEmployee.philhealth_number}
+                                        value={
+                                          selectedEmployee.philhealth_number
+                                        }
                                       />
                                       <DetailItem
                                         label="Pag-IBIG No."
@@ -3458,8 +3524,9 @@ export default function MasterfilePage() {
 
                       {/* Footer Actions */}
                       <div className="bg-slate-50 px-6 py-4 rounded-lg border border-[#FFE5EC] flex justify-end gap-3">
-                        {selectedEmployee?.status === "pending" ||
-                        selectedEmployee?.status === "rehire_pending" ? (
+                        {(selectedEmployee?.status === "pending" ||
+                          selectedEmployee?.status === "rehire_pending") &&
+                        !isViewer ? (
                           <>
                             {selectedEmployee.onboarding_tasks?.isComplete &&
                               !checkCompleteness(selectedEmployee)

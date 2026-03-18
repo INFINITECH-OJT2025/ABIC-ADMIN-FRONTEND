@@ -175,6 +175,25 @@ const months = [
 ];
 
 export default function WarningLetterPage() {
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.success) {
+          setUserRole(data.user?.role);
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+      }
+    };
+    fetchUserRole();
+  }, []);
+
+  const isViewer = userRole === "super_admin_viewer";
+
   const router = useRouter();
   const [selectedMonth, setSelectedMonth] = useState(
     months[new Date().getMonth()],
@@ -574,20 +593,22 @@ export default function WarningLetterPage() {
             </div>
 
             {/* Optional Actions Group */}
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={() =>
-                  router.push(
-                    "/admin-head/attendance/warning-letter/edit_forms",
-                  )
-                }
-                variant="outline"
-                className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg cursor-pointer"
-              >
-                <ClipboardEdit className="w-4 h-4 mr-2 text-[#7B0F2B]" />
-                <span>Edit Form Templates</span>
-              </Button>
-            </div>
+            {!isViewer && (
+              <div className="flex items-center gap-3">
+                <Button
+                  onClick={() =>
+                    router.push(
+                      "/admin-head/attendance/warning-letter/edit_forms",
+                    )
+                  }
+                  variant="outline"
+                  className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg cursor-pointer"
+                >
+                  <ClipboardEdit className="w-4 h-4 mr-2 text-[#7B0F2B]" />
+                  <span>Edit Form Templates</span>
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 

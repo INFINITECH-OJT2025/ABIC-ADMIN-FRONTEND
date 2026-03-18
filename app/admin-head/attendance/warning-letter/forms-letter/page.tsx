@@ -318,6 +318,25 @@ function parseTimeToMinutes(timeStr: string): number {
 }
 
 function FormLetterContent() {
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.success) {
+          setUserRole(data.user?.role);
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+      }
+    };
+    fetchUserRole();
+  }, []);
+
+  const isViewer = userRole === "super_admin_viewer";
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const employeeId = searchParams.get("employeeId");
@@ -808,7 +827,9 @@ function FormLetterContent() {
 
           const creditsMap = new Map<string, any>();
           if (creditsData.success) {
-            creditsData.data.forEach((c: any) => creditsMap.set(String(c.employee_id), c));
+            creditsData.data.forEach((c: any) =>
+              creditsMap.set(String(c.employee_id), c),
+            );
           }
 
           const runningCredits = { vl: 15, sl: 15 };
@@ -817,8 +838,12 @@ function FormLetterContent() {
 
           // Group by month and cutoff to identify qualifying incidents (>= 3 days)
           // We must process ALL leaves for the year to correctly deduct credits chronologically
-          const yearLeavesSorted = [...empLeaves].sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
-          
+          const yearLeavesSorted = [...empLeaves].sort(
+            (a, b) =>
+              new Date(a.start_date).getTime() -
+              new Date(b.start_date).getTime(),
+          );
+
           const leaveGroups = new Map<string, any>();
           yearLeavesSorted.forEach((e: any) => {
             const date = new Date(e.start_date);
@@ -1449,24 +1474,26 @@ function FormLetterContent() {
                 </Badge>
               )}
 
-              <Button
-                onClick={() => setIsEditMode(!isEditMode)}
-                variant="outline"
-                className={cn(
-                  "h-10 px-4 rounded-lg font-bold gap-2 active:scale-95 transition-all text-sm uppercase tracking-wider",
-                  isEditMode
-                    ? "bg-amber-100 text-amber-900 border-amber-200 hover:bg-amber-200"
-                    : "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A]",
-                  isReviewMode && "hidden",
-                )}
-              >
-                {isEditMode ? (
-                  <CheckCircle2 className="w-4 h-4" />
-                ) : (
-                  <Edit3 className="w-4 h-4" />
-                )}
-                {isEditMode ? "Finish Editing" : "Customize Content"}
-              </Button>
+              {!isViewer && (
+                <Button
+                  onClick={() => setIsEditMode(!isEditMode)}
+                  variant="outline"
+                  className={cn(
+                    "h-10 px-4 rounded-lg font-bold gap-2 active:scale-95 transition-all text-sm uppercase tracking-wider",
+                    isEditMode
+                      ? "bg-amber-100 text-amber-900 border-amber-200 hover:bg-amber-200"
+                      : "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A]",
+                    isReviewMode && "hidden",
+                  )}
+                >
+                  {isEditMode ? (
+                    <CheckCircle2 className="w-4 h-4" />
+                  ) : (
+                    <Edit3 className="w-4 h-4" />
+                  )}
+                  {isEditMode ? "Finish Editing" : "Customize Content"}
+                </Button>
+              )}
 
               <Button
                 onClick={openHistory}
@@ -1488,7 +1515,7 @@ function FormLetterContent() {
 
               <Popover open={isActionOpen} onOpenChange={setIsActionOpen}>
                 <PopoverTrigger asChild>
-                  {!isReviewMode && (
+                  {!isReviewMode && !isViewer && (
                     <Button className="h-10 px-6 rounded-lg font-black gap-2 bg-white border border-white text-[#A4163A] hover:bg-rose-100 shadow-md active:scale-95 transition-all w-auto uppercase tracking-widest">
                       <Mail className="w-4 h-4" />
                       Send via Email

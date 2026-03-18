@@ -111,7 +111,9 @@ const toIsoDate = (value: unknown): string => {
   return "";
 };
 
-const splitFullName = (fullName: string): { first_name: string; last_name: string } => {
+const splitFullName = (
+  fullName: string,
+): { first_name: string; last_name: string } => {
   const cleaned = toPlainString(fullName).replace(/\s+/g, " ").trim();
   if (!cleaned) return { first_name: "", last_name: "" };
   const parts = cleaned.split(" ");
@@ -267,6 +269,24 @@ function OnboardPageContent() {
   const [onboardingEmployeeId, setOnboardingEmployeeId] = useState<
     string | null
   >(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const isViewer = userRole === "super_admin_viewer";
+
+  const fetchUserRole = async () => {
+    try {
+      const response = await fetch("/api/auth/me");
+      if (response.ok) {
+        const data = await response.json();
+        setUserRole(data.role);
+      }
+    } catch (error) {
+      console.error("Error fetching user role:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchUserRole();
+  }, []);
   const [progressionFormData, setProgressionFormData] = useState<
     Partial<EmployeeDetails>
   >({});
@@ -792,7 +812,12 @@ function OnboardPageContent() {
   ]);
 
   useEffect(() => {
-    if (!onboardFormData.position || positions.length === 0 || departments.length === 0) return;
+    if (
+      !onboardFormData.position ||
+      positions.length === 0 ||
+      departments.length === 0
+    )
+      return;
 
     const resolvedDepartment = resolveDepartmentFromHierarchy(
       onboardFormData.position,
@@ -800,13 +825,22 @@ function OnboardPageContent() {
       departments,
     );
 
-    if (!resolvedDepartment || resolvedDepartment === onboardFormData.department) return;
+    if (
+      !resolvedDepartment ||
+      resolvedDepartment === onboardFormData.department
+    )
+      return;
 
     setOnboardFormData((prev) => ({
       ...prev,
       department: resolvedDepartment,
     }));
-  }, [onboardFormData.position, onboardFormData.department, positions, departments]);
+  }, [
+    onboardFormData.position,
+    onboardFormData.department,
+    positions,
+    departments,
+  ]);
 
   useEffect(() => {
     if (!onboardFormData.position || positions.length === 0) return;
@@ -1093,7 +1127,9 @@ function OnboardPageContent() {
         if (!found && firstName && lastName) {
           found = source.find((item: any) => {
             const candidate = normalizeName(item?.name);
-            return candidate.includes(firstName) && candidate.includes(lastName);
+            return (
+              candidate.includes(firstName) && candidate.includes(lastName)
+            );
           });
         }
 
@@ -1662,7 +1698,10 @@ function OnboardPageContent() {
     setIsSaving(true);
     try {
       const parsedJobOfferId = Number(prefillJobOfferIdParam);
-      const jobOfferId = Number.isInteger(parsedJobOfferId) && parsedJobOfferId > 0 ? parsedJobOfferId : null;
+      const jobOfferId =
+        Number.isInteger(parsedJobOfferId) && parsedJobOfferId > 0
+          ? parsedJobOfferId
+          : null;
 
       if (isRehireFlow && onboardingEmployeeId) {
         const onboardResponse = await fetch(
@@ -2793,7 +2832,7 @@ function OnboardPageContent() {
                         <p className="text-[9px] font-black uppercase tracking-widest text-white/40 leading-none mb-1">
                           {view === "checklist"
                             ? "Last Updated"
-                                            : `Batch ${currentBatch} of ${lastBatchId}`}
+                            : `Batch ${currentBatch} of ${lastBatchId}`}
                         </p>
                         <p className="text-lg font-bold text-white tracking-tight leading-none">
                           {view === "checklist"
@@ -2841,6 +2880,7 @@ function OnboardPageContent() {
                           ))}
                       </div>
                       <Input
+                        disabled={isViewer}
                         value={onboardFormData.first_name}
                         onChange={(e) => {
                           const val = e.target.value.replace(
@@ -2876,6 +2916,7 @@ function OnboardPageContent() {
                         </label>
                       </div>
                       <Input
+                        disabled={isViewer}
                         value={onboardFormData.last_name}
                         onChange={(e) => {
                           const val = e.target.value.replace(
@@ -2917,6 +2958,7 @@ function OnboardPageContent() {
                             +63
                           </div>
                           <Input
+                            disabled={isViewer}
                             value={onboardFormData.mobile_number}
                             onChange={(e) => {
                               const val = e.target.value
@@ -2968,6 +3010,7 @@ function OnboardPageContent() {
                             ))}
                         </div>
                         <Input
+                          disabled={isViewer}
                           type="email"
                           value={onboardFormData.email}
                           onChange={(e) =>
@@ -2998,6 +3041,7 @@ function OnboardPageContent() {
                         </label>
                       </div>
                       <select
+                        disabled={isViewer}
                         value={onboardFormData.position}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -3030,6 +3074,7 @@ function OnboardPageContent() {
                         </label>
                       </div>
                       <select
+                        disabled={isViewer}
                         value={onboardFormData.department}
                         onChange={(e) =>
                           setOnboardFormData((prev) => ({
@@ -3052,6 +3097,7 @@ function OnboardPageContent() {
                         Onboarding Date <span className="text-red-500">*</span>
                       </label>
                       <DatePicker
+                        disabled={isViewer}
                         className="w-full text-left font-normal h-10 border-slate-200"
                         value={onboardFormData.onboarding_date}
                         onChange={(date) => {
@@ -3065,36 +3111,41 @@ function OnboardPageContent() {
                     </div>
                   </div>
                   <div className="flex gap-4 pt-6 border-t border-slate-100">
-                    <Button
-                      onClick={handleStartOnboarding}
-                      disabled={
-                        isSaving ||
-                        (!isRehireFlow &&
-                          (emailExists ||
-                            emailChecking ||
-                            nameExists ||
-                            nameChecking))
-                      }
-                      className={cn(
-                        "flex-1 text-white font-bold h-12 rounded-xl transition-all shadow-md",
-                        !isRehireFlow &&
-                          (emailExists ||
-                            emailChecking ||
-                            nameExists ||
-                            nameChecking)
-                          ? "bg-slate-300 hover:bg-slate-300 cursor-not-allowed"
-                          : "bg-[#630C22] hover:bg-[#4A081A]",
-                      )}
-                    >
-                      {isSaving ? "SAVING..." : "START ONBOARDING"}
-                    </Button>
+                    {!isViewer && (
+                      <Button
+                        onClick={handleStartOnboarding}
+                        disabled={
+                          isSaving ||
+                          (!isRehireFlow &&
+                            (emailExists ||
+                              emailChecking ||
+                              nameExists ||
+                              nameChecking))
+                        }
+                        className={cn(
+                          "flex-1 text-white font-bold h-12 rounded-xl transition-all shadow-md",
+                          !isRehireFlow &&
+                            (emailExists ||
+                              emailChecking ||
+                              nameExists ||
+                              nameChecking)
+                            ? "bg-slate-300 hover:bg-slate-300 cursor-not-allowed"
+                            : "bg-[#630C22] hover:bg-[#4A081A]",
+                        )}
+                      >
+                        {isSaving ? "SAVING..." : "START ONBOARDING"}
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       onClick={handleCancelOnboarding}
                       disabled={isSaving}
-                      className="flex-1 border-slate-200 text-slate-600 font-bold h-12 rounded-xl"
+                      className={cn(
+                        "flex-1 border-slate-200 text-slate-600 font-bold h-12 rounded-xl",
+                        isViewer && "w-full",
+                      )}
                     >
-                      CANCEL
+                      {isViewer ? "BACK TO MASTERFILE" : "CANCEL"}
                     </Button>
                   </div>
                 </div>
@@ -3153,25 +3204,27 @@ function OnboardPageContent() {
                           <TableHead className="font-black text-stone-500 uppercase tracking-widest text-[10px] py-3 text-left px-6">
                             <div className="flex items-center justify-between w-full">
                               <span>Tasks</span>
-                              <div className="flex items-center pr-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleAllTasks();
-                                  }}
-                                  className="h-7 px-3 border-[#A4163A]/20 bg-white hover:bg-[#A4163A]/5 text-[#A4163A] font-black text-[9px] uppercase tracking-widest rounded transition-all shadow-sm flex items-center gap-2"
-                                >
-                                  <Check className="h-3 w-3" />
-                                  {onboardingTasks.length > 0 &&
-                                  onboardingTasks.every(
-                                    (task) => completedTasks[task],
-                                  )
-                                    ? "Uncheck All"
-                                    : "Check All"}
-                                </Button>
-                              </div>
+                              {!isViewer && (
+                                <div className="flex items-center pr-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleAllTasks();
+                                    }}
+                                    className="h-7 px-3 border-[#A4163A]/20 bg-white hover:bg-[#A4163A]/5 text-[#A4163A] font-black text-[9px] uppercase tracking-widest rounded transition-all shadow-sm flex items-center gap-2"
+                                  >
+                                    <Check className="h-3 w-3" />
+                                    {onboardingTasks.length > 0 &&
+                                    onboardingTasks.every(
+                                      (task) => completedTasks[task],
+                                    )
+                                      ? "Uncheck All"
+                                      : "Check All"}
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </TableHead>
                         </TableRow>
@@ -3196,59 +3249,60 @@ function OnboardPageContent() {
                             </TableCell>
                           </TableRow>
                         ) : (
-                          onboardingTasks.map((task, index) => (
+                          onboardingTasks.map((task, index) =>
                             (() => {
                               const isSavedLocked =
                                 Boolean(completedTasks[task]) &&
                                 savedTasks.has(task);
                               return (
-                            <TableRow
-                              key={index}
-                              onClick={() => {
-                                if (!isSavedLocked) toggleTask(task);
-                              }}
-                              className={cn(
-                                "border-b-[1px] border-dashed border-stone-200 last:border-0 transition-colors group",
-                                isSavedLocked
-                                  ? "cursor-not-allowed bg-stone-50/70"
-                                  : "hover:bg-stone-50 cursor-pointer",
-                              )}
-                            >
-                              <TableCell className="text-center py-2 text-[11px] font-medium text-stone-400">
-                                {completedTasks[task] || "PENDING"}
-                              </TableCell>
-                              <TableCell className="py-2">
-                                <div className="flex justify-center">
-                                  <div
-                                    className={cn(
-                                      "w-6 h-6 rounded-full border-[1.5px] flex items-center justify-center transition-all",
-                                      completedTasks[task]
-                                        ? "border-[#A4163A] bg-[#A4163A]/10 text-[#A4163A] scale-110 shadow-sm"
-                                        : "border-stone-300 group-hover:border-[#A4163A]",
-                                    )}
-                                  >
-                                    {completedTasks[task] && (
-                                      <Check className="h-4 w-4 stroke-[3px]" />
-                                    )}
-                                  </div>
-                                </div>
-                              </TableCell>
-                              <TableCell className="py-2 px-6">
-                                <span
+                                <TableRow
+                                  key={index}
+                                  onClick={() => {
+                                    if (!isSavedLocked && !isViewer)
+                                      toggleTask(task);
+                                  }}
                                   className={cn(
-                                    "text-sm font-medium transition-all duration-500",
-                                    completedTasks[task]
-                                      ? "text-stone-300 line-through"
-                                      : "text-stone-700",
+                                    "border-b-[1px] border-dashed border-stone-200 last:border-0 transition-colors group",
+                                    isSavedLocked || isViewer
+                                      ? "cursor-not-allowed bg-stone-50/70"
+                                      : "hover:bg-stone-50 cursor-pointer",
                                   )}
                                 >
-                                  {task}
-                                </span>
-                              </TableCell>
-                            </TableRow>
+                                  <TableCell className="text-center py-2 text-[11px] font-medium text-stone-400">
+                                    {completedTasks[task] || "PENDING"}
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <div className="flex justify-center">
+                                      <div
+                                        className={cn(
+                                          "w-6 h-6 rounded-full border-[1.5px] flex items-center justify-center transition-all",
+                                          completedTasks[task]
+                                            ? "border-[#A4163A] bg-[#A4163A]/10 text-[#A4163A] scale-110 shadow-sm"
+                                            : "border-stone-300 group-hover:border-[#A4163A]",
+                                        )}
+                                      >
+                                        {completedTasks[task] && (
+                                          <Check className="h-4 w-4 stroke-[3px]" />
+                                        )}
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-2 px-6">
+                                    <span
+                                      className={cn(
+                                        "text-sm font-medium transition-all duration-500",
+                                        completedTasks[task]
+                                          ? "text-stone-300 line-through"
+                                          : "text-stone-700",
+                                      )}
+                                    >
+                                      {task}
+                                    </span>
+                                  </TableCell>
+                                </TableRow>
                               );
-                            })()
-                          ))
+                            })(),
+                          )
                         )}
                       </TableBody>
                     </Table>
@@ -3266,38 +3320,40 @@ function OnboardPageContent() {
                     </p>
                   </div>
 
-                  <div className="flex gap-3">
-                    <Button
-                      onClick={() => confirmSaveProgress("checklist")}
-                      disabled={isSaving}
-                      variant="outline"
-                      className="h-10 px-6 border-stone-300 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-stone-50 transition-all shadow-sm font-sans"
-                    >
-                      {isSaving ? (
-                        <Loader2 className="w-3 h-3 animate-spin mr-2" />
-                      ) : (
-                        <Save className="w-3.5 h-3.5 mr-2" />
-                      )}
-                      {isSaving ? "Filing..." : "Save Progress"}
-                    </Button>
-                    <Button
-                      onClick={async () => {
-                        const success = await handleSaveChecklist(false);
-                        if (success) {
-                          setCurrentBatch(1);
-                          setView("update-info");
+                  {!isViewer && (
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={() => confirmSaveProgress("checklist")}
+                        disabled={isSaving}
+                        variant="outline"
+                        className="h-10 px-6 border-stone-300 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-stone-50 transition-all shadow-sm font-sans"
+                      >
+                        {isSaving ? (
+                          <Loader2 className="w-3 h-3 animate-spin mr-2" />
+                        ) : (
+                          <Save className="w-3.5 h-3.5 mr-2" />
+                        )}
+                        {isSaving ? "Filing..." : "Save Progress"}
+                      </Button>
+                      <Button
+                        onClick={async () => {
+                          const success = await handleSaveChecklist(false);
+                          if (success) {
+                            setCurrentBatch(1);
+                            setView("update-info");
+                          }
+                        }}
+                        disabled={
+                          Object.keys(completedTasks).length <
+                            onboardingTasks.length || isSaving
                         }
-                      }}
-                      disabled={
-                        Object.keys(completedTasks).length <
-                          onboardingTasks.length || isSaving
-                      }
-                      className="h-10 px-6 bg-[#A4163A] hover:bg-[#800020] text-white rounded-lg font-bold text-[10px] uppercase tracking-wider shadow-md transform active:scale-95 transition-all font-sans"
-                    >
-                      Proceed to Employee Data Entry
-                      <ChevronRight className="ml-2 w-3.5 h-3.5" />
-                    </Button>
-                  </div>
+                        className="h-10 px-6 bg-[#A4163A] hover:bg-[#800020] text-white rounded-lg font-bold text-[10px] uppercase tracking-wider shadow-md transform active:scale-95 transition-all font-sans"
+                      >
+                        Proceed to Employee Data Entry
+                        <ChevronRight className="ml-2 w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -4322,7 +4378,8 @@ function OnboardPageContent() {
                     {currentBatch === 8 && (
                       <div className="space-y-6">
                         <div className="rounded-xl border border-slate-200 bg-slate-50/40 p-4 text-sm text-slate-600">
-                          Uploading a profile picture is optional. If skipped, onboarding can still be completed.
+                          Uploading a profile picture is optional. If skipped,
+                          onboarding can still be completed.
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-[220px,1fr] gap-6 items-start">
@@ -4377,7 +4434,8 @@ function OnboardPageContent() {
                                 className="font-medium"
                               />
                               <p className="text-xs text-slate-500">
-                                Allowed: JPG, PNG, GIF, WebP, HEIC, HEIF. Max size: 20MB.
+                                Allowed: JPG, PNG, GIF, WebP, HEIC, HEIF. Max
+                                size: 20MB.
                               </p>
                             </div>
 
@@ -4421,49 +4479,58 @@ function OnboardPageContent() {
 
                       {currentBatch === lastBatchId ? (
                         <div className="flex gap-3">
-                          <Button
-                            onClick={() => confirmSaveProgress("partial")}
-                            disabled={isSaving}
-                            variant="outline"
-                            className="h-11 px-6 font-bold uppercase tracking-widest text-[10px] border-emerald-200 text-emerald-700 hover:bg-emerald-50 shadow-sm transition-all active:scale-95 rounded-xl"
-                          >
-                            {isSaving ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : (
-                              <LucideSave className="h-4 w-4 mr-2" />
-                            )}
-                            Save Progress
-                          </Button>
-                          <Button
-                            onClick={handleProgressionSave}
-                            disabled={isSaving || !isCurrentBatchValid()}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-8 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-200/50 active:scale-95 transition-all rounded-xl disabled:opacity-50"
-                          >
-                            {isSaving ? "COMPLETING..." : "COMPLETE & FINISH"}
-                            {!isSaving && (
-                              <LucideSave className="h-4 w-4 ml-2" />
-                            )}
-                          </Button>
+                          {!isViewer && (
+                            <Button
+                              onClick={() => confirmSaveProgress("partial")}
+                              disabled={isSaving}
+                              variant="outline"
+                              className="h-11 px-6 font-bold uppercase tracking-widest text-[10px] border-emerald-200 text-emerald-700 hover:bg-emerald-50 shadow-sm transition-all active:scale-95 rounded-xl"
+                            >
+                              {isSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : (
+                                <LucideSave className="h-4 w-4 mr-2" />
+                              )}
+                              Save Progress
+                            </Button>
+                          )}
+                          {!isViewer && (
+                            <Button
+                              onClick={handleProgressionSave}
+                              disabled={isSaving || !isCurrentBatchValid()}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white h-11 px-8 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-200/50 active:scale-95 transition-all rounded-xl disabled:opacity-50"
+                            >
+                              {isSaving ? "COMPLETING..." : "COMPLETE & FINISH"}
+                              {!isSaving && (
+                                <LucideSave className="h-4 w-4 ml-2" />
+                              )}
+                            </Button>
+                          )}
                         </div>
                       ) : (
                         <div className="flex gap-3">
-                          <Button
-                            onClick={() => confirmSaveProgress("partial")}
-                            disabled={isSaving}
-                            variant="outline"
-                            className="h-11 px-6 font-bold uppercase tracking-widest text-[10px] border-emerald-200 text-emerald-700 hover:bg-emerald-50 shadow-sm transition-all active:scale-95 rounded-xl"
-                          >
-                            {isSaving ? (
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            ) : (
-                              <LucideSave className="h-4 w-4 mr-2" />
-                            )}
-                            Save Progress
-                          </Button>
+                          {!isViewer && (
+                            <Button
+                              onClick={() => confirmSaveProgress("partial")}
+                              disabled={isSaving}
+                              variant="outline"
+                              className="h-11 px-6 font-bold uppercase tracking-widest text-[10px] border-emerald-200 text-emerald-700 hover:bg-emerald-50 shadow-sm transition-all active:scale-95 rounded-xl"
+                            >
+                              {isSaving ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : (
+                                <LucideSave className="h-4 w-4 mr-2" />
+                              )}
+                              Save Progress
+                            </Button>
+                          )}
                           <Button
                             onClick={nextBatch}
                             disabled={!isCurrentBatchValid()}
-                            className="bg-[#A4163A] hover:bg-[#800020] text-white h-11 px-8 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-rose-200/50 active:scale-95 transition-all rounded-xl disabled:opacity-50"
+                            className={cn(
+                              "bg-[#A4163A] hover:bg-[#800020] text-white h-11 px-8 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-rose-200/50 active:scale-95 transition-all rounded-xl disabled:opacity-50",
+                              isViewer && "w-full",
+                            )}
                           >
                             Next Batch
                             <ChevronRight className="h-4 w-4 ml-2" />

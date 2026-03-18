@@ -1012,6 +1012,25 @@ const LeaveSkeleton = () => (
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LeavePage() {
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      try {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
+        if (data.success) {
+          setUserRole(data.user?.role);
+        }
+      } catch (error) {
+        console.error("Error fetching user role:", error);
+      }
+    };
+    fetchUserRole();
+  }, []);
+
+  const isViewer = userRole === "super_admin_viewer";
+
   const today = new Date();
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
@@ -1844,26 +1863,28 @@ export default function LeavePage() {
                   </>
                 )}
               </Button>
-              <Button
-                onClick={() => setAddModalOpen((v) => !v)}
-                variant="outline"
-                className={cn(
-                  "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-1.5",
-                  addModalOpen && "bg-rose-100 text-[#4A081A]",
-                )}
-              >
-                {addModalOpen ? (
-                  <>
-                    <X className="w-3 h-3" />
-                    <span>CLOSE</span>
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-3 h-3" />
-                    <span>ADD LEAVE</span>
-                  </>
-                )}
-              </Button>
+              {!isViewer && (
+                <Button
+                  onClick={() => setAddModalOpen((v) => !v)}
+                  variant="outline"
+                  className={cn(
+                    "bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-1.5",
+                    addModalOpen && "bg-rose-100 text-[#4A081A]",
+                  )}
+                >
+                  {addModalOpen ? (
+                    <>
+                      <X className="w-3 h-3" />
+                      <span>CLOSE</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="w-3 h-3" />
+                      <span>ADD LEAVE</span>
+                    </>
+                  )}
+                </Button>
+              )}
               <Link href="/admin-head/attendance/leave/leave-summary">
                 <Button
                   variant="outline"
@@ -2766,22 +2787,28 @@ export default function LeavePage() {
                           )}
                         </td>
                         <td className="border border-rose-100 px-3 py-2.5 text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleEdit(entry)}
-                              className="p-1.5 hover:bg-blue-50 text-blue-600 rounded transition-all border border-transparent hover:border-blue-100"
-                              title="Edit"
-                            >
-                              <Pencil className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(entry.id)}
-                              className="p-1.5 hover:bg-red-50 text-red-600 rounded transition-all border border-transparent hover:border-red-100"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                          {!isViewer ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleEdit(entry)}
+                                className="p-1.5 hover:bg-blue-50 text-blue-600 rounded transition-all border border-transparent hover:border-blue-100"
+                                title="Edit"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(entry.id)}
+                                className="p-1.5 hover:bg-red-50 text-red-600 rounded transition-all border border-transparent hover:border-red-100"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-slate-300 italic text-[10px]">
+                              View Only
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))

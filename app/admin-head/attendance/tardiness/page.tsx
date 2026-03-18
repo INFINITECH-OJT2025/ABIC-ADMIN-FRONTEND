@@ -1408,10 +1408,12 @@ const CustomTimePicker = ({
   value,
   onChange,
   className,
+  disabled,
 }: {
   value: string;
   onChange: (val: string) => void;
   className?: string;
+  disabled?: boolean;
 }) => {
   const displayTime = value
     ? new Date(`2000-01-01T${value}`).toLocaleTimeString([], {
@@ -1457,10 +1459,12 @@ const CustomTimePicker = ({
 
   return (
     <Popover>
-      <PopoverTrigger asChild>
+      <PopoverTrigger asChild disabled={disabled}>
         <button
+          disabled={disabled}
           className={cn(
             "text-left bg-white border border-slate-200 text-black rounded-lg text-xs font-medium focus-visible:border-rose-200 focus-visible:ring-rose-100 shadow-none transition-all flex items-center gap-2",
+            disabled && "opacity-50 cursor-not-allowed",
             className,
           )}
         >
@@ -1564,7 +1568,6 @@ const CustomTimePicker = ({
 
 // ---------- MAIN DASHBOARD ----------
 export default function AttendanceDashboard() {
-  const { confirm } = useConfirmation();
   // State for year & month selection
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(
@@ -2327,37 +2330,39 @@ export default function AttendanceDashboard() {
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={handleAddNewYearConfirm}
-                  variant="outline"
-                  className="bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-5 rounded-lg flex items-center gap-2"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>New Year</span>
-                </Button>
-                <Button
-                  onClick={() => setIsEntryFormOpen(!isEntryFormOpen)}
-                  variant="outline"
-                  className={cn(
-                    "bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2",
-                    isEntryFormOpen &&
-                      "bg-rose-100 text-[#4A081A] border-rose-200",
-                  )}
-                >
-                  {isEntryFormOpen ? (
-                    <>
-                      <X className="w-3.5 h-3.5" />
-                      <span>CLOSE</span>
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>NEW RECORD</span>
-                    </>
-                  )}
-                </Button>
-              </div>
+              {!isViewer && (
+                <div className="flex items-center gap-3">
+                  <Button
+                    onClick={handleAddNewYearConfirm}
+                    variant="outline"
+                    className="bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-5 rounded-lg flex items-center gap-2"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>New Year</span>
+                  </Button>
+                  <Button
+                    onClick={() => setIsEntryFormOpen(!isEntryFormOpen)}
+                    variant="outline"
+                    className={cn(
+                      "bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2",
+                      isEntryFormOpen &&
+                        "bg-rose-100 text-[#4A081A] border-rose-200",
+                    )}
+                  >
+                    {isEntryFormOpen ? (
+                      <>
+                        <X className="w-3.5 h-3.5" />
+                        <span>CLOSE</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>NEW RECORD</span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -2697,6 +2702,7 @@ export default function AttendanceDashboard() {
                   )
                 }
                 totalRecords={sortedFirstEntries.length}
+                isViewer={isViewer}
               />
             )}
 
@@ -2712,6 +2718,7 @@ export default function AttendanceDashboard() {
                   )
                 }
                 totalRecords={sortedSecondEntries.length}
+                isViewer={isViewer}
               />
             )}
           </>
@@ -2747,12 +2754,14 @@ function CutoffTable({
   onUpdateTime,
   onSummaryClick,
   totalRecords,
+  isViewer,
 }: {
   title: string;
   entries: LateEntry[];
   onUpdateTime: (id: string | number, newTime: string) => void;
   onSummaryClick: () => void;
   totalRecords: number;
+  isViewer?: boolean;
 }) {
   return (
     <Card className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden h-full flex flex-col">
@@ -2824,6 +2833,7 @@ function CutoffTable({
                         value={to24h(entry.actual_in || entry.actualIn || "")}
                         onChange={(val) => onUpdateTime(entry.id, val)}
                         className="h-7 w-[105px] px-2 font-bold group-hover/input:border-rose-300"
+                        disabled={isViewer}
                       />
                     </div>
                   </td>

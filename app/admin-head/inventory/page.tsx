@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Card } from '@/components/ui/card'
@@ -374,6 +374,21 @@ export default function InventoryPage() {
   const [hoveredDepartmentLabel, setHoveredDepartmentLabel] = useState<string | null>(null)
   const inventoryTableRef = useRef<HTMLDivElement | null>(null)
   const transactionsSectionRef = useRef<HTMLDivElement | null>(null)
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`${getApiUrl()}/api/auth/me`, {
+      headers: { Accept: 'application/json' },
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data?.role) setUserRole(data.data.role)
+      })
+      .catch((err) => console.error('Error fetching role:', err))
+  }, [])
+
+  const isViewer = userRole === 'super_admin_viewer'
+
   const isCreateItemFxVisible = createItemFxStage !== 'idle'
   const isCreateItemStoring = createItemFxStage === 'storing'
   const isCreateItemSuccess = createItemFxStage === 'success'
@@ -504,8 +519,8 @@ export default function InventoryPage() {
   }, [departments])
 
   const isPastOrPresentYear = selectedYear <= currentYear
-  const canEditItemSetup = isPastOrPresentYear
-  const canEditTransactions = selectedYear === currentYear
+  const canEditItemSetup = isPastOrPresentYear && !isViewer
+  const canEditTransactions = selectedYear === currentYear && !isViewer
 
   const filteredItems = useMemo(() => {
     const term = searchTerm.trim().toLowerCase()
@@ -1625,7 +1640,7 @@ export default function InventoryPage() {
           </Card>
         </div>
 
-        <div
+        {!isViewer && <div
           className={cn(
             'grid grid-cols-1 xl:grid-cols-2 gap-6 transition-all duration-500',
             statsVisualsAnimated ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
@@ -2031,7 +2046,7 @@ export default function InventoryPage() {
             </Button>
           </div>
         </Card>
-      </div>
+      </div>}
 
         <Card
           ref={inventoryTableRef}
@@ -2048,19 +2063,21 @@ export default function InventoryPage() {
                 <h3 className="text-base font-black text-slate-900 mt-1">Inventory Table</h3>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant={itemEditMode ? 'default' : 'outline'}
-                  onClick={handleItemEditModeToggle}
-                  disabled={savingItemEdit || deletingItems}
-                  className={cn(
-                    'h-9 rounded-sm font-black text-xs uppercase tracking-wider',
-                    itemEditMode ? 'bg-[#A4163A] hover:bg-[#800020] text-white' : 'border-[#FFE5EC] text-[#A4163A] hover:bg-rose-50'
-                  )}
-                >
-                  {itemEditMode ? <X className="w-3.5 h-3.5 mr-2" /> : <Pencil className="w-3.5 h-3.5 mr-2" />}
-                  {itemEditMode ? 'Close Edit' : 'Edit Items'}
-                </Button>
+                {!isViewer && (
+                  <Button
+                    type="button"
+                    variant={itemEditMode ? 'default' : 'outline'}
+                    onClick={handleItemEditModeToggle}
+                    disabled={savingItemEdit || deletingItems}
+                    className={cn(
+                      'h-9 rounded-sm font-black text-xs uppercase tracking-wider',
+                      itemEditMode ? 'bg-[#A4163A] hover:bg-[#800020] text-white' : 'border-[#FFE5EC] text-[#A4163A] hover:bg-rose-50'
+                    )}
+                  >
+                    {itemEditMode ? <X className="w-3.5 h-3.5 mr-2" /> : <Pencil className="w-3.5 h-3.5 mr-2" />}
+                    {itemEditMode ? 'Close Edit' : 'Edit Items'}
+                  </Button>
+                )}
                 {itemEditMode ? (
                   <Button
                     type="button"
