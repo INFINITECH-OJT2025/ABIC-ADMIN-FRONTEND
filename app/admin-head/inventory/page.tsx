@@ -57,7 +57,7 @@ import { ensureOkResponse } from '@/lib/api/error-message'
 import { useUserRole } from '@/lib/hooks/useUserRole'
 import { PageErrorState } from '@/components/state/page-feedback'
 import { toast } from 'sonner'
-import { Boxes, Loader2, RefreshCw, Plus, ArrowDownUp, Search, AlertTriangle, PackageCheck, ChevronsUpDown, Check, Pencil, Trash2, Save, X } from 'lucide-react'
+import { Boxes, Loader2, RefreshCw, Plus, ArrowDownUp, Search, AlertTriangle, PackageCheck, ChevronsUpDown, Check, Pencil, Trash2, Save, X, Eye } from 'lucide-react'
 
 type DepartmentRow = {
   id: number
@@ -1605,11 +1605,6 @@ export default function InventoryPage() {
       <header className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-xl relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white to-transparent" />
         <div className="w-full px-4 md:px-8 py-7 md:py-8 relative z-10">
-          {isViewOnly ? (
-            <div className="mb-3 inline-flex items-center rounded-md bg-yellow-100 px-3 py-1 text-xs font-black text-yellow-800">
-              VIEW ONLY MODE
-            </div>
-          ) : null}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
               <h1 className="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-3">
@@ -1619,6 +1614,12 @@ export default function InventoryPage() {
               <p className="text-sm font-semibold tracking-wide opacity-80 mt-1">
                 ABIC Realty & Consultancy - Office Supplies Inventory
               </p>
+              {isViewOnly && (
+                <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                  <Eye className="w-4 h-4" />
+                  VIEW ONLY MODE - Editing and modifications are disabled
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Button

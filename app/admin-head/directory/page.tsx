@@ -1548,11 +1548,6 @@ export default function GovernmentDirectoryPage() {
         <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-white to-transparent" />
 
         <div className="w-full px-4 md:px-8 py-7 md:py-8 relative z-10">
-          {isViewOnly && (
-            <div className="mb-3 inline-block bg-yellow-100 text-yellow-800 px-3 py-1 rounded text-xs font-bold">
-              VIEW ONLY MODE
-            </div>
-          )}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
             <div>
               <h1 className="text-2xl md:text-3xl font-black tracking-tight flex items-center gap-3">
@@ -1563,6 +1558,12 @@ export default function GovernmentDirectoryPage() {
                 <Clock className="w-3.5 h-3.5" />
                 ABIC Realty & Consultancy - Process Reference
               </p>
+              {isViewOnly && (
+                <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                  <Eye className="w-4 h-4" />
+                  VIEW ONLY MODE - Editing and modifications are disabled
+                </p>
+              )}
             </div>
 
             {/* EDIT MODE TOGGLE */}

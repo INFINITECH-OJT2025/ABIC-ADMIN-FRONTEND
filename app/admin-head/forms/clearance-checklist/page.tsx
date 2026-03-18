@@ -27,7 +27,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
-  Save, Lock, ChevronLeft, ChevronRight, Check, Trash2, Plus, Target, UserPlus, ClipboardList, FolderPlus, Filter, ArrowUpDown, Users, CheckCircle2, Loader2, ChevronDown, GripVertical, TriangleAlert
+  Save, Lock, ChevronLeft, ChevronRight, Check, Trash2, Plus, Target, UserPlus, ClipboardList, FolderPlus, Filter, ArrowUpDown, Users, CheckCircle2, Loader2, ChevronDown, GripVertical, TriangleAlert, Eye
 } from 'lucide-react'
 import { cn } from "@/lib/utils"
 import { getApiUrl } from '@/lib/api'
@@ -958,15 +958,15 @@ export default function ClearanceChecklistPage() {
                 <ClipboardList className="w-4 h-4" />
                 ABIC REALTY & CONSULTANCY
               </p>
+              {isViewOnly && (
+                <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                  <Eye className="w-4 h-4" />
+                  VIEW ONLY MODE - Editing and modifications are disabled
+                </p>
+              )}
             </div>
 
-            {isViewOnly ? (
-              <div className="inline-flex items-center rounded-md bg-yellow-100 px-3 py-1 text-xs font-black text-yellow-800">
-                VIEW ONLY MODE
-              </div>
-            ) : (
-              <div />
-            )}
+            <div />
           </div>
         </div>
 
