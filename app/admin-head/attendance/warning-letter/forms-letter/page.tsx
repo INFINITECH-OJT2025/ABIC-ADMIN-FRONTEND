@@ -18,8 +18,7 @@ import {
   Edit3,
   Calendar,
   ShieldCheck,
-  History,
-  ScrollText,
+
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -417,36 +416,6 @@ function FormLetterContent() {
     () => (cutoff === "cutoff1" ? "first cutoff" : "second cutoff"),
     [cutoff],
   );
-
-  // --- History Drawer State ---
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyLetters, setHistoryLetters] = useState<any[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-
-  const fetchHistory = async () => {
-    if (!employeeId) return;
-    setHistoryLoading(true);
-    try {
-      const res = await fetch(
-        `${getApiUrl()}/api/sent-warning-letters?employee_id=${employeeId}`,
-      );
-      const data = await res.json();
-      if (data.success) {
-        // Filter by type (tardiness or leave)
-        const filtered = data.data.filter((h: any) => h.type === type);
-        setHistoryLetters(filtered);
-      }
-    } catch (e) {
-      console.error("Failed to load history:", e);
-    } finally {
-      setHistoryLoading(false);
-    }
-  };
-
-  const openHistory = () => {
-    setHistoryOpen(true);
-    fetchHistory();
-  };
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -1473,15 +1442,6 @@ function FormLetterContent() {
               </Button>
 
               <Button
-                onClick={openHistory}
-                variant="outline"
-                className="h-10 px-4 rounded-lg font-bold bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all text-sm uppercase tracking-wider gap-2 active:scale-95"
-              >
-                <History className="w-4 h-4" />
-                View History
-              </Button>
-
-              <Button
                 onClick={handlePrint}
                 variant="outline"
                 className="h-10 px-4 rounded-lg font-bold bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all text-sm uppercase tracking-wider gap-2 active:scale-95"
@@ -1815,198 +1775,7 @@ function FormLetterContent() {
         }
       `}</style>
 
-      {/* -------- HISTORY DRAWER -------- */}
-      {historyOpen && (
-        <div className="fixed inset-0 z-[100] flex justify-end print:hidden">
-          {/* Backdrop */}
-          <div
-            className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
-            onClick={() => setHistoryOpen(false)}
-          />
-          {/* Panel */}
-          <div className="relative w-full max-w-lg bg-white shadow-2xl flex flex-col h-full overflow-hidden animate-in slide-in-from-right-8 duration-200">
-            {/* Panel Header */}
-            <div className="bg-gradient-to-r from-[#CB2F56] to-[#A4163A] px-6 py-5 flex items-start justify-between gap-4 shrink-0">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <ScrollText className="w-5 h-5 text-white/90" />
-                  <span className="text-white font-black text-base uppercase tracking-widest">
-                    Letter History
-                  </span>
-                </div>
-                <p className="text-white/90 text-sm font-semibold leading-tight">
-                  {employee?.name}
-                </p>
-                <p className="text-white/70 text-[11px] uppercase tracking-wider mt-0.5">
-                  {type === "late" ? "Tardiness" : "Leave"} warnings
-                </p>
-              </div>
-              <button
-                onClick={() => setHistoryOpen(false)}
-                className="rounded-full bg-white/10 hover:bg-white/20 p-1.5 transition-colors cursor-pointer mt-0.5"
-              >
-                <X className="w-4 h-4 text-white" />
-              </button>
-            </div>
 
-            {/* Panel Body */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-50/50">
-              {historyLoading ? (
-                <div className="flex items-center justify-center py-20 gap-2 text-slate-400">
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-sm font-medium">Loading history…</span>
-                </div>
-              ) : historyLetters.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
-                  <ScrollText className="w-10 h-10 opacity-30" />
-                  <p className="text-sm font-semibold text-center">
-                    No letters have been sent yet for this employee.
-                  </p>
-                </div>
-              ) : (
-                historyLetters.map((letter: any) => (
-                  <div
-                    key={letter.id}
-                    className="group p-5 rounded-2xl border border-slate-100 bg-white hover:border-rose-100 hover:bg-rose-50/20 transition-all duration-300 shadow-sm"
-                  >
-                    {/* Top row: warning badge + date */}
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <span
-                        className={cn(
-                          "px-2.5 py-1 rounded-md font-bold text-[10px] border tracking-wider uppercase",
-                          letter.warning_level === 1
-                            ? "bg-amber-50 text-amber-700 border-amber-200"
-                            : letter.warning_level === 2
-                              ? "bg-orange-50 text-orange-700 border-orange-200"
-                              : "bg-red-50 text-red-700 border-red-200",
-                        )}
-                      >
-                        {letter.warning_level === 1
-                          ? "1st Warning"
-                          : letter.warning_level === 2
-                            ? "2nd Warning"
-                            : "For Consultation"}
-                      </span>
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        {new Date(letter.sent_at).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-
-                    {/* Period */}
-                    <div className="flex items-center gap-1.5 text-xs text-slate-700 mb-4 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                      <Calendar className="w-3.5 h-3.5 text-[#A4163A]" />
-                      <span className="font-bold">
-                        {letter.month} {letter.year}{" "}
-                        <span className="text-slate-400 font-normal">
-                          (
-                          {letter.cutoff === "cutoff1"
-                            ? "1st–15th"
-                            : "16th–End"}
-                          )
-                        </span>
-                      </span>
-                    </div>
-
-                    {/* Recipients */}
-                    <div className="space-y-2 mb-4">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        Sent to
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {letter.recipients.map((recipient: any, i: number) => {
-                          const email =
-                            typeof recipient === "string"
-                              ? recipient
-                              : recipient.email;
-                          const rType =
-                            typeof recipient === "string"
-                              ? null
-                              : recipient.type;
-                          return (
-                            <span
-                              key={i}
-                              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-100 text-[11px] text-slate-600 font-semibold shadow-sm"
-                            >
-                              <div
-                                className={cn(
-                                  "w-1.5 h-1.5 rounded-full",
-                                  rType === "employee"
-                                    ? "bg-[#A4163A]"
-                                    : rType === "supervisor"
-                                      ? "bg-amber-400"
-                                      : "bg-slate-300",
-                                )}
-                              />
-                              <span className="opacity-60">
-                                {rType
-                                  ? `${rType.charAt(0).toUpperCase() + rType.slice(1)}: `
-                                  : ""}
-                              </span>
-                              {email}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Forms included */}
-                    <div className="flex items-center justify-between border-t border-slate-50 pt-3">
-                      <div className="flex items-center gap-2">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                          Forms:
-                        </p>
-                        <div className="flex gap-1.5">
-                          {letter.forms_included.map((f: string) => (
-                            <span
-                              key={f}
-                              className="px-2.5 py-1 rounded-full bg-rose-50 border border-rose-100 text-[#A4163A] text-[10px] font-black uppercase tracking-wider"
-                            >
-                              {f === "form1" ? "Supervisor" : "Employee"}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          router.push(
-                            `/admin-head/attendance/warning-letter/forms-letter?employeeId=${letter.employee_id}&type=${letter.type}&month=${letter.month}&year=${letter.year}&cutoff=${letter.cutoff}&mode=review&letterId=${letter.id}`,
-                          );
-                          setHistoryOpen(false);
-                        }}
-                        className="h-8 text-xs font-bold text-[#A4163A] hover:bg-rose-50 px-3 rounded-lg flex items-center gap-1.5"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        Review
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Panel Footer */}
-            <div className="shrink-0 border-t border-slate-100 px-6 py-5 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.03)]">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">
-                  Total Records
-                </span>
-                <Badge className="bg-rose-50 text-[#A4163A] border-rose-100 font-bold px-3">
-                  {historyLetters.length} Letter
-                  {historyLetters.length !== 1 ? "s" : ""}
-                </Badge>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
