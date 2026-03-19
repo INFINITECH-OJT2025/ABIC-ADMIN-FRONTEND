@@ -653,11 +653,18 @@ export default function GovernmentDirectoryPage() {
   }, [activeBackendAgency, editMode, draft, activeAgency]);
 
   const generalContactsUpdatedAtText = useMemo(() => {
-    const latestMs = generalContacts.reduce<number>((max, row) => {
-      const ms = parseBackendDateMs(row.updated_at || row.created_at || null);
-      if (Number.isNaN(ms)) return max;
-      return ms > max ? ms : max;
-    }, NaN);
+    if (!generalContacts || generalContacts.length === 0) return "N/A";
+    
+    // fetch the record/row in the general_contacts table
+    const record = [...generalContacts].sort((a, b) => {
+        const msA = parseBackendDateMs(a.updated_at || a.created_at || null);
+        const msB = parseBackendDateMs(b.updated_at || b.created_at || null);
+        return (Number.isNaN(msB) ? 0 : msB) - (Number.isNaN(msA) ? 0 : msA);
+    })[0];
+
+    // use that fetched records value of updated_at field
+    const latestMs = parseBackendDateMs(record?.updated_at || record?.created_at || null);
+    
     if (Number.isNaN(latestMs)) return "N/A";
     return new Date(latestMs).toLocaleDateString("en-US", {
       month: "short",
