@@ -868,7 +868,43 @@ function EvaluateEmployeeForm() {
 
         <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm overflow-x-auto no-scrollbar">
           <div className="w-full px-4 md:px-8 py-3">
-            <div className="flex items-center justify-end gap-3 md:gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 md:gap-4">
+                {failedFirstEvaluation ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold uppercase tracking-wide text-white/90">Evaluation View</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={evaluationView === 'first' ? 'default' : 'outline'}
+                      className="rounded-lg h-9 px-3 font-bold uppercase tracking-wider"
+                      onClick={() => setEvaluationView('first')}
+                    >
+                      1st Evaluation
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={evaluationView === 'second' ? 'default' : 'outline'}
+                      className="rounded-lg h-9 px-3 font-bold uppercase tracking-wider"
+                      onClick={() => setEvaluationView('second')}
+                    >
+                      2nd Evaluation
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={evaluationView === 'both' ? 'default' : 'outline'}
+                      className="rounded-lg h-9 px-3 font-bold uppercase tracking-wider"
+                      onClick={() => setEvaluationView('both')}
+                    >
+                      Both (Side by Side)
+                    </Button>
+                  </div>
+                ) : (
+                  <div />
+                )}
+
+                <div className="flex flex-wrap items-center justify-end gap-3 md:gap-4 ml-auto">
                 <Button
                   type="button"
                   variant="outline"
@@ -905,47 +941,13 @@ function EvaluateEmployeeForm() {
                 >
                   {isSubmitting ? 'Saving...' : <><Save className="w-4 h-4" /> Save Evaluation</>}
                 </Button>
+                </div>
             </div>
           </div>
         </div>
       </div>
 
       <div className="px-4 md:px-6 font-serif">
-      {failedFirstEvaluation && (
-        <div className={`${showSideBySide ? 'max-w-[1800px]' : 'max-w-[850px]'} mx-auto mb-4 bg-white border border-slate-300 p-4`}>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-xs font-bold uppercase tracking-wide text-slate-700">Evaluation View</span>
-            <Button
-              type="button"
-              size="sm"
-              variant={evaluationView === 'first' ? 'default' : 'outline'}
-              className="rounded-none"
-              onClick={() => setEvaluationView('first')}
-            >
-              1st Evaluation
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={evaluationView === 'second' ? 'default' : 'outline'}
-              className="rounded-none"
-              onClick={() => setEvaluationView('second')}
-            >
-              2nd Evaluation
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={evaluationView === 'both' ? 'default' : 'outline'}
-              className="rounded-none"
-              onClick={() => setEvaluationView('both')}
-            >
-              Both (Side by Side)
-            </Button>
-          </div>
-        </div>
-      )}
-
       <div className={`${showSideBySide ? 'max-w-[1800px] grid grid-cols-1 xl:grid-cols-2 gap-6' : 'max-w-[850px]'} mx-auto`}>
         {showFirstEvaluationPanel && (
           <div className="bg-white shadow-2xl p-[60px] text-[13px] leading-relaxed text-black border border-slate-300">

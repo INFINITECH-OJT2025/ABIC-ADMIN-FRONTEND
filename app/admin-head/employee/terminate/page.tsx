@@ -188,7 +188,7 @@ function TerminatePageContent() {
   const [currentResignedPage, setCurrentResignedPage] = useState(1)
   const itemsPerPage = 10
   const [sortOrder, setSortOrder] = useState<'recent' | 'oldest' | 'az' | 'za'>('recent')
-  const [activeTab, setActiveTab] = useState<'all' | 'terminated' | 'rehired'>('all')
+  const [activeTab, setActiveTab] = useState<'all' | 'terminated' | 'rehired' | 'resigned'>('all')
   const [historyFilter, setHistoryFilter] = useState<'all' | 'terminated' | 'rehired' | 'resigned'>('all')
   const [exitActionType, setExitActionType] = useState<'terminate' | 'resigned'>('terminate')
   const router = useRouter()
@@ -454,6 +454,16 @@ function TerminatePageContent() {
       .filter(Boolean)
     return normalizedStatuses.includes('rehired_employee') || normalizedStatuses.includes('rehired')
   }
+  const getRecordStatusLabel = (record: TerminationRecord) => {
+    if (isRehiredRecord(record)) return 'Rehired'
+    return record.exit_type === 'resigned' ? 'Resigned' : 'Terminated'
+  }
+  const getStatusBadgeClass = (record: TerminationRecord) => {
+    const label = getRecordStatusLabel(record)
+    if (label === 'Rehired') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    if (label === 'Resigned') return 'border-amber-200 bg-amber-50 text-amber-700'
+    return 'border-rose-200 bg-rose-50 text-rose-700'
+  }
   const canShowRehireAction = (record: TerminationRecord) => {
     if (record.rehired_at) return false
     const normalizedStatuses = [record.status, record.employee?.status]
@@ -463,17 +473,8 @@ function TerminatePageContent() {
     return normalizedStatuses.includes('terminated') || normalizedStatuses.includes('resigned')
   }
 
-  const matchesActiveTab = (record: TerminationRecord) => {
-    if (isHistoryView) return true
-    if (activeTab === 'all') return true
-    if (activeTab === 'terminated') return !isRehiredRecord(record)
-    return isRehiredRecord(record)
-  }
-
   const applyRecordFilters = (records: TerminationRecord[]) => records
     .filter((record) => {
-      // Tab filter
-      if (!matchesActiveTab(record)) return false
       // Search filter
       const q = searchQuery.toLowerCase().trim()
       if (!q) return true
@@ -500,9 +501,21 @@ function TerminatePageContent() {
   const baseTerminations = isHistoryView ? terminations : getLatestPerEmployee(terminations)
   const baseResigned = isHistoryView ? resigned : getLatestPerEmployee(resigned)
   const realtimeTerminations = getLatestPerEmployee(terminations)
+  const realtimeResigned = getLatestPerEmployee(resigned)
 
-  const tabFilteredTerminations = applyRecordFilters(baseTerminations)
-  const tabFilteredResigned = applyRecordFilters(baseResigned)
+  const tabFilteredTerminations = applyRecordFilters(baseTerminations).filter((record) => {
+    if (isHistoryView) return true
+    if (activeTab === 'all') return true
+    if (activeTab === 'terminated') return !isRehiredRecord(record)
+    if (activeTab === 'rehired') return isRehiredRecord(record)
+    return false
+  })
+  const tabFilteredResigned = applyRecordFilters(baseResigned).filter((record) => {
+    if (isHistoryView) return true
+    if (activeTab === 'all') return true
+    if (activeTab === 'resigned') return !isRehiredRecord(record)
+    return false
+  })
   const filteredTerminations = tabFilteredTerminations.filter((record) => {
     if (!isHistoryView || historyFilter === 'all') return true
     if (historyFilter === 'terminated') return !isRehiredRecord(record)
@@ -511,8 +524,41 @@ function TerminatePageContent() {
   })
   const filteredResigned = tabFilteredResigned.filter((record) => {
     if (!isHistoryView || historyFilter === 'all') return true
-    return historyFilter === 'resigned'
+    if (historyFilter === 'resigned') return !isRehiredRecord(record)
+    if (historyFilter === 'rehired') return isRehiredRecord(record)
+    return false
   })
+  const sortRecords = (records: TerminationRecord[]) => [...records].sort((a, b) => {
+    switch (sortOrder) {
+      case 'recent':
+        return new Date(b.termination_date ?? 0).getTime() - new Date(a.termination_date ?? 0).getTime()
+      case 'oldest':
+        return new Date(a.termination_date ?? 0).getTime() - new Date(b.termination_date ?? 0).getTime()
+      case 'az':
+        return `${a.employee?.last_name} ${a.employee?.first_name}`.localeCompare(`${b.employee?.last_name} ${b.employee?.first_name}`)
+      case 'za':
+        return `${b.employee?.last_name} ${b.employee?.first_name}`.localeCompare(`${a.employee?.last_name} ${a.employee?.first_name}`)
+      default:
+        return 0
+    }
+  })
+  const isAllCombinedView = !isHistoryView && activeTab === 'all'
+  const isCombinedHistoryView = isHistoryView
+  const primaryRecords = (isAllCombinedView || isCombinedHistoryView)
+    ? sortRecords([...filteredTerminations, ...filteredResigned])
+    : filteredTerminations
+  const primaryBaseCount = (isAllCombinedView || isCombinedHistoryView)
+    ? (baseTerminations.length + baseResigned.length)
+    : baseTerminations.length
+  const isRehireFocusedView = (!isHistoryView && activeTab === 'rehired') || (isHistoryView && historyFilter === 'rehired')
+  const primaryHistoryTitle = (isAllCombinedView || isCombinedHistoryView)
+    ? 'All Exit History'
+    : (isRehireFocusedView ? 'Rehire History' : 'Terminated History')
+  const primaryDateLabel = (isAllCombinedView || isCombinedHistoryView) ? 'Exit Date' : 'Termination Date'
+  const showTerminatedTable = isHistoryView ? true : activeTab !== 'resigned'
+  const showResignedTable = !isHistoryView
+    ? activeTab === 'resigned'
+    : false
   const selectedRecordIsResigned = selectedTermination?.exit_type === 'resigned'
   const superiors = React.useMemo(() => {
     if (!selectedEmployeeId) return []
@@ -581,6 +627,7 @@ function TerminatePageContent() {
   const allCount = realtimeTerminations.length
   const terminatedCount = realtimeTerminations.filter((r) => !isRehiredRecord(r)).length
   const rehiredCount = realtimeTerminations.filter((r) => isRehiredRecord(r)).length
+  const resignedCount = realtimeResigned.length
   const completedClearanceCount = Object.keys(completedClearanceTasks).length
   const clearanceCompletionPercentage = clearanceTasks.length > 0
     ? Math.round((completedClearanceCount / clearanceTasks.length) * 100)
@@ -626,6 +673,65 @@ function TerminatePageContent() {
       const parsedHierarchies = Array.isArray(hierData?.data) ? hierData.data : (Array.isArray(hierData) ? hierData : [])
       setHierarchies(parsedHierarchies)
 
+      const resolveRehiredAt = (record: any): string | null => {
+        const candidates = [
+          record?.rehired_at,
+          record?.rehire_date,
+          record?.rehired_date,
+          record?.rehireDate,
+          record?.rehiredAt,
+          record?.re_hired_at,
+          record?.employee?.rehired_at,
+          record?.employee?.rehire_date,
+          record?.employee?.rehired_date,
+          record?.employee?.rehireDate,
+          record?.employee?.rehiredAt,
+        ]
+        const resolved = candidates.find((value) => {
+          if (value === null || value === undefined) return false
+          return String(value).trim() !== ''
+        })
+        return resolved ? String(resolved) : null
+      }
+      const rehiredByEmployeeId = new Map<string, string>()
+      const rehiredByEmail = new Map<string, string>()
+      try {
+        const rehiredRes = await fetch(`${getApiUrl()}/api/rehired`, { headers: { Accept: 'application/json' } })
+        if (rehiredRes.ok) {
+          const rehiredData = await rehiredRes.json()
+          const rehiredRows = Array.isArray(rehiredData?.data) ? rehiredData.data : []
+          for (const row of rehiredRows) {
+            const resolvedRehiredAt = resolveRehiredAt(row)
+            if (!resolvedRehiredAt) continue
+
+            const keys = [row?.employee_id, row?.previous_employee_id, row?.employee?.id]
+              .map((value) => String(value ?? '').trim())
+              .filter(Boolean)
+
+            for (const key of keys) {
+              if (!rehiredByEmployeeId.has(key)) {
+                rehiredByEmployeeId.set(key, resolvedRehiredAt)
+              }
+            }
+
+            const emailKeys = [
+              row?.profile_snapshot?.email,
+              row?.employee?.email,
+            ]
+              .map((value) => String(value ?? '').trim().toLowerCase())
+              .filter(Boolean)
+
+            for (const emailKey of emailKeys) {
+              if (!rehiredByEmail.has(emailKey)) {
+                rehiredByEmail.set(emailKey, resolvedRehiredAt)
+              }
+            }
+          }
+        }
+      } catch (rehiredFetchError) {
+        console.error('Unable to fetch rehired records for fallback mapping:', rehiredFetchError)
+      }
+
       if (empData.success && Array.isArray(empData.data)) {
         // Only show currently employed or rehired employees in dropdown
         const active = empData.data.filter(
@@ -635,7 +741,15 @@ function TerminatePageContent() {
       }
 
       if (termData.success && Array.isArray(termData.data)) {
-        setTerminations(termData.data)
+        const normalizedTerminations = termData.data.map((record: any) => ({
+          ...record,
+          rehired_at:
+            resolveRehiredAt(record) ??
+            rehiredByEmployeeId.get(String(record?.employee_id ?? '').trim()) ??
+            rehiredByEmail.get(String(record?.employee?.email ?? '').trim().toLowerCase()) ??
+            null,
+        }))
+        setTerminations(normalizedTerminations)
       } else {
         toast.error('Failed to load termination history')
       }
@@ -644,6 +758,11 @@ function TerminatePageContent() {
         const normalizedResigned = resignedData.data.map((record: any) => ({
           ...record,
           termination_date: record.resignation_date,
+          rehired_at:
+            resolveRehiredAt(record) ??
+            rehiredByEmployeeId.get(String(record?.employee_id ?? '').trim()) ??
+            rehiredByEmail.get(String(record?.employee?.email ?? '').trim().toLowerCase()) ??
+            null,
           exit_type: 'resigned',
         }))
         setResigned(normalizedResigned)
@@ -700,6 +819,18 @@ function TerminatePageContent() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target
+    if (name === 'reason') {
+      const sanitized = value
+        .replace(/[^A-Za-z0-9 ]+/g, '')
+        .replace(/\s+/g, ' ')
+        .slice(0, 50)
+      setFormData((prev) => ({
+        ...prev,
+        [name]: sanitized,
+      }))
+      return
+    }
+
     setFormData((prev) => ({
       ...prev,
       [name]: value,
@@ -823,8 +954,18 @@ function TerminatePageContent() {
       return
     }
 
-    if (formData.reason.length < 10) {
-      toast.error('Reason must be at least 10 characters')
+    if (formData.reason.length < 5) {
+      toast.error('Reason must be at least 5 characters')
+      return
+    }
+
+    if (formData.reason.length > 50) {
+      toast.error('Reason must not exceed 50 characters')
+      return
+    }
+
+    if (!/^[A-Za-z0-9 ]+$/.test(formData.reason)) {
+      toast.error('Reason must only contain letters, numbers, and spaces')
       return
     }
 
@@ -1268,6 +1409,14 @@ function TerminatePageContent() {
                   >
                     Rehired ({rehiredCount})
                   </button>
+                  <button
+                    onClick={() => { setActiveTab('resigned'); setCurrentPage(1); setCurrentResignedPage(1) }}
+                    className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all duration-200 uppercase tracking-wider ${
+                      activeTab === 'resigned' ? 'bg-white text-[#A4163A] shadow-md' : 'text-white/70 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    Resigned ({resignedCount})
+                  </button>
                 </div>
               )}
               {/* Search and Sort */}
@@ -1315,13 +1464,20 @@ function TerminatePageContent() {
                 )}
 
                 <Select value={sortOrder} onValueChange={(value: any) => { setSortOrder(value); setCurrentPage(1); setCurrentResignedPage(1) }}>
-                  <SelectTrigger className="w-full sm:w-[180px] bg-white border-2 border-[#FFE5EC] h-9 rounded-lg shadow-sm focus:ring-[#A0153E] text-[#800020] font-bold">
+                  <SelectTrigger className="w-full sm:w-[180px] bg-white border-2 border-[#FFE5EC] h-10 rounded-lg shadow-sm focus:ring-[#A0153E] text-[#800020] font-bold select-none caret-transparent pr-4 [&>svg]:hidden">
                     <div className="flex items-center gap-2 text-xs uppercase tracking-wider">
                       <ArrowUpDown className="h-3.5 w-3.5 opacity-50" />
                       <SelectValue placeholder="Sort by" />
                     </div>
                   </SelectTrigger>
-                  <SelectContent className="rounded-xl border-stone-200 shadow-xl overflow-hidden">
+                  <SelectContent
+                    position="popper"
+                    side="bottom"
+                    align="start"
+                    sideOffset={6}
+                    avoidCollisions={false}
+                    className="rounded-xl border-stone-200 shadow-xl overflow-hidden"
+                  >
                     <SelectItem value="recent" className="focus:bg-red-50 focus:text-[#630C22] font-bold text-xs py-2 uppercase tracking-wider cursor-pointer border-b border-slate-50 last:border-0">
                       <div className="flex items-center gap-3"><History className="h-4 w-4" /><span>Recent First</span></div>
                     </SelectItem>
@@ -1451,9 +1607,11 @@ function TerminatePageContent() {
                   value={formData.reason}
                   onChange={handleInputChange}
                   placeholder={exitActionType === 'resigned' ? 'Reason for resignation...' : 'Reason for termination...'}
+                  maxLength={50}
                   className="h-10"
                   disabled={isViewOnly || submitting}
                 />
+                <p className="text-[10px] text-slate-500 text-right">{formData.reason.length}/50</p>
               </div>
 
               {exitActionType === 'terminate' && (
@@ -1595,7 +1753,9 @@ function TerminatePageContent() {
                   isViewOnly ||
                   submitting ||
                   !selectedEmployeeId ||
-                  formData.reason.trim().length < 10 ||
+                  formData.reason.trim().length < 5 ||
+                  formData.reason.trim().length > 50 ||
+                  !/^[A-Za-z0-9 ]+$/.test(formData.reason.trim()) ||
                   !formData.reviewed_by ||
                   !formData.approval_date ||
                   (exitActionType === 'terminate' && (!formData.recommended_by || formData.notice_modes.length === 0 || !formData.notice_date))
@@ -1620,6 +1780,7 @@ function TerminatePageContent() {
             </div>
           </div>
         </div>
+        {showTerminatedTable && (
         <div className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-xl flex flex-col">
           {fetchError ? (
             <div className="flex flex-col items-center justify-center py-24 text-center animate-in fade-in zoom-in-95 duration-500">
@@ -1649,20 +1810,20 @@ function TerminatePageContent() {
             <>
               <div className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4 flex items-center justify-between">
                 <div>
-                  <h2 className="text-xl font-bold text-[#4A081A] uppercase tracking-wide">Terminated History</h2>
+                  <h2 className="text-xl font-bold text-[#4A081A] uppercase tracking-wide">{primaryHistoryTitle}</h2>
                   <p className="text-[#A0153E]/70 text-[11px] mt-1 font-bold uppercase">
-                    {filteredTerminations.length} of {baseTerminations.length} records
+                    {primaryRecords.length} of {primaryBaseCount} records
                   </p>
                 </div>
               </div>
 
               <div className="p-0 bg-white overflow-hidden">
-                {baseTerminations.length === 0 ? (
+                {primaryBaseCount === 0 ? (
                   <div className="flex flex-col items-center justify-center py-24 text-slate-400">
                     <FileText className="h-20 w-20 mb-4 opacity-10" />
-                    <p className="text-lg">No termination records found.</p>
+                    <p className="text-lg">No records found.</p>
                   </div>
-                ) : filteredTerminations.length === 0 ? (
+                ) : primaryRecords.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                     <Search className="h-14 w-14 mb-4 opacity-10" />
                     <p className="text-base font-medium">No results for &quot;{searchQuery}&quot;</p>
@@ -1674,7 +1835,8 @@ function TerminatePageContent() {
                       <TableHeader className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC]">
                         <TableRow className="border-b border-[#FFE5EC]/50">
                           <TableHead className="py-2 pl-6 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Employee</TableHead>
-                          <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Termination Date</TableHead>
+                          <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Status</TableHead>
+                          <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">{primaryDateLabel}</TableHead>
                           {(isHistoryView || activeTab !== 'terminated') && (
                             <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Rehire Date</TableHead>
                           )}
@@ -1683,15 +1845,23 @@ function TerminatePageContent() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {filteredTerminations
+                        {primaryRecords
                           .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
                           .map((record) => (
-                          <TableRow key={record.id} className="hover:bg-[#FFE5EC] hover:[&>td]:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group">
+                          <TableRow key={`${record.exit_type ?? 'terminated'}-${record.id}`} className="hover:bg-[#FFE5EC] hover:[&>td]:bg-[#FFE5EC] border-b border-rose-50 transition-colors duration-200 group">
                             <TableCell className="py-2 pl-6 font-medium text-slate-900 border-r border-rose-50/50">
                               <div className="flex flex-col">
                                 <span className="text-sm font-bold text-[#630C22] group-hover:text-[#4A081A] transition-colors">{record.employee?.last_name}, {record.employee?.first_name}</span>
                                 <span className="text-[10px] text-slate-500 font-semibold uppercase">{record.employee?.position}</span>
                               </div>
+                            </TableCell>
+                            <TableCell className="text-slate-600 text-[11px] font-medium border-r border-rose-50/50">
+                              <span className={cn(
+                                'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide border',
+                                getStatusBadgeClass(record)
+                              )}>
+                                {getRecordStatusLabel(record)}
+                              </span>
                             </TableCell>
                             <TableCell className="text-slate-600 text-[11px] font-medium border-r border-rose-50/50">
                               {record.termination_date ? (
@@ -1703,7 +1873,7 @@ function TerminatePageContent() {
                             </TableCell>
                             {(isHistoryView || activeTab !== 'terminated') && (
                               <TableCell className="text-slate-600 text-[11px] font-medium border-r border-rose-50/50">
-                                {record.rehired_at ? (
+                                {isRehiredRecord(record) && record.rehired_at ? (
                                   <div className="flex flex-col">
                                     <span className="font-semibold text-emerald-700">{new Date(record.rehired_at).toLocaleDateString()}</span>
                                     <span className="text-[10px] text-slate-400 mt-0.5">{new Date(record.rehired_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -1754,10 +1924,10 @@ function TerminatePageContent() {
                       </TableBody>
                     </Table>
                     {/* Pagination */}
-                    {filteredTerminations.length > itemsPerPage && (
+                    {primaryRecords.length > itemsPerPage && (
                       <div className="px-6 py-3 border-t border-[#FFE5EC]/70 flex items-center justify-between bg-[#FFE5EC]/20">
                         <div className="text-[11px] text-slate-500 font-medium">
-                          Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, filteredTerminations.length)} of {filteredTerminations.length}
+                          Showing {(currentPage - 1) * itemsPerPage + 1} to {Math.min(currentPage * itemsPerPage, primaryRecords.length)} of {primaryRecords.length}
                         </div>
                         <div className="flex gap-1.5 items-center">
                           <Button
@@ -1769,7 +1939,7 @@ function TerminatePageContent() {
                           >
                             Previous
                           </Button>
-                          {Array.from({ length: Math.ceil(filteredTerminations.length / itemsPerPage) }, (_, i) => i + 1).map((page) => (
+                          {Array.from({ length: Math.ceil(primaryRecords.length / itemsPerPage) }, (_, i) => i + 1).map((page) => (
                             <button
                               key={page}
                               onClick={() => setCurrentPage(page)}
@@ -1786,8 +1956,8 @@ function TerminatePageContent() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredTerminations.length / itemsPerPage)))}
-                            disabled={currentPage === Math.ceil(filteredTerminations.length / itemsPerPage)}
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(primaryRecords.length / itemsPerPage)))}
+                            disabled={currentPage === Math.ceil(primaryRecords.length / itemsPerPage)}
                             className="h-8 px-3 text-xs font-bold border-[#FFE5EC] text-[#7B0F2B] hover:bg-white disabled:opacity-40"
                           >
                             Next
@@ -1801,7 +1971,9 @@ function TerminatePageContent() {
             </>
           )}
         </div>
+        )}
 
+        {showResignedTable && (
         <div className="bg-white border-2 border-[#FFE5EC] shadow-md overflow-hidden rounded-xl flex flex-col">
           {fetchError ? (
             <div className="flex flex-col items-center justify-center py-16 text-center text-slate-400">
@@ -1836,6 +2008,7 @@ function TerminatePageContent() {
                       <TableHeader className="bg-[#FFE5EC]/30 sticky top-0 border-b border-[#FFE5EC]">
                         <TableRow className="border-b border-[#FFE5EC]/50">
                           <TableHead className="py-2 pl-6 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Employee</TableHead>
+                          <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Status</TableHead>
                           <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Resignation Date</TableHead>
                           {(isHistoryView || activeTab !== 'terminated') && (
                             <TableHead className="py-2 text-[10px] font-bold text-[#800020] uppercase tracking-wider border-r border-[#FFE5EC]/50">Rehire Date</TableHead>
@@ -1856,6 +2029,16 @@ function TerminatePageContent() {
                                 </div>
                               </TableCell>
                               <TableCell className="text-slate-600 text-[11px] font-medium border-r border-rose-50/50">
+                                <span className={cn(
+                                  'inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide border',
+                                  isRehiredRecord(record)
+                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                    : 'border-amber-200 bg-amber-50 text-amber-700'
+                                )}>
+                                  {isRehiredRecord(record) ? 'Rehired' : 'Resigned'}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-slate-600 text-[11px] font-medium border-r border-rose-50/50">
                                 {record.termination_date ? (
                                   <div className="flex flex-col">
                                     <span className="font-semibold text-rose-700">{new Date(record.termination_date).toLocaleDateString()}</span>
@@ -1865,7 +2048,7 @@ function TerminatePageContent() {
                               </TableCell>
                               {(isHistoryView || activeTab !== 'terminated') && (
                                 <TableCell className="text-slate-600 text-[11px] font-medium border-r border-rose-50/50">
-                                  {record.rehired_at ? (
+                                  {isRehiredRecord(record) && record.rehired_at ? (
                                     <div className="flex flex-col">
                                       <span className="font-semibold text-emerald-700">{new Date(record.rehired_at).toLocaleDateString()}</span>
                                       <span className="text-[10px] text-slate-400 mt-0.5">{new Date(record.rehired_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -1962,6 +2145,7 @@ function TerminatePageContent() {
             </>
           )}
         </div>
+        )}
         </>
       )}
 
