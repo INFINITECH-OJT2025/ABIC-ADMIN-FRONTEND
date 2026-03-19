@@ -33,7 +33,7 @@ export function useUserRole() {
     fetchUser();
   }, []);
 
-  const isViewOnly = user?.role === "super_admin_viewer";
+  const isViewOnly = true//user?.role === "super_admin_viewer";
 
   return {
     user,

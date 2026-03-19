@@ -1400,7 +1400,7 @@ export default function EditFormsPage() {
             <div
               className={cn(
                 "space-y-6 transition-all duration-500",
-                isViewOnly && "opacity-75 pointer-events-none",
+                isViewOnly && "opacity-75",
                 showPreview ? "animate-in slide-in-from-left" : "w-full",
               )}
             >
@@ -1441,7 +1441,11 @@ export default function EditFormsPage() {
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="p-8 pt-12 space-y-8">
+                <CardContent className="p-8 pt-12">
+                  <fieldset
+                    disabled={isViewOnly}
+                    className="space-y-8 [&_button:disabled]:cursor-not-allowed [&_input:disabled]:cursor-not-allowed [&_textarea:disabled]:cursor-not-allowed [&_[data-slot=select-trigger][data-disabled]]:cursor-not-allowed"
+                  >
                   {activeTab === "letterhead" ? (
                     <div className="space-y-6 bg-rose-50/10 p-2 border-0">
                       <div className="flex items-center gap-3 mb-2">
@@ -2046,6 +2050,7 @@ export default function EditFormsPage() {
                       </div>
                     </>
                   )}
+                  </fieldset>
                 </CardContent>
               </Card>
 

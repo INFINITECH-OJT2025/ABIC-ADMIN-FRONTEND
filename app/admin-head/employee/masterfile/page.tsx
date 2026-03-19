@@ -2038,12 +2038,13 @@ export default function MasterfilePage() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
+                                    disabled={isViewOnly}
                                     onClick={() =>
                                       router.push(
                                         `/admin-head/employee/terminate?view=history&action=checklist&employeeId=${employee.id}`,
                                       )
                                     }
-                                    className="h-8 px-3 text-[11px] font-bold border rounded-lg transition-all text-rose-600 bg-rose-50 hover:bg-rose-100 border-rose-100 animate-pulse hover:animate-none whitespace-nowrap"
+                                    className="h-8 px-3 text-[11px] font-bold border rounded-lg transition-all text-rose-600 bg-rose-50 hover:bg-rose-100 border-rose-100 animate-pulse hover:animate-none whitespace-nowrap disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-rose-50 disabled:hover:animate-pulse"
                                   >
                                     Continue Clearance
                                   </Button>
@@ -2052,6 +2053,7 @@ export default function MasterfilePage() {
                                   <Button
                                     variant="ghost"
                                     size="sm"
+                                    disabled={isViewOnly}
                                     onClick={() =>
                                       router.push(
                                         !employee.onboarding_tasks?.isComplete
@@ -2065,7 +2067,7 @@ export default function MasterfilePage() {
                                         : employee.onboarding_tasks?.isComplete
                                           ? "text-[#630C22] bg-rose-50 hover:bg-rose-100 border-rose-100"
                                           : "text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-100 animate-pulse hover:animate-none"
-                                    }`}
+                                    } disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-blue-50`}
                                   >
                                     {isRehirePending
                                       ? "Continue Rehire"
@@ -2080,6 +2082,7 @@ export default function MasterfilePage() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
+                                      disabled={isViewOnly}
                                       onClick={() =>
                                         router.push(
                                           employee.onboarding_tasks?.isComplete
@@ -2091,7 +2094,7 @@ export default function MasterfilePage() {
                                         employee.onboarding_tasks?.isComplete
                                           ? "text-[#630C22] bg-rose-50 hover:bg-rose-100 border-rose-100"
                                           : "text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-100 animate-pulse hover:animate-none"
-                                      }`}
+                                      } disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-blue-50`}
                                     >
                                       {employee.onboarding_tasks?.isComplete
                                         ? "Update Profile"
@@ -3521,12 +3524,13 @@ export default function MasterfilePage() {
                               !checkCompleteness(selectedEmployee)
                                 .isComplete && (
                                 <button
+                                  disabled={isViewOnly}
                                   onClick={() =>
                                     router.push(
                                       `/admin-head/employee/onboard?id=${selectedEmployee.id}&batch=${checkCompleteness(selectedEmployee).batchId}`,
                                     )
                                   }
-                                  className="h-12 px-8 font-bold rounded-xl text-white transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 bg-gradient-to-r from-[#4A081A] via-[#630C22] to-[#800020] hover:from-[#630C22] hover:to-[#A0153E]"
+                                  className="h-12 px-8 font-bold rounded-xl text-white transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 bg-gradient-to-r from-[#4A081A] via-[#630C22] to-[#800020] hover:from-[#630C22] hover:to-[#A0153E] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg disabled:hover:-translate-y-0"
                                 >
                                   Update Profile
                                 </button>
@@ -3534,6 +3538,7 @@ export default function MasterfilePage() {
                             <button
                               onClick={handleSetAsEmployed}
                               disabled={
+                                isViewOnly ||
                                 !checkCompleteness(selectedEmployee)
                                   .isComplete ||
                                 !selectedEmployee.onboarding_tasks
@@ -3541,6 +3546,7 @@ export default function MasterfilePage() {
                                 isUpdating
                               }
                               className={`h-12 px-8 font-bold rounded-xl transition-all shadow-lg ${
+                                isViewOnly ||
                                 !checkCompleteness(selectedEmployee)
                                   .isComplete ||
                                 !selectedEmployee.onboarding_tasks?.isComplete

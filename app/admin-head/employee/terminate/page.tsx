@@ -1141,7 +1141,7 @@ function TerminatePageContent() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-red-50 text-stone-900 font-sans flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-stone-50 via-white to-red-50 text-stone-900 font-sans flex flex-col [&_button:disabled]:cursor-not-allowed [&_input:disabled]:cursor-not-allowed [&_textarea:disabled]:cursor-not-allowed">
       {loading ? (
         <TerminateSkeleton />
       ) : (
@@ -1199,10 +1199,10 @@ function TerminatePageContent() {
                   }}
                   disabled={isViewOnly}
                   className={cn(
-                    "font-bold px-5 py-2.5 rounded-lg transition-all duration-300 shadow-lg flex items-center gap-2 h-auto border text-sm uppercase tracking-wider",
+                    "bg-white text-[#7B0F2B] hover:bg-white hover:text-[#7B0F2B] border-transparent shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg flex items-center gap-2",
                     isRequestFormOpen && exitActionType === 'terminate'
-                      ? "bg-white text-[#A4163A] border-white"
-                      : "bg-white/10 text-white hover:bg-white/20 border-white/20 backdrop-blur-sm"
+                      ? "bg-rose-100 text-[#A4163A] border-rose-200"
+                      : "bg-white text-[#7B0F2B] border-transparent"
                   )}
                 >
                   {isRequestFormOpen && exitActionType === 'terminate' ? <X className="h-4 w-4" /> : <Users className="h-4 w-4" />}
@@ -1223,10 +1223,10 @@ function TerminatePageContent() {
                   }}
                   disabled={isViewOnly}
                   className={cn(
-                    "font-bold px-5 py-2.5 rounded-lg transition-all duration-300 shadow-lg flex items-center gap-2 h-auto border text-sm uppercase tracking-wider",
+                    "bg-white text-[#7B0F2B] hover:bg-white hover:text-[#7B0F2B] border-transparent shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-4 rounded-lg flex items-center gap-2",
                     isRequestFormOpen && exitActionType === 'resigned'
-                      ? "bg-white text-[#A4163A] border-white"
-                      : "bg-white/10 text-white hover:bg-white/20 border-white/20 backdrop-blur-sm"
+                      ? "bg-rose-100 text-[#A4163A] border-rose-200"
+                      : "bg-white text-[#7B0F2B] border-transparent"
                   )}
                 >
                   {isRequestFormOpen && exitActionType === 'resigned' ? <X className="h-4 w-4" /> : <Users className="h-4 w-4" />}
@@ -1381,7 +1381,7 @@ function TerminatePageContent() {
                       variant="outline"
                       role="combobox"
                       aria-expanded={openCombobox}
-                      disabled={loading || submitting}
+                      disabled={isViewOnly || loading || submitting}
                       className={cn(
                         "w-full justify-between h-10 text-sm font-normal rounded-lg",
                         !selectedEmployeeId && "text-slate-400"
@@ -1439,7 +1439,7 @@ function TerminatePageContent() {
                   value={formData.termination_date}
                   onChange={handleInputChange}
                   className="h-10"
-                  disabled={submitting}
+                  disabled={isViewOnly || submitting}
                 />
               </div>
 
@@ -1452,7 +1452,7 @@ function TerminatePageContent() {
                   onChange={handleInputChange}
                   placeholder={exitActionType === 'resigned' ? 'Reason for resignation...' : 'Reason for termination...'}
                   className="h-10"
-                  disabled={submitting}
+                  disabled={isViewOnly || submitting}
                 />
               </div>
 
@@ -1462,6 +1462,7 @@ function TerminatePageContent() {
                     <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Recommended By</Label>
                     <Select
                       value={formData.recommended_by}
+                      disabled={isViewOnly || submitting}
                       onValueChange={(value) => setFormData((prev) => ({ ...prev, recommended_by: value }))}
                     >
                       <SelectTrigger className="w-full h-10 rounded-lg">
@@ -1494,7 +1495,7 @@ function TerminatePageContent() {
                       value={formData.notice_date}
                       onChange={handleInputChange}
                       className="h-10"
-                      disabled={submitting}
+                      disabled={isViewOnly || submitting}
                     />
                   </div>
 
@@ -1506,7 +1507,7 @@ function TerminatePageContent() {
                           type="checkbox"
                           checked={formData.notice_modes.includes('email')}
                           onChange={() => toggleNoticeMode('email')}
-                          disabled={submitting}
+                          disabled={isViewOnly || submitting}
                         />
                         <span>Email</span>
                       </label>
@@ -1515,7 +1516,7 @@ function TerminatePageContent() {
                           type="checkbox"
                           checked={formData.notice_modes.includes('printed_letter')}
                           onChange={() => toggleNoticeMode('printed_letter')}
-                          disabled={submitting}
+                          disabled={isViewOnly || submitting}
                         />
                         <span>Printed Letter</span>
                       </label>
@@ -1524,7 +1525,7 @@ function TerminatePageContent() {
                           type="checkbox"
                           checked={formData.notice_modes.includes('both')}
                           onChange={() => toggleNoticeMode('both')}
-                          disabled={submitting}
+                          disabled={isViewOnly || submitting}
                         />
                         <span>Both</span>
                       </label>
@@ -1537,6 +1538,7 @@ function TerminatePageContent() {
                 <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Reviewed By</Label>
                 <Select
                   value={formData.reviewed_by}
+                  disabled={isViewOnly || submitting}
                   onValueChange={(value) => setFormData((prev) => ({ ...prev, reviewed_by: value }))}
                 >
                   <SelectTrigger className="w-full h-10 rounded-lg">
@@ -1581,7 +1583,7 @@ function TerminatePageContent() {
                   value={formData.approval_date}
                   onChange={handleInputChange}
                   className="h-10"
-                  disabled={submitting}
+                  disabled={isViewOnly || submitting}
                 />
               </div>
             </div>

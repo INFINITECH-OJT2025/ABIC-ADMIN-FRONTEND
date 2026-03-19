@@ -2864,6 +2864,10 @@ function OnboardPageContent() {
             <div className="w-full">
               <div className="max-w-3xl mx-auto py-4">
                 <div className="bg-white border border-slate-100 rounded-2xl p-8 shadow-sm space-y-6">
+                  <fieldset
+                    disabled={isViewOnly}
+                    className="[&_input:disabled]:cursor-not-allowed [&_select:disabled]:cursor-not-allowed [&_textarea:disabled]:cursor-not-allowed [&_button:disabled]:cursor-not-allowed"
+                  >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                       <div className="flex justify-between items-center mb-2">
@@ -3144,12 +3148,13 @@ function OnboardPageContent() {
                     <Button
                       variant="outline"
                       onClick={handleCancelOnboarding}
-                      disabled={isSaving}
+                      disabled={isViewOnly || isSaving}
                       className="flex-1 border-slate-200 text-slate-600 font-bold h-12 rounded-xl"
                     >
                       CANCEL
                     </Button>
                   </div>
+                  </fieldset>
                 </div>
               </div>
             </div>
@@ -3453,6 +3458,10 @@ function OnboardPageContent() {
                   </CardHeader>
 
                   <CardContent className="p-6 md:p-10">
+                    <fieldset
+                      disabled={isViewOnly}
+                      className="[&_input:disabled]:cursor-not-allowed [&_select:disabled]:cursor-not-allowed [&_textarea:disabled]:cursor-not-allowed [&_button:disabled]:cursor-not-allowed"
+                    >
                     {/* BATCH 1: Employee Details */}
                     {currentBatch === 1 && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -4448,6 +4457,7 @@ function OnboardPageContent() {
                         </div>
                       </div>
                     )}
+                    </fieldset>
                   </CardContent>
 
                   <Separator />

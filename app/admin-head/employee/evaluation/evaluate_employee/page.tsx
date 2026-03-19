@@ -873,7 +873,7 @@ function EvaluateEmployeeForm() {
                   type="button"
                   variant="outline"
                   onClick={handleExportPdf}
-                  disabled={isExportingPdf || !selectedEmployeeId}
+                  disabled={isViewOnly || isExportingPdf || !selectedEmployeeId}
                   className="h-10 px-4 rounded-lg font-bold bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all text-sm uppercase tracking-wider gap-2"
                 >
                   {isExportingPdf ? 'Exporting...' : <><FileDown className="w-4 h-4" /> Export PDF</>}
@@ -882,7 +882,7 @@ function EvaluateEmployeeForm() {
                   type="button"
                   variant="outline"
                   onClick={handleSendPdfToEmail}
-                  disabled={isEmailSending || !selectedEmployeeId}
+                  disabled={isViewOnly || isEmailSending || !selectedEmployeeId}
                   className="h-10 px-4 rounded-lg font-bold bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all text-sm uppercase tracking-wider gap-2"
                 >
                   {isEmailSending ? 'Sending...' : <><Mail className="w-4 h-4" /> Send to Email</>}
@@ -1187,8 +1187,11 @@ function EvaluateEmployeeForm() {
                     {selectedEmployee ? `${selectedEmployee.first_name} ${selectedEmployee.last_name}` : '[Loading Employee]'}
                   </span>
                 ) : (
-                  <Select value={selectedEmployeeId} onValueChange={handleEmployeeChange}>
-                    <SelectTrigger className="h-6 border-none bg-transparent p-0 shadow-none text-[#D32F2F] font-bold focus:ring-0 w-full hover:bg-transparent hover:text-rose-800 transition-colors">
+                  <Select value={selectedEmployeeId} onValueChange={handleEmployeeChange} disabled={isViewOnly}>
+                    <SelectTrigger
+                      disabled={isViewOnly}
+                      className="h-6 border-none bg-transparent p-0 shadow-none text-[#D32F2F] font-bold focus:ring-0 w-full hover:bg-transparent hover:text-rose-800 transition-colors disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:text-[#D32F2F]"
+                    >
                       <SelectValue placeholder="[Select Employee Here]" />
                     </SelectTrigger>
                     <SelectContent>

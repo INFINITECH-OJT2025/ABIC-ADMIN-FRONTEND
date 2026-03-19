@@ -785,7 +785,7 @@ export default function AdminHeadHierarchyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 pb-10">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 pb-10 [&_button:disabled]:cursor-not-allowed [&_input:disabled]:cursor-not-allowed [&_textarea:disabled]:cursor-not-allowed [&_[data-slot=select-trigger][data-disabled]]:cursor-not-allowed [&_[data-slot=checkbox][data-disabled]]:cursor-not-allowed">
       {loading ? (
         <HierarchySkeleton />
       ) : (
@@ -836,6 +836,7 @@ export default function AdminHeadHierarchyPage() {
             <CardTitle className="text-[#630C22]">Setup Controls</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
+            <fieldset disabled={isViewOnly || loading} className="space-y-6 disabled:opacity-75">
             <div className="space-y-3">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Add Office</Label>
               <div className="flex gap-2">
@@ -985,6 +986,7 @@ export default function AdminHeadHierarchyPage() {
                 {loading ? 'Adding...' : 'Add Position to Hierarchy'}
               </Button>
             </div>
+            </fieldset>
           </CardContent>
         </Card>
 
@@ -1029,7 +1031,7 @@ export default function AdminHeadHierarchyPage() {
                   item.id !== adminNode?.id && 
                   item.id !== execNode?.id
                 ).map((item) => (
-                  <HierarchyBranch key={item.id} node={item} allNodes={positions} onEdit={isViewOnly ? () => {} : setEditingPosition} execId={execNode?.id} adminId={adminNode?.id} />
+                  <HierarchyBranch key={item.id} node={item} allNodes={positions} onEdit={setEditingPosition} execId={execNode?.id} adminId={adminNode?.id} />
                 ))}
               </div>
 
@@ -1085,7 +1087,7 @@ export default function AdminHeadHierarchyPage() {
                                   ) : (
                                      roots.map((root) => (
                                       <div key={root.id} className="w-fit max-w-full">
-                                        <HierarchyBranch node={root} allNodes={positions} onEdit={isViewOnly ? () => {} : setEditingPosition} execId={execNode?.id} adminId={adminNode?.id} />
+                                        <HierarchyBranch node={root} allNodes={positions} onEdit={setEditingPosition} execId={execNode?.id} adminId={adminNode?.id} />
                                       </div>
                                      ))
                                   )}
@@ -1129,7 +1131,7 @@ export default function AdminHeadHierarchyPage() {
               Shift Schedule: {editingSchedule?.office_name}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <fieldset disabled={isViewOnly || loading} className="space-y-4 py-4 disabled:opacity-75">
             <div className="space-y-3">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Add Shift Option</Label>
               <div className="flex flex-col gap-3 p-3 border border-slate-100 bg-slate-50/50 rounded-xl">
@@ -1141,6 +1143,7 @@ export default function AdminHeadHierarchyPage() {
                       value={newShiftStart}
                       onChange={(e) => setNewShiftStart(e.target.value)}
                       className="h-9 bg-white"
+                      disabled={isViewOnly || loading}
                     />
                   </div>
                   <div className="space-y-1">
@@ -1150,6 +1153,7 @@ export default function AdminHeadHierarchyPage() {
                       value={newShiftEnd}
                       onChange={(e) => setNewShiftEnd(e.target.value)}
                       className="h-9 bg-white"
+                      disabled={isViewOnly || loading}
                     />
                   </div>
                 </div>
@@ -1223,7 +1227,7 @@ export default function AdminHeadHierarchyPage() {
                 )}
               </div>
             </div>
-          </div>
+          </fieldset>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsShiftModalOpen(false)} disabled={loading}>
               Cancel
@@ -1256,19 +1260,20 @@ export default function AdminHeadHierarchyPage() {
               Edit Position: {editingPosition?.title}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <fieldset disabled={isViewOnly || loading} className="space-y-4 py-4 disabled:opacity-75">
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Position Title</Label>
               <Input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
                 placeholder="Manager, Assistant, etc."
+                disabled={isViewOnly || loading}
               />
             </div>
 
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Department</Label>
-              <Select value={editDepartment} onValueChange={setEditDepartment}>
+              <Select value={editDepartment} onValueChange={setEditDepartment} disabled={isViewOnly || loading}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
@@ -1283,7 +1288,7 @@ export default function AdminHeadHierarchyPage() {
 
             <div className="space-y-2">
               <Label className="text-xs font-bold uppercase tracking-wider text-slate-500">Reports To (Parent)</Label>
-              <Select value={editParent} onValueChange={setEditParent}>
+              <Select value={editParent} onValueChange={setEditParent} disabled={isViewOnly || loading}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select parent" />
                 </SelectTrigger>
@@ -1295,7 +1300,7 @@ export default function AdminHeadHierarchyPage() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
+          </fieldset>
           <DialogFooter>
             <Button
               onClick={() => setIsDeleteConfirmOpen(true)}
