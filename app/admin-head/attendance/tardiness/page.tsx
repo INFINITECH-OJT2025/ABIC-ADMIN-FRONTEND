@@ -79,9 +79,9 @@ import { useConfirmation } from "@/components/providers/confirmation-provider";
 
 // --- Skeleton Components ---
 const TardinessSkeleton = () => (
-  <div className="min-h-screen bg-slate-50/50">
+  <div className="min-h-screen bg-stone-50/50">
     {/* Placeholder Header Bar */}
-    <div className="sticky top-0 z-50 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
+    <div className="sticky top-0 z-50 bg-white px-6 py-4 flex items-center justify-between shadow-sm">
       <div className="flex items-center gap-4">
         <Skeleton className="h-10 w-10 rounded-full" />
         <Skeleton className="h-6 w-48" />
@@ -99,9 +99,9 @@ const TardinessSkeleton = () => (
         {[1, 2].map((i) => (
           <div
             key={i}
-            className="bg-white border-2 border-[#FFE5EC] shadow-md rounded-xl overflow-hidden h-full flex flex-col"
+            className="bg-white shadow-md rounded-xl overflow-hidden h-full flex flex-col"
           >
-            <div className="bg-gradient-to-r from-[#4A081A]/10 to-transparent pb-3 border-b-2 border-[#630C22] p-4 flex justify-between items-center">
+            <div className="bg-stone-50/60 pb-3 p-4 flex justify-between items-center">
               <div className="space-y-2">
                 <Skeleton className="h-6 w-32 bg-stone-200" />
                 <Skeleton className="h-4 w-48 bg-stone-100" />

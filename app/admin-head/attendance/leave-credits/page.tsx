@@ -452,31 +452,23 @@ function LeaveCreditsSkeleton() {
   return (
     <div className="min-h-screen bg-stone-50/50">
       {/* Integrated Header Placeholder */}
-      <div className="bg-gradient-to-r from-stone-200 to-stone-100 w-full mb-8 z-50 shadow-md">
-        <div className="px-8 py-6 flex justify-between items-center">
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-48 bg-stone-300/50 rounded-lg" />
-            <Skeleton className="h-4 w-72 bg-stone-300/30 rounded-lg" />
-          </div>
-          <div className="flex gap-3">
-            <Skeleton className="h-10 w-64 bg-stone-300/20 rounded-lg" />
-            <Skeleton className="h-10 w-24 bg-stone-300/20 rounded-lg" />
-          </div>
+      <div className="sticky top-0 z-50 bg-white px-6 py-4 flex items-center justify-between shadow-sm mb-8">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-10 w-10 rounded-full" />
+          <Skeleton className="h-6 w-48" />
         </div>
-        <div className="border-t border-stone-300/20 bg-stone-400/5 backdrop-blur-sm px-8 py-3 flex gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton
-              key={i}
-              className="h-12 w-48 bg-stone-300/20 rounded-xl"
-            />
-          ))}
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-10 w-24 rounded-lg" />
+          <Skeleton className="h-10 w-32 rounded-lg" />
+          <Skeleton className="h-10 w-32 rounded-lg" />
+          <Skeleton className="h-10 w-48 rounded-lg" />
         </div>
       </div>
 
 
       <div className="px-8 space-y-8">
-        <Card className="bg-white border-2 border-stone-100 shadow-sm rounded-2xl">
-          <CardHeader className="p-6 border-b-2 border-stone-50">
+        <Card className="bg-white shadow-sm rounded-2xl">
+          <CardHeader className="p-6">
             <Skeleton className="h-8 w-64 bg-stone-200/50" />
           </CardHeader>
           <CardContent className="p-0">

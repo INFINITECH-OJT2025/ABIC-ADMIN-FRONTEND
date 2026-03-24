@@ -309,19 +309,28 @@ export default function WarningLetterPage() {
         const day = date.getDate();
         const cutoff = day <= 15 ? "cutoff1" : "cutoff2";
         const key = `${entry.employee_id}-${months[m]}-${cutoff}`;
+        let daysToCount = Number(entry.number_of_days);
+        const remarks = String(entry.remarks || "").toLowerCase();
+
+        // Maternity Leave within 84-182 days (12-26 weeks) is not counted towards warnings
+        if (
+          remarks.includes("maternity") &&
+          daysToCount >= 84 &&
+          daysToCount <= 182
+        ) {
+          daysToCount = 0;
+        }
+
         const empId = String(entry.employee_id);
 
         const creditInfo = creditsMap.get(empId);
         const isEligible = creditInfo?.has_one_year_regular;
-
-        let daysToCount = Number(entry.number_of_days);
 
         if (isEligible) {
           if (!runningCredits.has(empId)) {
             runningCredits.set(empId, { vl: 15, sl: 15 });
           }
           const running = runningCredits.get(empId)!;
-          const remarks = String(entry.remarks || "").toLowerCase();
 
           if (remarks.includes("sick")) {
             const deduct = Math.min(daysToCount, running.sl);
@@ -747,9 +756,9 @@ export default function WarningLetterPage() {
       </div>
 
       <div className="w-full px-4 md:px-8 xl:px-12 pb-12 -mt-4">
-        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-8 items-start">
+        <div className="grid grid-cols-1 2xl:grid-cols-2 gap-8 items-stretch">
           {/* Late Entries Card */}
-          <Card className="border border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white/70 backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:border-slate-300 ring-1 ring-black/[0.03]">
+          <Card className="h-full flex flex-col border border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white/70 backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:border-slate-300 ring-1 ring-black/[0.03]">
             <CardHeader className="bg-white/50 px-8 py-6 border-b border-slate-100">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -780,16 +789,16 @@ export default function WarningLetterPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/30 border-b border-slate-100 hover:bg-slate-50/30 transition-none">
-                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] w-[35%]">
                       Employee
                     </TableHead>
-                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center">
+                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center w-[25%]">
                       Warning Level
                     </TableHead>
-                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center">
+                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center w-[20%]">
                       Letter
                     </TableHead>
-                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center">
+                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center w-[20%]">
                       History
                     </TableHead>
                   </TableRow>
@@ -801,7 +810,7 @@ export default function WarningLetterPage() {
                         key={entry.id}
                         className="border-b border-slate-100 group/row transition-colors hover:bg-slate-50"
                       >
-                        <TableCell className="py-6 px-8">
+                        <TableCell className="py-5 px-8">
                           <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-slate-900 text-[15px]">
@@ -827,7 +836,7 @@ export default function WarningLetterPage() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell className="py-4 px-6 text-center">
+                        <TableCell className="py-5 px-8 text-center">
                           <div className="flex justify-center">
                             <span
                               className={cn(
@@ -847,7 +856,7 @@ export default function WarningLetterPage() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="py-6 px-8 text-center">
+                        <TableCell className="py-5 px-8 text-center">
                           <Button
                             size="sm"
                             variant="ghost"
@@ -864,7 +873,7 @@ export default function WarningLetterPage() {
                           </Button>
                         </TableCell>
 
-                        <TableCell className="py-4 px-6 text-center">
+                        <TableCell className="py-5 px-8 text-center">
                           <Button
                             size="sm"
                             variant="ghost"
@@ -900,7 +909,7 @@ export default function WarningLetterPage() {
           </Card>
 
           {/* Extended Leave Card */}
-          <Card className="border border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white/70 backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:border-slate-300 ring-1 ring-black/[0.03]">
+          <Card className="h-full flex flex-col border border-slate-200 shadow-sm rounded-2xl overflow-hidden bg-white/70 backdrop-blur-xl transition-all duration-300 hover:shadow-xl hover:border-slate-300 ring-1 ring-black/[0.03]">
             <CardHeader className="bg-white/50 px-8 py-6 border-b border-slate-100">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
@@ -931,16 +940,16 @@ export default function WarningLetterPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/30 border-b border-slate-100 hover:bg-slate-50/30 transition-none">
-                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] w-[35%]">
                       Employee
                     </TableHead>
-                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center">
+                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center w-[25%]">
                       Warning Level
                     </TableHead>
-                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center">
+                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center w-[20%]">
                       Letter
                     </TableHead>
-                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center">
+                    <TableHead className="py-5 px-8 text-slate-500 font-bold uppercase tracking-wider text-[11px] text-center w-[20%]">
                       History
                     </TableHead>
                   </TableRow>
@@ -952,7 +961,7 @@ export default function WarningLetterPage() {
                         key={entry.id}
                         className="border-b border-slate-100 group/row transition-colors hover:bg-slate-50"
                       >
-                        <TableCell className="py-6 px-8">
+                        <TableCell className="py-5 px-8">
                           <div className="flex flex-col gap-0.5">
                             <div className="flex items-center gap-2">
                               <span className="font-bold text-slate-900 text-[15px] block leading-tight">
@@ -976,7 +985,7 @@ export default function WarningLetterPage() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="py-4 px-6 text-center">
+                        <TableCell className="py-5 px-8 text-center">
                           <div className="flex justify-center">
                             <span
                               className={cn(
@@ -996,7 +1005,7 @@ export default function WarningLetterPage() {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="py-6 px-8 text-center">
+                        <TableCell className="py-5 px-8 text-center">
                           <Button
                             size="sm"
                             variant="ghost"
@@ -1013,7 +1022,7 @@ export default function WarningLetterPage() {
                           </Button>
                         </TableCell>
 
-                        <TableCell className="py-4 px-6 text-center">
+                        <TableCell className="py-5 px-8 text-center">
                           <Button
                             size="sm"
                             variant="ghost"
