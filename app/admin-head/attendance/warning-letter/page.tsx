@@ -231,13 +231,40 @@ export default function WarningLetterPage() {
   useEffect(() => {
     const fetchYears = async () => {
       try {
-        const res = await fetch(
-          `${getApiUrl()}/api/admin-head/attendance/tardiness/years`,
-        );
-        const data = await res.json();
-        if (data.success) {
-          setYearsList(data.data);
+        const [tardinessRes, leavesRes] = await Promise.all([
+          fetch(`${getApiUrl()}/api/admin-head/attendance/tardiness/years`),
+          fetch(`${getApiUrl()}/api/leaves`),
+        ]);
+
+        const tardinessData = await tardinessRes.json();
+        const leavesData = await leavesRes.json();
+
+        const yearsSet = new Set<number>();
+
+        // Add years from tardiness years table
+        if (tardinessData.success && Array.isArray(tardinessData.data)) {
+          tardinessData.data.forEach((y: any) => {
+            const numYear = typeof y === "string" ? parseInt(y) : y;
+            if (!isNaN(numYear)) yearsSet.add(numYear);
+          });
         }
+
+        // Add years from leave entries
+        if (leavesData.success && Array.isArray(leavesData.data)) {
+          leavesData.data.forEach((entry: any) => {
+            const date = new Date(entry.start_date);
+            if (!isNaN(date.getFullYear())) {
+              yearsSet.add(date.getFullYear());
+            }
+          });
+        }
+
+        // Always ensure at least the current year is present
+        yearsSet.add(new Date().getFullYear());
+
+        // Sort descending (newest first)
+        const sortedYears = Array.from(yearsSet).sort((a, b) => b - a);
+        setYearsList(sortedYears);
       } catch (error) {
         console.error("Failed to fetch years:", error);
       }
