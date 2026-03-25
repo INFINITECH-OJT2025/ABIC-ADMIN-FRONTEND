@@ -41,6 +41,7 @@ import { cn } from "@/lib/utils";
 import { getApiUrl } from "@/lib/api";
 import { useUserRole } from "@/lib/hooks/useUserRole";
 import { useConfirmation } from "@/components/providers/confirmation-provider";
+import { Separator } from "@/components/ui/separator";
 
 type Office = {
   id: string;
@@ -304,6 +305,7 @@ const SERVER_TEMPLATE_KEYS = new Set([
   "supervisor-tardiness",
   "supervisor-leave",
   "evaluation",
+  "branding-config",
 ]);
 
 // --- Skeleton Component ---
@@ -378,6 +380,26 @@ const EditorSkeleton = () => (
   </div>
 );
 
+const SubtextInput = ({ officeId, initialValue, onSave, officeName }: any) => {
+  const [val, setVal] = useState(initialValue || "");
+
+  useEffect(() => {
+    setVal(initialValue || "");
+  }, [initialValue]);
+
+  return (
+    <Textarea
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={() => {
+        if (val !== initialValue) onSave(val);
+      }}
+      placeholder={`${officeName} address...`}
+      className="min-h-[80px] text-[11px] p-3 rounded-xl border-rose-100 resize-none focus:border-rose-300 transition-colors"
+    />
+  );
+};
+
 export default function EditFormsPage() {
   const { isViewOnly } = useUserRole();
   const { confirm } = useConfirmation();
@@ -398,6 +420,10 @@ export default function EditFormsPage() {
     "supervisor-tardiness": DEFAULT_SUPERVISOR_TARDINESS_TEMPLATE,
     "supervisor-leave": DEFAULT_SUPERVISOR_LEAVE_TEMPLATE,
     evaluation: DEFAULT_EVALUATION_TEMPLATE,
+    "branding-config": {
+      officeLogos: {},
+      officeDetails: {},
+    },
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -467,13 +493,24 @@ export default function EditFormsPage() {
                 footer: template.footer,
                 signatoryName: template.signatory_name,
               };
-              // Automatically migrate old hardcoded supervisor name to dynamic placeholder
-              if (slug.startsWith("supervisor")) {
-                mapped[slug].body = mapped[slug].body.replace(
-                  /Dear Ma'am Angely,/g,
-                  "Dear {{salutation}} {{supervisor first name}},",
-                );
+
+              if (slug === "branding-config") {
+                try {
+                  const brandingData = JSON.parse(template.body);
+                  mapped["branding-config"] = {
+                    ...mapped["branding-config"],
+                    ...brandingData,
+                  };
+                  // Sync to other templates for internal state consistency
+                  Object.keys(mapped).forEach((k) => {
+                    mapped[k].officeLogos = brandingData.officeLogos || {};
+                    mapped[k].officeDetails = brandingData.officeDetails || {};
+                  });
+                } catch (e) {
+                  console.error("Failed to parse branding config");
+                }
               }
+
             }
           });
 
@@ -492,35 +529,48 @@ export default function EditFormsPage() {
           // Check if local storage differs from recently fetched server data
           if (localSaved) {
             const local = JSON.parse(localSaved);
-            const localServerSubset = Object.fromEntries(
-              Object.entries(local).filter(([slug]) =>
-                SERVER_TEMPLATE_KEYS.has(slug),
-              ),
-            );
-            const mappedServerSubset = Object.fromEntries(
-              Object.entries(mapped).filter(([slug]) =>
-                SERVER_TEMPLATE_KEYS.has(slug),
-              ),
-            );
-            const isDifferent =
-              JSON.stringify(localServerSubset) !==
-              JSON.stringify(mappedServerSubset);
+            
+            const normalize = (templatesObj: any) => {
+              const normalized: any = {};
+              Object.keys(templatesObj).forEach((slug) => {
+                // EXCLUDE branding-config from comparison since handleSave does not upload it!
+                if (slug === "branding-config") return;
+                
+                if (SERVER_TEMPLATE_KEYS.has(slug)) {
+                  if (slug !== "evaluation") {
+                    const copy = { ...templatesObj[slug] };
+                    // Strip heavy/redundant fields naturally ignored in bulk updates
+                    delete copy.officeLogos;
+                    delete copy.officeDetails;
+                    delete copy.headerLogoImage;
+                    delete copy.headerDetails;
+                    normalized[slug] = copy;
+                  } else {
+                    normalized[slug] = templatesObj[slug];
+                  }
+                }
+              });
+              return normalized;
+            };
+
+            const stableStringify = (obj: any): string => {
+              if (obj === null) return "null";
+              if (typeof obj !== "object") return JSON.stringify(obj);
+              if (Array.isArray(obj)) return `[${obj.map(stableStringify).join(",")}]`;
+              const keys = Object.keys(obj).sort();
+              return `{${keys.map((k) => `"${k}":${stableStringify(obj[k])}`).join(",")}}`;
+            };
+
+            const localServerSubset = normalize(local);
+            const mappedServerSubset = normalize(mapped);
+            
+            const isDifferent = stableStringify(localServerSubset) !== stableStringify(mappedServerSubset);
+            
             setHasLocalOnlyChanges(isDifferent);
           }
         } else if (localSaved) {
           // DB is empty but local exists - user likely needs to sync!
           const local = JSON.parse(localSaved);
-          Object.keys(local).forEach((slug) => {
-            if (
-              slug.startsWith("supervisor") &&
-              local[slug].body.includes("Dear Ma'am Angely,")
-            ) {
-              local[slug].body = local[slug].body.replace(
-                /Dear Ma'am Angely,/g,
-                "Dear {{salutation}} {{supervisor first name}},",
-              );
-            }
-          });
           setTemplates({
             ...local,
             evaluation: {
@@ -535,17 +585,6 @@ export default function EditFormsPage() {
         const saved = localStorage.getItem("warning_letter_templates");
         if (saved) {
           const local = JSON.parse(saved);
-          Object.keys(local).forEach((slug) => {
-            if (
-              slug.startsWith("supervisor") &&
-              local[slug].body.includes("Dear Ma'am Angely,")
-            ) {
-              local[slug].body = local[slug].body.replace(
-                /Dear Ma'am Angely,/g,
-                "Dear {{salutation}} {{supervisor first name}},",
-              );
-            }
-          });
           setTemplates({
             ...local,
             evaluation: {
@@ -571,30 +610,47 @@ export default function EditFormsPage() {
     if (!silent) setIsSaving(true);
     confirm({
       title: "Sync Template Changes?",
-      description: "Are you sure you want to sync these template changes to the database? This will update the official letter formats.",
+      description:
+        "Are you sure you want to sync these template changes to the database? This will update the official letter formats.",
       confirmText: "Sync Now",
       onConfirm: async () => {
         try {
+          // Optimization: Create a clean payload for server and localStorage
+          // to avoid QuotaExceededError by removing redundant base64 copies
+          const finalTemplates = { ...templates };
+          Object.keys(finalTemplates).forEach((slug) => {
+            if (slug !== "branding-config" && slug !== "evaluation") {
+              const copy = { ...(finalTemplates as any)[slug] };
+              // Strip heavy redundant fields if they accidentally leaked in
+              delete copy.officeLogos;
+              delete copy.officeDetails;
+              delete copy.headerLogoImage;
+              delete copy.headerDetails;
+              (finalTemplates as any)[slug] = copy;
+            }
+          });
+
           const payload = Object.fromEntries(
-            Object.entries(templates)
-              .filter(([slug]) => SERVER_TEMPLATE_KEYS.has(slug))
+            Object.entries(finalTemplates)
+              .filter(
+                ([slug]) =>
+                  SERVER_TEMPLATE_KEYS.has(slug) && slug !== "branding-config",
+              )
               .map(([slug, content]) => {
                 if (slug === "evaluation") {
-                  const evaluationTemplate = {
-                    ...DEFAULT_EVALUATION_TEMPLATE,
-                    ...(content as any),
-                  };
+                  const t = (finalTemplates as any)[slug];
                   return [
                     slug,
                     {
-                      title: evaluationTemplate.title,
-                      body: JSON.stringify(evaluationTemplate),
+                      title: t.title || "EVALUATION",
+                      body: JSON.stringify(t),
                     },
                   ];
                 }
                 return [slug, content];
               }),
           );
+
           const res = await fetch(
             `${getApiUrl()}/api/warning-letter-templates/bulk`,
             {
@@ -607,7 +663,7 @@ export default function EditFormsPage() {
           if (res.ok) {
             localStorage.setItem(
               "warning_letter_templates",
-              JSON.stringify(templates),
+              JSON.stringify(finalTemplates),
             );
             setHasLocalOnlyChanges(false);
             if (!silent)
@@ -615,15 +671,17 @@ export default function EditFormsPage() {
           } else {
             localStorage.setItem(
               "warning_letter_templates",
-              JSON.stringify(templates),
+              JSON.stringify(finalTemplates),
             );
-            if (!silent) toast.warning("Saved locally, but server sync failed.");
+            if (!silent)
+              toast.warning("Saved locally, but server sync failed.");
           }
         } catch (e) {
           console.error("Save failed:", e);
+          const legacySafe = { ...templates };
           localStorage.setItem(
             "warning_letter_templates",
-            JSON.stringify(templates),
+            JSON.stringify(legacySafe),
           );
           if (!silent) toast.error("Templates saved locally (Network error).");
         } finally {
@@ -664,53 +722,37 @@ export default function EditFormsPage() {
         };
 
         const newTemplate = defaults[type];
-        const shouldSyncHeader =
-          newTemplate &&
-          (Object.prototype.hasOwnProperty.call(
-            newTemplate,
-            "headerLogoImage",
-          ) ||
-            Object.prototype.hasOwnProperty.call(newTemplate, "headerDetails"));
         setHasLocalOnlyChanges(true);
 
-        setTemplates((prev) => {
-          const updated = { ...prev };
-          Object.keys(updated).forEach((slug) => {
-            if (slug === type) {
-              (updated as any)[slug] = newTemplate;
-            } else if (shouldSyncHeader) {
-              // Update header fields of other templates to match the reset template's defaults
-              (updated as any)[slug] = {
-                ...(updated as any)[slug],
-                headerLogoImage: newTemplate.headerLogoImage,
-                headerDetails: newTemplate.headerDetails,
-              };
-            }
-          });
-          return updated;
-        });
+        setTemplates((prev) => ({
+          ...prev,
+          [type]: newTemplate,
+        }));
 
-        toast.info("Template and global header reset to default values.");
+        toast.info("Template reset to default values.");
       },
     });
   };
 
   const updateTemplate = (key: string, value: any) => {
-    const headerFields = ["headerLogoImage", "headerDetails"];
+    const globalSyncFields = ["signatoryName", "footer"];
 
     setHasLocalOnlyChanges(true);
 
-    if (headerFields.includes(key)) {
-      // Update all templates for header fields
+    if (globalSyncFields.includes(key)) {
       setTemplates((prev) => {
         const updated = { ...prev };
         Object.keys(updated).forEach((slug) => {
-          (updated as any)[slug] = { ...(updated as any)[slug], [key]: value };
+          if (slug !== "branding-config") {
+            (updated as any)[slug] = {
+              ...(updated as any)[slug],
+              [key]: value,
+            };
+          }
         });
         return updated;
       });
     } else {
-      // Normal update for specific tab
       setTemplates((prev) => ({
         ...prev,
         [activeTab]: { ...(prev as any)[activeTab], [key]: value },
@@ -741,24 +783,6 @@ export default function EditFormsPage() {
         },
       };
     });
-  };
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Image is too large. Please select a logo under 2MB.");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      updateTemplate("headerLogoImage", base64);
-      toast.success("Logo uploaded successfully!");
-    };
-    reader.readAsDataURL(file);
   };
 
   const handleOfficeEvaluationLogoUpload = (
@@ -832,6 +856,96 @@ export default function EditFormsPage() {
         },
       };
     });
+  };
+
+  const handleOfficeBrandingLogoUpload = (
+    officeId: string,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image is too large. Please select a logo under 2MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      try {
+        const res = await fetch(
+          `${getApiUrl()}/api/offices/${officeId}/branding`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ header_logo_image: base64 }),
+          },
+        );
+        if (res.ok) {
+          toast.success("Office logo uploaded to database.");
+          // Refresh offices list to show new logo
+          const freshOffices = await fetch(`${getApiUrl()}/api/offices`).then(
+            (r) => r.json(),
+          );
+          if (freshOffices.success) setOffices(freshOffices.data);
+        } else {
+          toast.error("Failed to save logo to database.");
+        }
+      } catch (e) {
+        toast.error("Network error saving logo.");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleOfficeBrandingDetailsChange = async (
+    officeId: string,
+    value: string,
+  ) => {
+    try {
+      const res = await fetch(
+        `${getApiUrl()}/api/offices/${officeId}/branding`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ header_details: value }),
+        },
+      );
+      if (res.ok) {
+        // Update local offices state to avoid full re-fetch
+        setOffices((prev) =>
+          prev.map((o) =>
+            String(o.id) === officeId ? { ...o, header_details: value } : o,
+          ),
+        );
+      }
+    } catch (e) {
+      console.error("Failed to save office details", e);
+    }
+  };
+
+  const removeOfficeBrandingLogo = async (officeId: string) => {
+    try {
+      const res = await fetch(
+        `${getApiUrl()}/api/offices/${officeId}/branding`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ header_logo_image: null }),
+        },
+      );
+      if (res.ok) {
+        toast.success("Office logo removed from database.");
+        setOffices((prev) =>
+          prev.map((o) =>
+            String(o.id) === officeId ? { ...o, header_logo_image: null } : o,
+          ),
+        );
+      }
+    } catch (e) {
+      toast.error("Failed to remove logo.");
+    }
   };
 
   const renderPreview = () => {
@@ -1475,525 +1589,199 @@ export default function EditFormsPage() {
                     disabled={isViewOnly}
                     className="space-y-8 [&_button:disabled]:cursor-not-allowed [&_input:disabled]:cursor-not-allowed [&_textarea:disabled]:cursor-not-allowed [&_[data-slot=select-trigger][data-disabled]]:cursor-not-allowed"
                   >
-                  {activeTab === "letterhead" ? (
-                    <div className="space-y-6 bg-rose-50/10 p-2 border-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="p-2 bg-rose-100 rounded-lg">
-                          <ImageIcon className="w-4 h-4 text-[#A4163A]" />
-                        </div>
-                        <h4 className="text-xs font-black text-[#A4163A] uppercase tracking-wider">
-                          Letterhead Customization
-                        </h4>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div className="space-y-4">
-                          <div className="flex flex-col gap-1">
-                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                              Logo Image
-                            </Label>
-                            <span className="text-[9px] text-slate-400 pl-1 mb-2 font-medium">
-                              Recommended: Transparent PNG, 300x150px
-                            </span>
+                    {activeTab === "letterhead" ? (
+                      <div className="space-y-6 bg-rose-50/10 p-2 border-0">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 bg-rose-100 rounded-lg">
+                            <Layout className="w-4 h-4 text-[#A4163A]" />
                           </div>
-                          <div className="flex flex-col gap-3">
-                            {(templates as any)["tardiness-regular"]
-                              .headerLogoImage ? (
-                              <div className="relative group w-full aspect-video bg-white rounded-2xl border-2 border-dashed border-rose-200 overflow-hidden flex items-center justify-center p-6 shadow-sm">
-                                <img
-                                  src={
-                                    (templates as any)["tardiness-regular"]
-                                      .headerLogoImage
-                                  }
-                                  alt="Preview"
-                                  className="max-h-full max-w-full object-contain drop-shadow-sm"
-                                />
-                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 backdrop-blur-[2px]">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-10 px-4 rounded-xl bg-red-500 hover:bg-red-600 border-0 text-white font-bold"
-                                    onClick={() =>
-                                      updateTemplate("headerLogoImage", null)
-                                    }
-                                  >
-                                    <Trash2 className="w-4 h-4 mr-2" />
-                                    Remove
-                                  </Button>
+                          <h4 className="text-xs font-black text-[#A4163A] uppercase tracking-wider">
+                            Office Letterhead Customization
+                          </h4>
+                        </div>
+
+                        <div className="space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {offices.map((office: any) => {
+                              const officeLogo = office.header_logo_image;
+                              const officeDetail = office.header_details || "";
+
+                              return (
+                                <div
+                                  key={office.id}
+                                  className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm space-y-4"
+                                >
+                                  <div className="flex items-center justify-between">
+                                    <Badge className="bg-[#7B0F2B] text-white font-bold uppercase text-[9px]">
+                                      {office.name}
+                                    </Badge>
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                      Logo
+                                    </Label>
+                                    {officeLogo ? (
+                                      <div className="relative group aspect-video bg-rose-50/20 rounded-xl border border-dashed border-rose-200 overflow-hidden flex items-center justify-center p-2">
+                                        <img
+                                          src={officeLogo}
+                                          alt={office.name}
+                                          className="max-h-full max-w-full object-contain"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="text-white hover:text-red-400 p-0"
+                                            onClick={() =>
+                                              removeOfficeBrandingLogo(
+                                                String(office.id),
+                                              )
+                                            }
+                                          >
+                                            <Trash2 className="w-4 h-4" />
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <label className="aspect-video bg-rose-50/10 hover:bg-rose-50/50 rounded-xl border border-dashed border-rose-200 flex flex-col items-center justify-center gap-1 cursor-pointer transition-all">
+                                        <input
+                                          type="file"
+                                          className="hidden"
+                                          accept="image/*"
+                                          onChange={(e) =>
+                                            handleOfficeBrandingLogoUpload(
+                                              String(office.id),
+                                              e,
+                                            )
+                                          }
+                                        />
+                                        <Upload className="w-5 h-5 text-rose-300" />
+                                        <span className="text-[8px] font-black text-slate-500 uppercase">
+                                          Upload
+                                        </span>
+                                      </label>
+                                    )}
+                                  </div>
+
+                                  <div className="space-y-2">
+                                    <Label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                                      Subtext
+                                    </Label>
+                                    <SubtextInput
+                                      officeId={String(office.id)}
+                                      initialValue={officeDetail}
+                                      onSave={(val: string) =>
+                                        handleOfficeBrandingDetailsChange(
+                                          String(office.id),
+                                          val,
+                                        )
+                                      }
+                                      officeName={office.name}
+                                    />
+                                  </div>
                                 </div>
-                              </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    ) : activeTab === "evaluation" ? (
+                      <div className="space-y-8">
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3 mb-1">
+                            <div className="p-2 bg-rose-100 rounded-lg">
+                              <Layout className="w-4 h-4 text-[#A4163A]" />
+                            </div>
+                            <h4 className="text-xs font-black text-[#A4163A] uppercase tracking-wider">
+                              Office-specific Evaluation Logos
+                            </h4>
+                          </div>
+                          <div className="space-y-4">
+                            {offices.length === 0 ? (
+                              <p className="text-xs text-slate-500">
+                                No offices found. Add offices first to set
+                                office-based logos.
+                              </p>
                             ) : (
-                              <label className="w-full aspect-video bg-white hover:bg-rose-50/50 rounded-2xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all hover:border-[#A4163A] hover:shadow-md group">
-                                <input
-                                  type="file"
-                                  className="hidden"
-                                  accept="image/*"
-                                  onChange={handleLogoUpload}
-                                />
-                                <div className="p-4 bg-rose-50 rounded-full group-hover:bg-rose-100 transition-colors">
-                                  <Upload className="w-8 h-8 text-rose-300 group-hover:text-[#A4163A]" />
-                                </div>
-                                <div className="text-center">
-                                  <span className="block text-[11px] font-black text-slate-600 uppercase tracking-wider">
-                                    Upload Branding Logo
-                                  </span>
-                                  <span className="block text-[9px] text-slate-400 font-bold mt-1 uppercase">
-                                    PNG, JPG up to 2MB
-                                  </span>
-                                </div>
-                              </label>
+                              offices.map((office) => {
+                                const officeLogo = ((templates as any)[
+                                  activeTab
+                                ].officeLogos || {})[String(office.id)];
+                                const officeNameOverride =
+                                  ((templates as any)[activeTab]
+                                    .officeNameOverrides || {})[
+                                    String(office.id)
+                                  ] || office.name;
+                                return (
+                                  <div
+                                    key={office.id}
+                                    className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm"
+                                  >
+                                    <div className="mb-3 space-y-2">
+                                      <div className="text-[11px] font-black text-[#7B0F2B] uppercase tracking-wider">
+                                        Office Name (for evaluation)
+                                      </div>
+                                      <Input
+                                        value={officeNameOverride}
+                                        onChange={(e) =>
+                                          handleOfficeEvaluationNameChange(
+                                            String(office.id),
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-10"
+                                      />
+                                    </div>
+                                    {officeLogo ? (
+                                      <div className="relative group w-full max-w-[320px] aspect-video bg-white rounded-2xl border-2 border-dashed border-rose-200 overflow-hidden flex items-center justify-center p-4">
+                                        <img
+                                          src={officeLogo}
+                                          alt={`${office.name} logo`}
+                                          className="max-h-full max-w-full object-contain"
+                                        />
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                          <Button
+                                            variant="outline"
+                                            size="sm"
+                                            className="h-10 px-4 rounded-xl bg-red-500 hover:bg-red-600 border-0 text-white font-bold"
+                                            onClick={() =>
+                                              removeOfficeEvaluationLogo(
+                                                String(office.id),
+                                              )
+                                            }
+                                          >
+                                            <Trash2 className="w-4 h-4 mr-2" />
+                                            Remove
+                                          </Button>
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <label className="w-full max-w-[320px] aspect-video bg-white hover:bg-rose-50/50 rounded-2xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all hover:border-[#A4163A] group">
+                                        <input
+                                          type="file"
+                                          className="hidden"
+                                          accept="image/*"
+                                          onChange={(e) =>
+                                            handleOfficeEvaluationLogoUpload(
+                                              String(office.id),
+                                              e,
+                                            )
+                                          }
+                                        />
+                                        <Upload className="w-7 h-7 text-rose-300 group-hover:text-[#A4163A]" />
+                                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">
+                                          Upload {office.name} Logo
+                                        </span>
+                                      </label>
+                                    )}
+                                  </div>
+                                );
+                              })
                             )}
                           </div>
                         </div>
 
-                        <div className="space-y-4">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Header Subtext (Address/Tel)
-                          </Label>
-                          <Textarea
-                            value={
-                              (templates as any)["tardiness-regular"]
-                                .headerDetails
-                            }
-                            onChange={(e) =>
-                              updateTemplate("headerDetails", e.target.value)
-                            }
-                            placeholder="Enter company address, contact info..."
-                            className="min-h-[160px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
-                          />
-                          <div className="p-3 bg-blue-50/50 rounded-xl border border-blue-100/50 flex gap-2">
-                            <Clock className="w-4 h-4 text-blue-500 mt-0.5" />
-                            <p className="text-[10px] text-blue-800 leading-tight font-medium">
-                              This information will be displayed below the logo
-                              on all warning letter forms.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : activeTab === "evaluation" ? (
-                    <div className="space-y-8">
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-3 mb-1">
-                          <div className="p-2 bg-rose-100 rounded-lg">
-                            <Layout className="w-4 h-4 text-[#A4163A]" />
-                          </div>
-                          <h4 className="text-xs font-black text-[#A4163A] uppercase tracking-wider">
-                            Office-specific Evaluation Logos
-                          </h4>
-                        </div>
-                        <div className="space-y-4">
-                          {offices.length === 0 ? (
-                            <p className="text-xs text-slate-500">
-                              No offices found. Add offices first to set
-                              office-based logos.
-                            </p>
-                          ) : (
-                            offices.map((office) => {
-                              const officeLogo =
-                                ((templates as any)[activeTab].officeLogos ||
-                                  {})[String(office.id)];
-                              const officeNameOverride =
-                                ((templates as any)[activeTab]
-                                  .officeNameOverrides || {})[
-                                  String(office.id)
-                                ] || office.name;
-                              return (
-                                <div
-                                  key={office.id}
-                                  className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm"
-                                >
-                                  <div className="mb-3 space-y-2">
-                                    <div className="text-[11px] font-black text-[#7B0F2B] uppercase tracking-wider">
-                                      Office Name (for evaluation)
-                                    </div>
-                                    <Input
-                                      value={officeNameOverride}
-                                      onChange={(e) =>
-                                        handleOfficeEvaluationNameChange(
-                                          String(office.id),
-                                          e.target.value,
-                                        )
-                                      }
-                                      className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-10"
-                                    />
-                                  </div>
-                                  {officeLogo ? (
-                                    <div className="relative group w-full max-w-[320px] aspect-video bg-white rounded-2xl border-2 border-dashed border-rose-200 overflow-hidden flex items-center justify-center p-4">
-                                      <img
-                                        src={officeLogo}
-                                        alt={`${office.name} logo`}
-                                        className="max-h-full max-w-full object-contain"
-                                      />
-                                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                        <Button
-                                          variant="outline"
-                                          size="sm"
-                                          className="h-10 px-4 rounded-xl bg-red-500 hover:bg-red-600 border-0 text-white font-bold"
-                                          onClick={() =>
-                                            removeOfficeEvaluationLogo(
-                                              String(office.id),
-                                            )
-                                          }
-                                        >
-                                          <Trash2 className="w-4 h-4 mr-2" />
-                                          Remove
-                                        </Button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <label className="w-full max-w-[320px] aspect-video bg-white hover:bg-rose-50/50 rounded-2xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all hover:border-[#A4163A] group">
-                                      <input
-                                        type="file"
-                                        className="hidden"
-                                        accept="image/*"
-                                        onChange={(e) =>
-                                          handleOfficeEvaluationLogoUpload(
-                                            String(office.id),
-                                            e,
-                                          )
-                                        }
-                                      />
-                                      <Upload className="w-7 h-7 text-rose-300 group-hover:text-[#A4163A]" />
-                                      <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">
-                                        Upload {office.name} Logo
-                                      </span>
-                                    </label>
-                                  )}
-                                </div>
-                              );
-                            })
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                          Document Title
-                        </Label>
-                        <Input
-                          value={(templates as any)[activeTab].title}
-                          onChange={(e) =>
-                            updateTemplate("title", e.target.value)
-                          }
-                          className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Name Label
-                          </Label>
-                          <Input
-                            value={(templates as any)[activeTab].metaNameLabel}
-                            onChange={(e) =>
-                              updateTemplate("metaNameLabel", e.target.value)
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Department/Job Title Label
-                          </Label>
-                          <Input
-                            value={
-                              (templates as any)[activeTab].metaDepartmentLabel
-                            }
-                            onChange={(e) =>
-                              updateTemplate(
-                                "metaDepartmentLabel",
-                                e.target.value,
-                              )
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Rating Period Label
-                          </Label>
-                          <Input
-                            value={
-                              (templates as any)[activeTab]
-                                .metaRatingPeriodLabel
-                            }
-                            onChange={(e) =>
-                              updateTemplate(
-                                "metaRatingPeriodLabel",
-                                e.target.value,
-                              )
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-3 mb-1">
-                          <div className="p-2 bg-rose-100 rounded-lg">
-                            <Layout className="w-4 h-4 text-[#A4163A]" />
-                          </div>
-                          <h4 className="text-xs font-black text-[#A4163A] uppercase tracking-wider">
-                            Criteria Labels & Descriptions
-                          </h4>
-                        </div>
-                        <div className="space-y-5">
-                          {EVALUATION_CRITERIA_DEFAULTS.map((criterion) => {
-                            const overrides =
-                              (templates as any).evaluation
-                                ?.criteriaOverrides?.[criterion.id] ||
-                              criterion;
-                            return (
-                              <div
-                                key={criterion.id}
-                                className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm space-y-3"
-                              >
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="space-y-2.5">
-                                    <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                                      Label
-                                    </Label>
-                                    <Input
-                                      value={overrides.label}
-                                      onChange={(e) =>
-                                        updateEvaluationCriteria(
-                                          criterion.id,
-                                          "label",
-                                          e.target.value,
-                                        )
-                                      }
-                                      className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                                    />
-                                  </div>
-                                  <div className="space-y-2.5">
-                                    <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                                      Description
-                                    </Label>
-                                    <Textarea
-                                      value={overrides.desc}
-                                      onChange={(e) =>
-                                        updateEvaluationCriteria(
-                                          criterion.id,
-                                          "desc",
-                                          e.target.value,
-                                        )
-                                      }
-                                      className="min-h-[90px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[13px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-4 resize-none"
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Criteria Header
-                          </Label>
-                          <Input
-                            value={(templates as any)[activeTab].criteriaHeader}
-                            onChange={(e) =>
-                              updateTemplate("criteriaHeader", e.target.value)
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Rating Header
-                          </Label>
-                          <Input
-                            value={(templates as any)[activeTab].ratingHeader}
-                            onChange={(e) =>
-                              updateTemplate("ratingHeader", e.target.value)
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                          Agreement Text
-                        </Label>
-                        <Textarea
-                          value={(templates as any)[activeTab].agreementText}
-                          onChange={(e) =>
-                            updateTemplate("agreementText", e.target.value)
-                          }
-                          className="min-h-[120px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Rating Scale Title
-                          </Label>
-                          <Input
-                            value={
-                              (templates as any)[activeTab].ratingScaleTitle
-                            }
-                            onChange={(e) =>
-                              updateTemplate("ratingScaleTitle", e.target.value)
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Rating Scale Lines
-                          </Label>
-                          <Textarea
-                            value={
-                              (templates as any)[activeTab].ratingScaleLines
-                            }
-                            onChange={(e) =>
-                              updateTemplate("ratingScaleLines", e.target.value)
-                            }
-                            className="min-h-[120px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Interpretation Title
-                          </Label>
-                          <Input
-                            value={
-                              (templates as any)[activeTab].interpretationTitle
-                            }
-                            onChange={(e) =>
-                              updateTemplate(
-                                "interpretationTitle",
-                                e.target.value,
-                              )
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Interpretation Lines
-                          </Label>
-                          <Textarea
-                            value={
-                              (templates as any)[activeTab].interpretationLines
-                            }
-                            onChange={(e) =>
-                              updateTemplate(
-                                "interpretationLines",
-                                e.target.value,
-                              )
-                            }
-                            className="min-h-[120px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Recommendation Label
-                          </Label>
-                          <Input
-                            value={
-                              (templates as any)[activeTab].recommendationLabel
-                            }
-                            onChange={(e) =>
-                              updateTemplate(
-                                "recommendationLabel",
-                                e.target.value,
-                              )
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Remarks Label
-                          </Label>
-                          <Input
-                            value={(templates as any)[activeTab].remarksLabel}
-                            onChange={(e) =>
-                              updateTemplate("remarksLabel", e.target.value)
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2.5">
-                        <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                          Manager Signatures Title
-                        </Label>
-                        <Input
-                          value={
-                            (templates as any)[activeTab].managerSignaturesTitle
-                          }
-                          onChange={(e) =>
-                            updateTemplate(
-                              "managerSignaturesTitle",
-                              e.target.value,
-                            )
-                          }
-                          className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Rated By Label
-                          </Label>
-                          <Input
-                            value={(templates as any)[activeTab].ratedByLabel}
-                            onChange={(e) =>
-                              updateTemplate("ratedByLabel", e.target.value)
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Reviewed By Label
-                          </Label>
-                          <Input
-                            value={
-                              (templates as any)[activeTab].reviewedByLabel
-                            }
-                            onChange={(e) =>
-                              updateTemplate("reviewedByLabel", e.target.value)
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Approved By Label
-                          </Label>
-                          <Input
-                            value={
-                              (templates as any)[activeTab].approvedByLabel
-                            }
-                            onChange={(e) =>
-                              updateTemplate("approvedByLabel", e.target.value)
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-1 gap-6">
                         <div className="space-y-2.5">
                           <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
                             Document Title
@@ -2006,79 +1794,430 @@ export default function EditFormsPage() {
                             className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
                           />
                         </div>
-                      </div>
 
-                      <div className="space-y-2.5">
-                        <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                          Subject / Warning Level
-                        </Label>
-                        <Input
-                          value={(templates as any)[activeTab].subject}
-                          onChange={(e) =>
-                            updateTemplate("subject", e.target.value)
-                          }
-                          className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                        />
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex justify-between items-center pl-1">
-                          <Label className="text-[#4A081A] font-bold uppercase text-[10px] tracking-widest flex items-center gap-2">
-                            <Type className="w-3.5 h-3.5 text-[#A4163A]" />
-                            Letter Body Content
-                          </Label>
-                          <div className="flex items-center gap-2 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
-                            <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
-                            <span className="text-[9px] text-rose-700 uppercase font-black tracking-wider">
-                              Dynamic Component
-                            </span>
-                          </div>
-                        </div>
-                        <div className="relative group">
-                          <div className="absolute -inset-0.5 bg-gradient-to-b from-rose-100 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300" />
-                          <Textarea
-                            value={(templates as any)[activeTab].body}
-                            onChange={(e) =>
-                              updateTemplate("body", e.target.value)
-                            }
-                            className="relative min-h-[400px] bg-white border-rose-100 shadow-inner rounded-xl font-serif text-[15px] leading-relaxed text-[#4A081A] focus:ring-0 focus:border-[#A4163A] transition-all p-6 resize-y"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="pt-6 border-t border-slate-100">
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                           <div className="space-y-2.5">
                             <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                              Signatory Name
+                              Name Label
                             </Label>
                             <Input
                               value={
-                                (templates as any)[activeTab].signatoryName
+                                (templates as any)[activeTab].metaNameLabel
                               }
                               onChange={(e) =>
-                                updateTemplate("signatoryName", e.target.value)
+                                updateTemplate("metaNameLabel", e.target.value)
                               }
-                              placeholder="AIZLE MARIE M. ATIENZA"
-                              className="bg-white border-rose-100 shadow-sm rounded-xl font-bold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                              className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
                             />
                           </div>
                           <div className="space-y-2.5">
                             <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                              Signatory Title
+                              Department/Job Title Label
                             </Label>
                             <Input
-                              value={(templates as any)[activeTab].footer}
+                              value={
+                                (templates as any)[activeTab]
+                                  .metaDepartmentLabel
+                              }
                               onChange={(e) =>
-                                updateTemplate("footer", e.target.value)
+                                updateTemplate(
+                                  "metaDepartmentLabel",
+                                  e.target.value,
+                                )
+                              }
+                              className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            />
+                          </div>
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Rating Period Label
+                            </Label>
+                            <Input
+                              value={
+                                (templates as any)[activeTab]
+                                  .metaRatingPeriodLabel
+                              }
+                              onChange={(e) =>
+                                updateTemplate(
+                                  "metaRatingPeriodLabel",
+                                  e.target.value,
+                                )
+                              }
+                              className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3 mb-1">
+                            <div className="p-2 bg-rose-100 rounded-lg">
+                              <Layout className="w-4 h-4 text-[#A4163A]" />
+                            </div>
+                            <h4 className="text-xs font-black text-[#A4163A] uppercase tracking-wider">
+                              Criteria Labels & Descriptions
+                            </h4>
+                          </div>
+                          <div className="space-y-5">
+                            {EVALUATION_CRITERIA_DEFAULTS.map((criterion) => {
+                              const overrides =
+                                (templates as any).evaluation
+                                  ?.criteriaOverrides?.[criterion.id] ||
+                                criterion;
+                              return (
+                                <div
+                                  key={criterion.id}
+                                  className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm space-y-3"
+                                >
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="space-y-2.5">
+                                      <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                                        Label
+                                      </Label>
+                                      <Input
+                                        value={overrides.label}
+                                        onChange={(e) =>
+                                          updateEvaluationCriteria(
+                                            criterion.id,
+                                            "label",
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                                      />
+                                    </div>
+                                    <div className="space-y-2.5">
+                                      <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                                        Description
+                                      </Label>
+                                      <Textarea
+                                        value={overrides.desc}
+                                        onChange={(e) =>
+                                          updateEvaluationCriteria(
+                                            criterion.id,
+                                            "desc",
+                                            e.target.value,
+                                          )
+                                        }
+                                        className="min-h-[90px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[13px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-4 resize-none"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Criteria Header
+                            </Label>
+                            <Input
+                              value={
+                                (templates as any)[activeTab].criteriaHeader
+                              }
+                              onChange={(e) =>
+                                updateTemplate("criteriaHeader", e.target.value)
+                              }
+                              className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            />
+                          </div>
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Rating Header
+                            </Label>
+                            <Input
+                              value={(templates as any)[activeTab].ratingHeader}
+                              onChange={(e) =>
+                                updateTemplate("ratingHeader", e.target.value)
+                              }
+                              className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                            Agreement Text
+                          </Label>
+                          <Textarea
+                            value={(templates as any)[activeTab].agreementText}
+                            onChange={(e) =>
+                              updateTemplate("agreementText", e.target.value)
+                            }
+                            className="min-h-[120px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Rating Scale Title
+                            </Label>
+                            <Input
+                              value={
+                                (templates as any)[activeTab].ratingScaleTitle
+                              }
+                              onChange={(e) =>
+                                updateTemplate(
+                                  "ratingScaleTitle",
+                                  e.target.value,
+                                )
+                              }
+                              className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            />
+                          </div>
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Rating Scale Lines
+                            </Label>
+                            <Textarea
+                              value={
+                                (templates as any)[activeTab].ratingScaleLines
+                              }
+                              onChange={(e) =>
+                                updateTemplate(
+                                  "ratingScaleLines",
+                                  e.target.value,
+                                )
+                              }
+                              className="min-h-[120px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Interpretation Title
+                            </Label>
+                            <Input
+                              value={
+                                (templates as any)[activeTab]
+                                  .interpretationTitle
+                              }
+                              onChange={(e) =>
+                                updateTemplate(
+                                  "interpretationTitle",
+                                  e.target.value,
+                                )
+                              }
+                              className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            />
+                          </div>
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Interpretation Lines
+                            </Label>
+                            <Textarea
+                              value={
+                                (templates as any)[activeTab]
+                                  .interpretationLines
+                              }
+                              onChange={(e) =>
+                                updateTemplate(
+                                  "interpretationLines",
+                                  e.target.value,
+                                )
+                              }
+                              className="min-h-[120px] bg-white border-rose-100 shadow-sm rounded-2xl font-medium text-[14px] leading-relaxed text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all p-5 resize-none"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Recommendation Label
+                            </Label>
+                            <Input
+                              value={
+                                (templates as any)[activeTab]
+                                  .recommendationLabel
+                              }
+                              onChange={(e) =>
+                                updateTemplate(
+                                  "recommendationLabel",
+                                  e.target.value,
+                                )
+                              }
+                              className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            />
+                          </div>
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Remarks Label
+                            </Label>
+                            <Input
+                              value={(templates as any)[activeTab].remarksLabel}
+                              onChange={(e) =>
+                                updateTemplate("remarksLabel", e.target.value)
+                              }
+                              className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                            Manager Signatures Title
+                          </Label>
+                          <Input
+                            value={
+                              (templates as any)[activeTab]
+                                .managerSignaturesTitle
+                            }
+                            onChange={(e) =>
+                              updateTemplate(
+                                "managerSignaturesTitle",
+                                e.target.value,
+                              )
+                            }
+                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Rated By Label
+                            </Label>
+                            <Input
+                              value={(templates as any)[activeTab].ratedByLabel}
+                              onChange={(e) =>
+                                updateTemplate("ratedByLabel", e.target.value)
+                              }
+                              className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            />
+                          </div>
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Reviewed By Label
+                            </Label>
+                            <Input
+                              value={
+                                (templates as any)[activeTab].reviewedByLabel
+                              }
+                              onChange={(e) =>
+                                updateTemplate(
+                                  "reviewedByLabel",
+                                  e.target.value,
+                                )
+                              }
+                              className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            />
+                          </div>
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Approved By Label
+                            </Label>
+                            <Input
+                              value={
+                                (templates as any)[activeTab].approvedByLabel
+                              }
+                              onChange={(e) =>
+                                updateTemplate(
+                                  "approvedByLabel",
+                                  e.target.value,
+                                )
                               }
                               className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
                             />
                           </div>
                         </div>
                       </div>
-                    </>
-                  )}
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-1 gap-6">
+                          <div className="space-y-2.5">
+                            <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                              Document Title
+                            </Label>
+                            <Input
+                              value={(templates as any)[activeTab].title}
+                              onChange={(e) =>
+                                updateTemplate("title", e.target.value)
+                              }
+                              className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2.5">
+                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                            Subject / Warning Level
+                          </Label>
+                          <Input
+                            value={(templates as any)[activeTab].subject}
+                            onChange={(e) =>
+                              updateTemplate("subject", e.target.value)
+                            }
+                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                          />
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center pl-1">
+                            <Label className="text-[#4A081A] font-bold uppercase text-[10px] tracking-widest flex items-center gap-2">
+                              <Type className="w-3.5 h-3.5 text-[#A4163A]" />
+                              Letter Body Content
+                            </Label>
+                            <div className="flex items-center gap-2 bg-rose-50 px-3 py-1 rounded-full border border-rose-100">
+                              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
+                              <span className="text-[9px] text-rose-700 uppercase font-black tracking-wider">
+                                Dynamic Component
+                              </span>
+                            </div>
+                          </div>
+                          <div className="relative group">
+                            <div className="absolute -inset-0.5 bg-gradient-to-b from-rose-100 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300" />
+                            <Textarea
+                              value={(templates as any)[activeTab].body}
+                              onChange={(e) =>
+                                updateTemplate("body", e.target.value)
+                              }
+                              className="relative min-h-[400px] bg-white border-rose-100 shadow-inner rounded-xl font-serif text-[15px] leading-relaxed text-[#4A081A] focus:ring-0 focus:border-[#A4163A] transition-all p-6 resize-y"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="pt-6 border-t border-slate-100">
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-2.5">
+                              <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                                Signatory Name
+                              </Label>
+                              <Input
+                                value={
+                                  (templates as any)[activeTab].signatoryName
+                                }
+                                onChange={(e) =>
+                                  updateTemplate(
+                                    "signatoryName",
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder="AIZLE MARIE M. ATIENZA"
+                                className="bg-white border-rose-100 shadow-sm rounded-xl font-bold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                              />
+                            </div>
+                            <div className="space-y-2.5">
+                              <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
+                                Signatory Title
+                              </Label>
+                              <Input
+                                value={(templates as any)[activeTab].footer}
+                                onChange={(e) =>
+                                  updateTemplate("footer", e.target.value)
+                                }
+                                className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </fieldset>
                 </CardContent>
               </Card>

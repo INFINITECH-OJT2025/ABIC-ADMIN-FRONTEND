@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Office extends Model
 {
-    protected $fillable = ['name'];
+    protected $fillable = ['name', 'header_logo_image', 'header_details'];
 
     public function departments()
     {

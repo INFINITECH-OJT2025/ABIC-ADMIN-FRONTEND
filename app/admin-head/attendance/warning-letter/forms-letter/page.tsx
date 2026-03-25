@@ -354,6 +354,7 @@ function FormLetterContent() {
   const [customLeaveTemplate, setCustomLeaveTemplate] = useState<any>(null);
   const [customSupervisorTemplate, setCustomSupervisorTemplate] =
     useState<any>(null);
+  const [offices, setOffices] = useState<any[]>([]);
   const [isProbee, setIsProbee] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [f1Body, setF1Body] = useState("");
@@ -533,6 +534,7 @@ function FormLetterContent() {
           if (Object.keys(newSchedules).length > 0) {
             setDynamicSchedules(newSchedules);
           }
+          setOffices(officeData.data || []);
         }
 
         if (deptData.success && officeData.success) {
@@ -1691,6 +1693,8 @@ function FormLetterContent() {
             setBody={setF1Body}
             letterTitle={letterTitle}
             warningLevelText={warningLevelText}
+            offices={offices}
+            deptMap={deptMap}
           />
         )}
 
@@ -1722,6 +1726,8 @@ function FormLetterContent() {
             body={f2Body}
             setBody={setF2Body}
             warningLevelText={warningLevelText}
+            offices={offices}
+            deptMap={deptMap}
           />
         )}
 
@@ -1786,6 +1792,8 @@ function FormOneTemplate({
   setBody,
   letterTitle,
   warningLevelText,
+  offices,
+  deptMap,
 }: any) {
   const totalCount =
     type === "leave"
@@ -1813,27 +1821,56 @@ function FormOneTemplate({
           className="flex flex-col items-center mb-2 w-full"
           style={{ marginTop: "0.5cm" }}
         >
-          {customTemplate?.headerLogoImage ? (
-            <div className="flex flex-col items-center gap-2">
-              <img
-                src={customTemplate.headerLogoImage}
-                alt="Custom Logo"
-                className="max-w-[150px] max-h-[100px] object-contain"
-              />
-            </div>
-          ) : (
-            <img
-              src="/images/abic-header.png"
-              alt="Company Header"
-              className="max-w-[650px] w-full object-contain"
-            />
-          )}
+          {(() => {
+            // Enhanced Resolution:
+            // 1. Try direct office_id or department_id from employee
+            // 2. Try looking up the office name via deptMap if we only have a department string
+            let resolvedOfficeId = String(employee.office_id || employee.department?.office_id || "");
+            
+            if (!resolvedOfficeId) {
+              const deptName = employee.department || employee.office_name;
+              if (deptName) {
+                const offName = deptMap[deptName.toUpperCase().trim()];
+                if (offName) {
+                  const mappedOffice = offices.find((o: any) => o.name.toUpperCase().trim() === offName);
+                  if (mappedOffice) resolvedOfficeId = String(mappedOffice.id);
+                }
+              }
+            }
 
-          {customTemplate?.headerDetails && (
-            <div className="text-center mt-1 text-[10px] leading-tight text-slate-600 max-w-[500px] whitespace-pre-wrap">
-              {customTemplate.headerDetails}
-            </div>
-          )}
+            const office = offices.find((o: any) => String(o.id) === String(resolvedOfficeId));
+            const officeLogo = office?.header_logo_image;
+            const officeDetails = office?.header_details;
+            
+            const logoToUse = officeLogo || customTemplate?.headerLogoImage;
+            const detailsToUse = officeDetails || customTemplate?.headerDetails;
+
+            return (
+              <>
+                {logoToUse ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <img
+                      src={logoToUse}
+                      alt="Company Logo"
+                      className="max-w-[150px] max-h-[100px] object-contain"
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src="/images/abic-header.png"
+                    alt="Company Header"
+                    className="max-w-[650px] w-full object-contain"
+                  />
+                )}
+
+                {detailsToUse && (
+                  <div className="text-center mt-1 text-[10px] leading-tight text-slate-600 max-w-[500px] whitespace-pre-wrap">
+                    {detailsToUse}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Title */}
@@ -2005,6 +2042,8 @@ function FormTwoTemplate({
   body,
   setBody,
   warningLevelText,
+  offices,
+  deptMap,
 }: any) {
   const totalDays =
     type === "leave"
@@ -2025,27 +2064,56 @@ function FormTwoTemplate({
           className="flex flex-col items-center mb-2 w-full"
           style={{ marginTop: "0.5cm" }}
         >
-          {customTemplate?.headerLogoImage ? (
-            <div className="flex flex-col items-center gap-2">
-              <img
-                src={customTemplate.headerLogoImage}
-                alt="Custom Logo"
-                className="max-w-[150px] max-h-[100px] object-contain"
-              />
-            </div>
-          ) : (
-            <img
-              src="/images/abic-header.png"
-              alt="Company Header"
-              className="max-w-[650px] w-full object-contain"
-            />
-          )}
+          {(() => {
+            // Enhanced Resolution:
+            // 1. Try direct office_id or department_id from employee
+            // 2. Try looking up the office name via deptMap if we only have a department string
+            let resolvedOfficeId = String(employee.office_id || employee.department?.office_id || "");
+            
+            if (!resolvedOfficeId) {
+              const deptName = employee.department || employee.office_name;
+              if (deptName) {
+                const offName = deptMap[deptName.toUpperCase().trim()];
+                if (offName) {
+                  const mappedOffice = offices.find((o: any) => o.name.toUpperCase().trim() === offName);
+                  if (mappedOffice) resolvedOfficeId = String(mappedOffice.id);
+                }
+              }
+            }
 
-          {customTemplate?.headerDetails && (
-            <div className="text-center mt-1 text-[10px] leading-tight text-slate-600 max-w-[500px] whitespace-pre-wrap">
-              {customTemplate.headerDetails}
-            </div>
-          )}
+            const office = offices.find((o: any) => String(o.id) === String(resolvedOfficeId));
+            const officeLogo = office?.header_logo_image;
+            const officeDetails = office?.header_details;
+            
+            const logoToUse = officeLogo || customTemplate?.headerLogoImage;
+            const detailsToUse = officeDetails || customTemplate?.headerDetails;
+
+            return (
+              <>
+                {logoToUse ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <img
+                      src={logoToUse}
+                      alt="Company Logo"
+                      className="max-w-[150px] max-h-[100px] object-contain"
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src="/images/abic-header.png"
+                    alt="Company Header"
+                    className="max-w-[650px] w-full object-contain"
+                  />
+                )}
+
+                {detailsToUse && (
+                  <div className="text-center mt-1 text-[10px] leading-tight text-slate-600 max-w-[500px] whitespace-pre-wrap">
+                    {detailsToUse}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Title */}
