@@ -1814,7 +1814,7 @@ export default function InventoryPage() {
                 {categoryOptions.length === 0 ? (
                   <p className="text-xs text-slate-500">No saved categories yet. Create your first category above.</p>
                 ) : (
-                  <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                  <div className="flex overflow-x-auto gap-2 pb-3 custom-horizontal-scrollbar">
                     {categoryOptions.map((category) => {
                       const isSelected = normalizedCategoryPreview.toLowerCase() === category.toLowerCase()
                       return (
@@ -2885,41 +2885,62 @@ export default function InventoryPage() {
           ) : null}
         </div>
 
-      <footer className="sticky bottom-0 w-full bg-white border-t border-slate-200 py-3 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 flex items-center overflow-hidden">
-        <div className="mx-auto w-full max-w-[1700px] flex items-center gap-4 text-xs font-bold whitespace-nowrap">
-          <span className="shrink-0 text-slate-500 pr-4 border-r border-slate-200">INVENTORY ALERTS</span>
+      <footer className="sticky bottom-0 w-full bg-white border-t border-slate-200 py-2.5 px-4 shadow-[0_-8px_30px_rgba(225,29,72,0.06)] z-40 flex items-center overflow-hidden">
+        <div className="mx-auto w-full max-w-[1700px] flex items-center gap-4 text-[13px] font-bold whitespace-nowrap">
+          <div className="shrink-0 flex items-center gap-3 pr-4 border-r border-slate-200">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
+            </span>
+            <span className="text-[11px] font-black tracking-[0.2em] text-[#800020] uppercase">Live Alerts</span>
+          </div>
           {noStockItemsCount > 0 || stats.lowStock > 0 ? (
-            <div className="flex-1 overflow-hidden relative" style={{ maskImage: 'linear-gradient(to right, transparent, black 2%, black 98%, transparent)' }}>
-              <div className="animate-marquee inline-flex gap-8 whitespace-nowrap items-center min-w-full">
+            <div className="flex-1 overflow-hidden relative" style={{ maskImage: 'linear-gradient(to right, transparent, black 1%, black 99%, transparent)' }}>
+              <div className="animate-marquee inline-flex gap-4 whitespace-nowrap items-center min-w-full">
                 {noStockItemsCount > 0 && (
-                  <span className="text-rose-700 inline-flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    {noStockItemsCount} items have 0 stock. Please restock immediately.
+                  <span className="inline-flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-800 py-1.5 px-4 rounded-full shadow-sm">
+                    <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                    <span className="font-extrabold text-rose-950">{noStockItemsCount} items</span> have 0 stock. Please restock immediately.
                   </span>
                 )}
                 {stats.lowStock > 0 && (
-                  <span className="text-amber-700 inline-flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    {stats.lowStock} items are in low stock (1 to 10). Consider restocking soon.
+                  <span className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 py-1.5 px-4 rounded-full shadow-sm">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span className="font-extrabold text-amber-950">{stats.lowStock} items</span> are in low stock (1 to 10). Consider restocking soon.
                   </span>
                 )}
+                {/* duplicate set 1 for smooth scroll */}
                 {noStockItemsCount > 0 && (
-                  <span className="text-rose-700 inline-flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    {noStockItemsCount} items have 0 stock. Please restock immediately.
+                  <span className="inline-flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-800 py-1.5 px-4 rounded-full shadow-sm">
+                    <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                    <span className="font-extrabold text-rose-950">{noStockItemsCount} items</span> have 0 stock. Please restock immediately.
                   </span>
                 )}
                 {stats.lowStock > 0 && (
-                  <span className="text-amber-700 inline-flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 shrink-0" />
-                    {stats.lowStock} items are in low stock (1 to 10). Consider restocking soon.
+                  <span className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 py-1.5 px-4 rounded-full shadow-sm">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span className="font-extrabold text-amber-950">{stats.lowStock} items</span> are in low stock (1 to 10). Consider restocking soon.
+                  </span>
+                )}
+                {/* duplicate set 2 for smooth scroll */}
+                {noStockItemsCount > 0 && (
+                  <span className="inline-flex items-center gap-2 bg-rose-50 border border-rose-200 text-rose-800 py-1.5 px-4 rounded-full shadow-sm">
+                    <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+                    <span className="font-extrabold text-rose-950">{noStockItemsCount} items</span> have 0 stock. Please restock immediately.
+                  </span>
+                )}
+                {stats.lowStock > 0 && (
+                  <span className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 py-1.5 px-4 rounded-full shadow-sm">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                    <span className="font-extrabold text-amber-950">{stats.lowStock} items</span> are in low stock (1 to 10). Consider restocking soon.
                   </span>
                 )}
               </div>
             </div>
           ) : (
-             <span className="text-emerald-700 inline-flex items-center gap-2">
-               <PackageCheck className="h-4 w-4" /> All tracked inventory items are above low-stock threshold.
+             <span className="text-emerald-800 inline-flex items-center gap-2 bg-emerald-50 border border-emerald-200 py-1.5 px-4 rounded-full shadow-sm">
+               <PackageCheck className="h-4 w-4 text-emerald-600 shrink-0" /> 
+               <span className="font-semibold text-emerald-950">All tracked inventory items are above low-stock threshold.</span>
              </span>
           )}
         </div>
@@ -3962,6 +3983,23 @@ export default function InventoryPage() {
 
           .animate-marquee {
             animation: marquee 25s linear infinite;
+          }
+
+          .custom-horizontal-scrollbar::-webkit-scrollbar {
+            height: 10px;
+          }
+          .custom-horizontal-scrollbar::-webkit-scrollbar-track {
+            background: #e2e8f0;
+            border-radius: 6px;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+          }
+          .custom-horizontal-scrollbar::-webkit-scrollbar-thumb {
+            background: #94a3b8;
+            border-radius: 6px;
+            border: 2px solid #e2e8f0;
+          }
+          .custom-horizontal-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
           }
         `}</style>
       </main>

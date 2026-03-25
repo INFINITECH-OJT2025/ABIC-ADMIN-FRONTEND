@@ -26,6 +26,9 @@ class DatabaseSeeder extends Seeder
             DepartmentShiftScheduleSeeder::class,
             WarningLetterTemplateSeeder::class,
             HierarchySeeder::class,
+            AgencyContactsSeeder::class,
+            AgencyProcessesSeeder::class,
+            GeneralContactsSeeder::class,
         ]);
     }
 }
