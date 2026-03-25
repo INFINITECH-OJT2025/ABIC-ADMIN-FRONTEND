@@ -78,6 +78,7 @@ interface Employee {
   department?: string | null;
   department_id?: number;
   position?: string | null;
+  gender?: string | null;
 }
 
 interface LeaveEntry {
@@ -499,9 +500,10 @@ function CalendarView({
   // ─── Slotting Logic for Alignment ───
   const slottedEntries = useMemo(() => {
     const priority = (status: string) => {
-      // User requested: Approved > Pending > Declined
-      if (status === "Approved/Completed") return 0;
-      if (status === "Pending") return 1;
+      // User requested: Pending > Approved > Declined
+      if (status === "Pending") return 0;
+      const isApproved = !["Pending", "Declined"].includes(status);
+      if (isApproved) return 1;
       if (status === "Declined") return 2;
       return 3;
     };
@@ -510,6 +512,10 @@ function CalendarView({
       const pA = priority(a.approved_by);
       const pB = priority(b.approved_by);
       if (pA !== pB) return pA - pB;
+
+      const catA = a.category === "half-day" ? 0 : 1;
+      const catB = b.category === "half-day" ? 0 : 1;
+      if (catA !== catB) return catA - catB;
 
       const sA = normalizeDate(a.start_date);
       const sB = normalizeDate(b.start_date);
@@ -745,7 +751,7 @@ function CalendarView({
         open={viewAllForDay !== null}
         onOpenChange={() => setViewAllForDay(null)}
       >
-        <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-0 overflow-hidden bg-white border-0 shadow-2xl rounded-2xl">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full p-0 overflow-hidden bg-white border-0 shadow-2xl rounded-2xl [&>button]:text-white [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button>svg]:!w-8 [&>button>svg]:!h-8 [&>button]:top-6 [&>button]:right-6">
           <DialogHeader className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] px-6 py-5">
             <DialogTitle className="text-white text-xl font-bold flex items-center justify-between">
               <span>
@@ -818,7 +824,7 @@ function CalendarView({
         if (!se) return null;
         return (
           <Dialog open onOpenChange={() => setSelectedEntry(null)}>
-            <DialogContent className="max-w-3xl w-[95vw] sm:w-full p-0 overflow-hidden bg-white border-0 shadow-2xl rounded-2xl [&>button]:text-white [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button>svg]:!w-6 [&>button>svg]:!h-6 [&>button]:top-6 [&>button]:right-6">
+            <DialogContent className="max-w-3xl w-[95vw] sm:w-full p-0 overflow-hidden bg-white border-0 shadow-2xl rounded-2xl [&>button]:text-white [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button>svg]:!w-8 [&>button>svg]:!h-8 [&>button]:top-6 [&>button]:right-6">
               <DialogHeader className="bg-gradient-to-r from-[#800020] to-[#4A081A] px-10 py-8 flex flex-row items-center justify-between">
                 <div>
                   <h2 className="text-white/80 text-sm font-bold uppercase tracking-widest mb-2">
@@ -1015,7 +1021,7 @@ const LeaveSkeleton = () => (
 export default function LeavePage() {
   const today = new Date();
   const { isViewOnly } = useUserRole();
-  
+
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
   const [calendarMonth, setCalendarMonth] = useState(today.getMonth());
   const [showCalendar, setShowCalendar] = useState(true);
@@ -1023,20 +1029,6 @@ export default function LeavePage() {
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const formRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (addModalOpen && formRef.current) {
-      const headerOffset = 150; // Height of the sticky header + some padding
-      const elementPosition = formRef.current.getBoundingClientRect().top;
-      const offsetPosition =
-        elementPosition + window.pageYOffset - headerOffset;
-
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: "smooth",
-      });
-    }
-  }, [addModalOpen]);
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -1069,6 +1061,21 @@ export default function LeavePage() {
   const [approvalOpen, setApprovalOpen] = useState(false);
   const [remarksOpen, setRemarksOpen] = useState(false);
   const [inlineSaving, setInlineSaving] = useState(false);
+
+  useEffect(() => {
+    if (addModalOpen && formRef.current) {
+      const headerOffset = 150; // Height of the sticky header + some padding
+      const elementPosition = formRef.current.getBoundingClientRect().top;
+      const offsetPosition =
+        elementPosition + window.pageYOffset - headerOffset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth",
+      });
+    }
+  }, [addModalOpen, inlineForm.id]);
+
   const [pendingPayload, setPendingPayload] = useState<any | null>(null);
 
   const [entryToDelete, setEntryToDelete] = useState<number | null>(null);
@@ -1162,6 +1169,7 @@ export default function LeavePage() {
                   department: e.department ?? undefined,
                   department_id: e.department_id,
                   position: e.position ?? undefined,
+                  gender: e.gender ?? undefined,
                 }));
                 setEmployees(fetchedEmployees);
               }
@@ -1358,21 +1366,36 @@ export default function LeavePage() {
   // Auto-calc number of days for inline form
   useEffect(() => {
     if (inlineForm.start_date) {
+      const isGLimit = inlineShiftLabel === "G-LIMIT";
+
       if (inlineForm.category === "half-day") {
         // Force end date to be same as start date for half-day
-        const days = 0.5;
+        const d = new Date(inlineForm.start_date + "T00:00:00");
+        const day = d.getDay();
+        const isWeekend = day === 0 || day === 6;
+        const days = isGLimit || !isWeekend ? 0.5 : 0;
+
         setInlineForm((prev) => ({
           ...prev,
           leave_end_date: prev.start_date,
           number_of_days: days,
         }));
       } else if (inlineForm.leave_end_date) {
-        const start = new Date(inlineForm.start_date);
-        const end = new Date(inlineForm.leave_end_date);
+        const start = new Date(inlineForm.start_date + "T00:00:00");
+        const end = new Date(inlineForm.leave_end_date + "T00:00:00");
+
         if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && end >= start) {
-          const diff =
-            Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
-          setInlineForm((prev) => ({ ...prev, number_of_days: diff }));
+          let count = 0;
+          let cur = new Date(start);
+          while (cur <= end) {
+            const day = cur.getDay(); // 0: Sun, 6: Sat
+            const isWeekend = day === 0 || day === 6;
+            if (isGLimit || !isWeekend) {
+              count++;
+            }
+            cur.setDate(cur.getDate() + 1);
+          }
+          setInlineForm((prev) => ({ ...prev, number_of_days: count }));
         }
       }
     }
@@ -1381,7 +1404,12 @@ export default function LeavePage() {
     if (inlineForm.category === "whole-day" && inlineForm.shift) {
       setInlineForm((prev) => ({ ...prev, shift: "" }));
     }
-  }, [inlineForm.start_date, inlineForm.leave_end_date, inlineForm.category]);
+  }, [
+    inlineForm.start_date,
+    inlineForm.leave_end_date,
+    inlineForm.category,
+    inlineShiftLabel,
+  ]);
 
   const getSuperiorsForEmployee = (empId: string | number | undefined) => {
     if (!empId || employees.length === 0) return [];
@@ -1535,10 +1563,22 @@ export default function LeavePage() {
     ];
   }, [employees, hierarchies, inlineForm.employee_id]);
 
-  const inlineRemarkOptions = LEAVE_REMARKS.map((r) => ({
-    label: r,
-    value: r,
-  }));
+  const inlineRemarkOptions = useMemo(() => {
+    const selectedEmp = employees.find(
+      (e) => String(e.id) === String(inlineForm.employee_id),
+    );
+    const isFemale =
+      selectedEmp?.gender?.toLowerCase() === "female" ||
+      selectedEmp?.gender?.toLowerCase() === "f";
+
+    return LEAVE_REMARKS.filter((r) => {
+      if (r === "Maternity Leave" && !isFemale) return false;
+      return true;
+    }).map((r) => ({
+      label: r,
+      value: r,
+    }));
+  }, [LEAVE_REMARKS, employees, inlineForm.employee_id]);
 
   const handleInlineSave = async () => {
     if (!inlineForm.employee_name) {
@@ -1639,10 +1679,11 @@ export default function LeavePage() {
   const [filterDept, setFilterDept] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [sortOrder, setSortOrder] = useState("input-desc");
+  const [sortOrder, setSortOrder] = useState("priority");
   const [searchQuery, setSearchQuery] = useState("");
 
   const sortOptions = [
+    { label: "Status", value: "priority" },
     { label: "Ascending (Leave Date)", value: "date-asc" },
     { label: "Descending (Leave Date)", value: "date-desc" },
     { label: "Recent (Inputted)", value: "input-desc" },
@@ -1712,6 +1753,24 @@ export default function LeavePage() {
     });
 
     list.sort((a, b) => {
+      if (sortOrder === "priority") {
+        const getStatusPriority = (status: string) => {
+          if (status === "Pending") return 0;
+          const isApproved = !["Pending", "Declined"].includes(status);
+          if (isApproved) return 1;
+          if (status === "Declined") return 2;
+          return 3;
+        };
+        const pA = getStatusPriority(a.approved_by);
+        const pB = getStatusPriority(b.approved_by);
+        if (pA !== pB) return pA - pB;
+
+        const catA = a.category === "half-day" ? 0 : 1;
+        const catB = b.category === "half-day" ? 0 : 1;
+        if (catA !== catB) return catA - catB;
+
+        return b.id - a.id; // Secondary: Recent
+      }
       if (sortOrder === "date-asc") {
         return (
           new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
@@ -2089,68 +2148,68 @@ export default function LeavePage() {
         >
           <div className="bg-white rounded-xl shadow-lg border border-rose-100 overflow-hidden ring-2 ring-rose-50/50">
             {/* Form Header */}
-            <div className="bg-rose-50 px-4 py-3 flex justify-between items-center border-b border-rose-100">
-              <h2 className="text-[#800020] text-[11px] font-black uppercase tracking-widest flex items-center gap-2">
-                <Plus className="w-3.5 h-3.5 text-[#800020]" />
+            <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] px-6 py-5 flex justify-between items-center border-b border-rose-100">
+              <h2 className="text-white text-base font-black uppercase tracking-widest flex items-center gap-2">
+                <Plus className="w-5 h-5 text-white" />
                 {inlineForm.id ? "Update Leave Record" : "Add Leave Record"}
               </h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-4">
                 {inlineForm.id && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={resetInlineForm}
-                    className="text-[#800020] hover:bg-rose-100 h-6 px-2 text-[9px] font-bold uppercase tracking-widest rounded transition-all"
+                    className="text-white hover:bg-white/10 h-8 px-3 text-[10px] font-bold uppercase tracking-widest rounded transition-all border border-white/20"
                   >
-                    <Plus className="w-3 h-3 mr-1" /> New Entry
+                    <Plus className="w-4 h-4 mr-1" /> New Entry
                   </Button>
                 )}
                 <button
                   onClick={() => setAddModalOpen(false)}
-                  className="text-rose-300 hover:text-[#800020] transition-all p-1"
+                  className="text-white/70 hover:text-white transition-all p-1"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-6 h-6" />
                 </button>
               </div>
             </div>
 
-            <div className="px-6 py-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+            <div className="px-8 py-8 space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-7">
                 {/* Row 1: Employee Info */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[12px] font-black text-slate-800 uppercase tracking-widest ml-1">
                     Employee ID
                   </label>
-                  <div className="h-11 border-b-2 border-slate-300 bg-slate-100/50 px-3 flex items-center text-xs text-black font-bold rounded-t-md">
+                  <div className="h-[52px] border-b-2 border-slate-200 bg-slate-50 px-4 flex items-center text-sm text-slate-700 font-bold rounded-t-lg">
                     {inlineForm.employee_id || "Auto-filled"}
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5 relative">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+                <div className="flex flex-col gap-2 relative">
+                  <label className="text-[12px] font-black text-slate-800 uppercase tracking-widest ml-1">
                     Employee Name
                   </label>
                   <Popover open={empOpen} onOpenChange={setEmpOpen}>
                     <PopoverTrigger asChild>
-                      <button className="flex items-center justify-between h-11 border-b-2 border-slate-300 bg-white px-3 text-xs text-left group hover:border-[#800020] transition-colors rounded-t-md shadow-sm cursor-pointer">
+                      <button className="flex items-center justify-between h-[52px] border-b-2 border-slate-300 bg-white px-4 text-sm text-left group hover:border-[#800020] transition-colors rounded-t-lg shadow-sm cursor-pointer">
                         <span
                           className={cn(
                             "truncate",
                             inlineForm.employee_name
                               ? "text-black font-bold"
-                              : "text-slate-400 italic",
+                              : "text-slate-400 italic font-medium",
                           )}
                         >
                           {inlineForm.employee_name || "Select Employee"}
                         </span>
-                        <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-[#800020] transition-colors" />
+                        <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-[#800020] transition-colors" />
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="p-0 w-[400px]">
                       <Command>
                         <CommandInput
                           placeholder="Search employee..."
-                          className="text-xs h-9"
+                          className="text-sm h-11"
                         />
                         <CommandList>
                           <CommandGroup>
@@ -2159,7 +2218,7 @@ export default function LeavePage() {
                                 key={emp.id}
                                 value={emp.name}
                                 onSelect={() => handleInlineSelectEmployee(emp)}
-                                className="text-xs py-2"
+                                className="text-sm py-2.5 px-4"
                               >
                                 {emp.name}
                               </CommandItem>
@@ -2171,15 +2230,15 @@ export default function LeavePage() {
                   </Popover>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[12px] font-black text-slate-800 uppercase tracking-widest ml-1">
                     Category
                   </label>
                   <Popover open={categoryOpen} onOpenChange={setCategoryOpen}>
                     <PopoverTrigger asChild>
                       <button
                         className={cn(
-                          "flex items-center justify-between h-11 border-b-2 px-3 text-xs text-left group transition-colors rounded-t-md shadow-sm cursor-pointer",
+                          "flex items-center justify-between h-[52px] border-b-2 px-4 text-sm text-left group transition-colors rounded-t-lg shadow-sm cursor-pointer",
                           inlineForm.category === "half-day"
                             ? "bg-amber-50 border-amber-300"
                             : inlineForm.category === "whole-day"
@@ -2199,10 +2258,10 @@ export default function LeavePage() {
                         >
                           {inlineForm.category || "Select Type"}
                         </span>
-                        <ChevronDown className="w-3 h-3 text-slate-300 group-hover:text-[#800020] transition-colors" />
+                        <ChevronDown className="w-4 h-4 text-slate-300 group-hover:text-[#800020] transition-colors" />
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="p-1 w-[200px] border border-rose-50 shadow-xl rounded-lg">
+                    <PopoverContent className="p-1.5 w-[220px] border border-rose-50 shadow-xl rounded-xl">
                       {LEAVE_CATEGORY_OPTIONS.map((o) => (
                         <button
                           key={o.value}
@@ -2215,7 +2274,7 @@ export default function LeavePage() {
                             setCategoryOpen(false);
                           }}
                           className={cn(
-                            "w-full text-left px-3 py-2.5 rounded text-[11px] font-bold transition-all mb-1 last:mb-0",
+                            "w-full text-left px-4 py-3 rounded-lg text-xs font-bold transition-all mb-1 last:mb-0",
                             o.color,
                           )}
                         >
@@ -2226,8 +2285,8 @@ export default function LeavePage() {
                   </Popover>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[12px] font-black text-slate-800 uppercase tracking-widest ml-1">
                     Shift (if Half-day)
                   </label>
                   <Popover open={shiftOpen} onOpenChange={setShiftOpen}>
@@ -2235,7 +2294,7 @@ export default function LeavePage() {
                       <button
                         disabled={inlineForm.category !== "half-day"}
                         className={cn(
-                          "flex items-center justify-between h-11 border-b-2 px-3 text-xs text-left group transition-colors rounded-t-md shadow-sm",
+                          "flex items-center justify-between h-[52px] border-b-2 px-4 text-sm text-left group transition-colors rounded-t-lg shadow-sm",
                           inlineForm.category !== "half-day"
                             ? "bg-slate-50 border-slate-200 opacity-40 cursor-not-allowed"
                             : "bg-white border-slate-300 hover:border-[#800020] cursor-pointer",
@@ -2246,15 +2305,15 @@ export default function LeavePage() {
                             "truncate",
                             inlineForm.shift
                               ? "text-black font-bold"
-                              : "text-slate-400 italic",
+                              : "text-slate-400 italic font-medium",
                           )}
                         >
                           {inlineForm.shift || "Select Shift Schedule"}
                         </span>
-                        <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-[#800020] transition-colors" />
+                        <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-[#800020] transition-colors" />
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="p-1 w-[300px]">
+                    <PopoverContent className="p-1.5 w-[320px] rounded-xl shadow-xl">
                       {inlineAvailableShifts.map((s) => (
                         <button
                           key={s}
@@ -2262,7 +2321,7 @@ export default function LeavePage() {
                             setInlineForm((p) => ({ ...p, shift: s }));
                             setShiftOpen(false);
                           }}
-                          className="w-full text-left px-3 py-2 rounded text-[11px] font-bold hover:bg-rose-50 text-slate-600 transition-all"
+                          className="w-full text-left px-4 py-3 rounded-lg text-xs font-bold hover:bg-rose-50 text-slate-600 transition-all font-medium mb-0.5"
                         >
                           {s}
                         </button>
@@ -2272,8 +2331,8 @@ export default function LeavePage() {
                 </div>
 
                 {/* Row 2: Dates & Details */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[12px] font-black text-slate-800 uppercase tracking-widest ml-1">
                     Start Date
                   </label>
                   <DatePicker
@@ -2297,12 +2356,12 @@ export default function LeavePage() {
                         return next;
                       });
                     }}
-                    className="h-11 border-b-2 border-slate-300 bg-white px-3 text-xs font-bold text-black focus:outline-none focus:border-[#800020] transition-colors rounded-t-md shadow-sm cursor-pointer"
+                    className="h-[52px] border-b-2 border-slate-300 bg-white px-4 text-sm font-bold text-black focus:outline-none focus:border-[#800020] transition-colors rounded-t-lg shadow-sm cursor-pointer"
                   />
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[12px] font-black text-slate-800 uppercase tracking-widest ml-1">
                     End Date
                   </label>
                   <DatePicker
@@ -2345,24 +2404,59 @@ export default function LeavePage() {
                       }))
                     }
                     className={cn(
-                      "h-11 border-b-2 px-3 text-xs font-bold focus:outline-none transition-colors rounded-t-md shadow-sm",
+                      "h-[52px] border-b-2 px-4 text-sm font-bold focus:outline-none transition-colors rounded-t-lg shadow-sm",
                       inlineForm.category === "half-day" ||
                         !inlineForm.start_date
-                        ? "bg-slate-50 border-slate-200 opacity-40 cursor-not-allowed text-slate-400 italic"
+                        ? "bg-slate-50 border-slate-200 opacity-40 cursor-not-allowed text-slate-400 italic font-medium"
                         : "bg-white border-slate-300 text-black focus:border-[#800020] cursor-pointer",
                     )}
                   />
                 </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[12px] font-black text-slate-800 uppercase tracking-widest ml-1">
+                    Leave Type
+                  </label>
+                  <Popover open={remarksOpen} onOpenChange={setRemarksOpen}>
+                    <PopoverTrigger asChild>
+                      <button className="flex items-center justify-between h-[52px] border-b-2 border-slate-300 bg-white px-4 text-sm text-left group hover:border-[#800020] transition-colors rounded-t-lg shadow-sm cursor-pointer">
+                        <span
+                          className={cn(
+                            "truncate font-bold",
+                            inlineForm.remarks
+                              ? "text-black"
+                              : "text-slate-400 italic font-medium",
+                          )}
+                        >
+                          {inlineForm.remarks || "Select Type"}
+                        </span>
+                        <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-[#800020] transition-colors" />
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="p-1.5 w-[320px] rounded-xl shadow-xl">
+                      {inlineRemarkOptions.map((o) => (
+                        <button
+                          key={o.value}
+                          onClick={() => {
+                            setInlineForm((p) => ({ ...p, remarks: o.value }));
+                            setRemarksOpen(false);
+                          }}
+                          className="w-full text-left px-4 py-3 rounded-lg text-xs font-bold hover:bg-rose-50 text-slate-600 transition-all mb-0.5"
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[12px] font-black text-slate-800 uppercase tracking-widest ml-1">
                     Status/Approver
                   </label>
                   <Popover open={approvalOpen} onOpenChange={setApprovalOpen}>
                     <PopoverTrigger asChild>
                       <button
                         className={cn(
-                          "flex items-center justify-between h-11 border-b-2 px-3 text-xs text-left group transition-colors rounded-t-md shadow-sm cursor-pointer",
+                          "flex items-center justify-between h-[52px] border-b-2 px-4 text-sm text-left group transition-colors rounded-t-lg shadow-sm cursor-pointer",
                           inlineForm.approved_by === "Pending"
                             ? "bg-orange-50 border-orange-300"
                             : inlineForm.approved_by === "Declined"
@@ -2386,10 +2480,10 @@ export default function LeavePage() {
                         >
                           {inlineForm.approved_by || "Select Leave Status..."}
                         </span>
-                        <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-[#800020] transition-colors" />
+                        <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-[#800020] transition-colors" />
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="p-1 w-[300px]">
+                    <PopoverContent className="p-1.5 w-[320px] rounded-xl shadow-xl">
                       {inlineApprovalOptions.map((o) => (
                         <button
                           key={o.value}
@@ -2401,7 +2495,7 @@ export default function LeavePage() {
                             setApprovalOpen(false);
                           }}
                           className={cn(
-                            "w-full text-left px-3 py-2.5 rounded text-[11px] font-bold hover:bg-rose-50 transition-all",
+                            "w-full text-left px-4 py-3 rounded-lg text-xs font-bold hover:bg-rose-50 transition-all mb-1",
                             o.color,
                           )}
                         >
@@ -2412,49 +2506,12 @@ export default function LeavePage() {
                   </Popover>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-1">
-                    Leave Type
-                  </label>
-                  <Popover open={remarksOpen} onOpenChange={setRemarksOpen}>
-                    <PopoverTrigger asChild>
-                      <button className="flex items-center justify-between h-11 border-b-2 border-slate-300 bg-white px-3 text-xs text-left group hover:border-[#800020] transition-colors rounded-t-md shadow-sm cursor-pointer">
-                        <span
-                          className={cn(
-                            "truncate",
-                            inlineForm.remarks
-                              ? "text-black font-bold"
-                              : "text-slate-500 italic font-medium",
-                          )}
-                        >
-                          {inlineForm.remarks || "Select Type"}
-                        </span>
-                        <ChevronDown className="w-3 h-3 text-slate-400 group-hover:text-[#800020] transition-colors" />
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent className="p-1 w-[300px]">
-                      {inlineRemarkOptions.map((o) => (
-                        <button
-                          key={o.value}
-                          onClick={() => {
-                            setInlineForm((p) => ({ ...p, remarks: o.value }));
-                            setRemarksOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2.5 rounded text-[11px] font-bold hover:bg-rose-50 text-slate-600 transition-all"
-                        >
-                          {o.label}
-                        </button>
-                      ))}
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
                 {/* Row 3: Final Detail */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[12px] font-black text-slate-800 uppercase tracking-widest ml-1">
                     Days Counted
                   </label>
-                  <div className="h-11 border-b-2 border-rose-300 bg-rose-50/40 px-3 flex items-center justify-center text-[18px] text-[#800020] font-black rounded-md shadow-inner">
+                  <div className="h-[52px] border-b-2 border-rose-300 bg-rose-50/40 px-4 flex items-center justify-center text-[22px] text-[#800020] font-black rounded-lg shadow-inner">
                     {inlineForm.number_of_days > 0
                       ? formatDays(
                           inlineForm.number_of_days,
@@ -2465,8 +2522,8 @@ export default function LeavePage() {
                 </div>
 
                 {/* Detailed Reason and Actions spanning full width */}
-                <div className="lg:col-span-3 flex flex-col gap-1.5 mt-2">
-                  <label className="text-[10px] font-black text-black uppercase tracking-widest ml-1">
+                <div className="lg:col-span-3 flex flex-col gap-2 mt-2">
+                  <label className="text-[12px] font-black text-slate-800 uppercase tracking-widest ml-1">
                     Detailed Reason
                   </label>
                   <div className="flex flex-col md:flex-row gap-3 items-end bg-slate-50 p-3 rounded-xl border border-slate-200 shadow-sm">
@@ -2480,7 +2537,7 @@ export default function LeavePage() {
                         }))
                       }
                       placeholder="Specify reason here..."
-                      className="flex-1 w-full min-h-[44px] border border-slate-300 bg-white px-4 py-3 text-xs font-medium text-black focus:outline-none focus:border-[#800020] focus:ring-1 focus:ring-[#800020] transition-all rounded-lg shadow-sm resize-none placeholder:text-slate-400 placeholder:italic"
+                      className="flex-1 w-full min-h-[44px] border border-slate-300 bg-white px-4 py-3 text-sm font-medium text-black focus:outline-none focus:border-[#800020] focus:ring-1 focus:ring-[#800020] transition-all rounded-lg shadow-sm resize-none placeholder:text-slate-400 placeholder:italic"
                     />
                     <div className="flex gap-3 shrink-0 w-full md:w-auto mt-2 md:mt-0">
                       <Button
@@ -2490,7 +2547,7 @@ export default function LeavePage() {
                           setAddModalOpen(false);
                           resetInlineForm();
                         }}
-                        className="flex-1 md:flex-none h-[44px] px-8 text-[11px] font-black uppercase tracking-widest rounded-lg shadow-sm border-2 hover:bg-rose-50 text-slate-700 min-w-[140px]"
+                        className="flex-1 md:flex-none h-[44px] px-8 text-xs font-black uppercase tracking-widest rounded-lg shadow-sm border-2 hover:bg-rose-50 text-slate-700 min-w-[130px]"
                       >
                         Cancel
                       </Button>
@@ -2498,7 +2555,7 @@ export default function LeavePage() {
                         type="button"
                         onClick={handleInlineSave}
                         disabled={inlineSaving || isViewOnly}
-                        className="flex-1 md:flex-none h-[44px] px-8 text-[11px] font-black uppercase tracking-widest rounded-lg bg-[#800020] hover:bg-[#4A081A] shadow-md shadow-rose-100 transition-all text-white min-w-[140px]"
+                        className="flex-1 md:flex-none h-[44px] px-8 text-xs font-black uppercase tracking-widest rounded-lg bg-[#800020] hover:bg-[#4A081A] shadow-md shadow-rose-100 transition-all text-white min-w-[130px]"
                       >
                         {inlineSaving
                           ? "..."
@@ -2591,7 +2648,7 @@ export default function LeavePage() {
             <CalendarView
               year={calendarYear}
               month={calendarMonth}
-              entries={calendarEntries}
+              entries={filtered}
               weekOnly={calendarMode === "week"}
             />
           </section>
@@ -2609,7 +2666,7 @@ export default function LeavePage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-500">
+                  <tr className="bg-slate-50 text-slate-800">
                     <th className="border-b border-r border-slate-200 px-3 py-4 font-black uppercase text-xs tracking-wider text-center w-20">
                       ID
                     </th>
@@ -2787,7 +2844,8 @@ export default function LeavePage() {
                               disabled={isViewOnly}
                               className={cn(
                                 "p-1.5 hover:bg-blue-50 text-blue-600 rounded transition-all border border-transparent hover:border-blue-100",
-                                isViewOnly && "opacity-50 cursor-not-allowed hover:bg-transparent"
+                                isViewOnly &&
+                                  "opacity-50 cursor-not-allowed hover:bg-transparent",
                               )}
                               title="Edit"
                             >
@@ -2802,7 +2860,8 @@ export default function LeavePage() {
                               disabled={isViewOnly}
                               className={cn(
                                 "p-1.5 hover:bg-red-50 text-red-600 rounded transition-all border border-transparent hover:border-red-100",
-                                isViewOnly && "opacity-50 cursor-not-allowed hover:bg-transparent"
+                                isViewOnly &&
+                                  "opacity-50 cursor-not-allowed hover:bg-transparent",
                               )}
                               title="Delete"
                             >
