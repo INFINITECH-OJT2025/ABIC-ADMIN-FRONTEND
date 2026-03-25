@@ -18,8 +18,18 @@ import {
   Edit3,
   Calendar,
   ShieldCheck,
-
   X,
+  Bold,
+  Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  List,
+  ListOrdered,
+  Indent,
+  Outdent,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -286,6 +296,84 @@ function formatTime(timeStr: string): string {
   }
   return timeStr;
 }
+
+/* --- Rich Text Editor for Word-like experience --- */
+const StandardRichTextEditor = ({ value, onChange, isViewOnly }: any) => {
+  const editorRef = React.useRef<HTMLDivElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (editorRef.current && !isFocused && editorRef.current.innerHTML !== value) {
+      editorRef.current.innerHTML = value || "";
+    }
+  }, [value, isFocused]);
+
+  const execCommand = (command: string, arg: string | null = null) => {
+    if (isViewOnly) return;
+    document.execCommand(command, false, arg || undefined);
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const ToolbarButton = ({ command, icon: Icon, arg = null, title }: any) => (
+    <Button
+      size="sm"
+      variant="ghost"
+      type="button"
+      className="h-8 w-8 p-0 rounded-md hover:bg-[#A4163A]/10 hover:text-[#A4163A] transition-colors"
+      onClick={() => execCommand(command, arg)}
+      disabled={isViewOnly}
+      title={title}
+    >
+      <Icon className="w-4 h-4" />
+    </Button>
+  );
+
+  return (
+    <div className="flex flex-col border-2 border-amber-100 rounded-2xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-amber-500/10 transition-all bg-white">
+      {!isViewOnly && (
+        <div className="flex flex-wrap items-center gap-0.5 p-1.5 bg-amber-50/50 border-b border-amber-100 sticky top-0 z-10">
+          <ToolbarButton command="bold" icon={Bold} title="Bold (Ctrl+B)" />
+          <ToolbarButton command="italic" icon={Italic} title="Italic (Ctrl+I)" />
+          <ToolbarButton command="underline" icon={Underline} title="Underline (Ctrl+U)" />
+          <Separator orientation="vertical" className="h-6 mx-1 bg-amber-200" />
+          <ToolbarButton command="justifyLeft" icon={AlignLeft} title="Align Left" />
+          <ToolbarButton command="justifyCenter" icon={AlignCenter} title="Align Center" />
+          <ToolbarButton command="justifyRight" icon={AlignRight} title="Align Right" />
+          <ToolbarButton command="justifyFull" icon={AlignJustify} title="Justify" />
+          <Separator orientation="vertical" className="h-6 mx-1 bg-amber-200" />
+          <ToolbarButton command="insertUnorderedList" icon={List} title="Bullet List" />
+          <ToolbarButton command="insertOrderedList" icon={ListOrdered} title="Numbered List" />
+          <Separator orientation="vertical" className="h-6 mx-1 bg-amber-200" />
+          <ToolbarButton command="indent" icon={Indent} title="Indent" />
+          <ToolbarButton command="outdent" icon={Outdent} title="Outdent" />
+        </div>
+      )}
+      <div
+        ref={editorRef}
+        contentEditable={!isViewOnly}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => {
+          setIsFocused(false);
+          if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+          }
+        }}
+        onInput={() => {
+          if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+          }
+        }}
+        className={cn(
+          "min-h-[400px] p-8 focus:outline-none font-serif text-[15px] leading-relaxed text-[#4A081A]",
+          isViewOnly && "cursor-not-allowed opacity-80"
+        )}
+        style={{ whiteSpace: "pre-wrap" }}
+      />
+    </div>
+  );
+};
 
 function extractStartTime(shiftOption: string): string {
   const parts = shiftOption.split(/\s*[–-]\s*/);
@@ -1237,8 +1325,8 @@ function FormLetterContent() {
               ? `${supervisorSalutation} ${supervisorFirstName}`
               : supervisorFirstName || "Supervisor";
           initialF1 =
-            `Dear ${supSalutation},\n\nThis letter serves as a Formal Warning regarding the ${issueType} of ${salutationPrefix} ${employee.name}. ${employee.gender?.toLowerCase() === "male" ? "He" : "She"} has accumulated ${numberToText(totalCount)} (${totalCount}) ${totalCount === 1 ? (type === "late" ? "occurrence" : "day") : type === "late" ? "occurrences" : "days"} of ${issueType} within the current cut-off period.\n\n` +
-            `In accordance with company policy, reaching this threshold within a single cut-off period is subject to appropriate coaching, warning, and/or sanction. We request that you address this matter with the concerned employee.\n\n` +
+            `Dear ${supSalutation},\n\n    This letter serves as a Formal Warning regarding the ${issueType} of ${salutationPrefix} ${employee.name}. ${employee.gender?.toLowerCase() === "male" ? "He" : "She"} has accumulated ${numberToText(totalCount)} (${totalCount}) ${totalCount === 1 ? (type === "late" ? "occurrence" : "day") : type === "late" ? "occurrences" : "days"} of ${issueType} within the current cut-off period.\n\n` +
+            `    In accordance with company policy, reaching this threshold within a single cut-off period is subject to appropriate coaching, warning, and/or sanction. We request that you address this matter with the concerned employee.\n\n` +
             `Specific dates recorded:\n${entryListStr}${reminders}` +
             `Kindly ensure that the employee is informed and that corrective action is enforced appropriately.\n\n` +
             `Thank you.`;
@@ -1250,7 +1338,7 @@ function FormLetterContent() {
         const targetTemplate =
           type === "late"
             ? customTardinessTemplate?.[
-                isProbee ? "tardiness-probee" : "tardiness-regular"
+                employee?.position?.toLowerCase().includes("driver") || employee?.position?.toLowerCase().includes("liaison") ? "tardiness-probee" : "tardiness-regular"
               ]
             : customLeaveTemplate;
 
@@ -1267,30 +1355,22 @@ function FormLetterContent() {
             .replace(/{{year}}/g, year)
             .replace(/{{entries_list}}/g, entryListStr)
             .replace(/Employee Acknowledgment:[\s\S]*$/, ""); // Remove if present in stored template
-
-          // If Probee and is Leave template, remove the reminders section
-          if (isProbee && type === "leave") {
-            initialF2 = initialF2.replace(
-              /(Moving forward, you are expected to:|Please be reminded of the following:)[\s\S]*?(?=Thank you|Failure to comply|Please acknowledge)/gi,
-              "",
-            );
-          }
         } else {
           if (type === "late") {
             initialF2 =
               `Dear ${salutationPrefix} ${lastName},\n\n` +
-              `This letter serves as a Formal Warning regarding your tardiness. Your scheduled time-in is ${shiftTime}, with a five (5)-minute grace period until ${gracePeriod}.\n\n` +
-              `You have incurred ${numberToText(totalCount)} (${totalCount}) instances of tardiness within the current cut-off period, which constitutes a violation of the Company's Attendance and Punctuality Policy.\n\n` +
+              `    This letter serves as a Formal Warning regarding your tardiness. Your scheduled time-in is ${shiftTime}, with a five (5)-minute grace period until ${gracePeriod}.\n\n` +
+              `    You have incurred ${numberToText(totalCount)} (${totalCount}) instances of tardiness within the current cut-off period, which constitutes a violation of the Company's Attendance and Punctuality Policy.\n\n` +
               `Recorded instances:\n${entryListStr}\n\n` +
-              `Consistent tardiness disrupts workflow. You are expected to immediately correct your attendance behavior. Future occurrences may result in stricter disciplinary action.\n\n` +
+              `    Consistent tardiness disrupts workflow. You are expected to immediately correct your attendance behavior. Future occurrences may result in stricter disciplinary action.\n\n` +
               `Thank you.`;
           } else {
             initialF2 =
               `Dear ${salutationPrefix} ${lastName},\n\n` +
-              `This letter serves as a Formal Warning regarding your attendance record for the current cutoff period.\n\n` +
+              `    This letter serves as a Formal Warning regarding your attendance record for the current cutoff period.\n\n` +
               `It has been noted that you incurred ${numberToText(totalCount)} (${totalCount}) days of leave within the ${cutoffText} of ${month} ${year}, specifically on the following dates:\n\n` +
               `${entryListStr}\n\n` +
-              `These absences negatively affect work operations. Repeated absences may lead to further disciplinary action.\n\n` +
+              `    These absences negatively affect work operations. Repeated absences may lead to further disciplinary action.\n\n` +
               `Moving forward, you are expected to improve your attendance immediately and avoid unapproved absences.\n\n` +
               `Thank you.`;
           }
@@ -1695,6 +1775,7 @@ function FormLetterContent() {
             warningLevelText={warningLevelText}
             offices={offices}
             deptMap={deptMap}
+            isViewOnly={isViewOnly}
           />
         )}
 
@@ -1717,7 +1798,10 @@ function FormLetterContent() {
             customTemplate={
               type === "late"
                 ? customTardinessTemplate?.[
-                    isProbee ? "tardiness-probee" : "tardiness-regular"
+                    employee?.position?.toLowerCase().includes("driver") ||
+                    employee?.position?.toLowerCase().includes("liaison")
+                      ? "tardiness-probee"
+                      : "tardiness-regular"
                   ]
                 : customLeaveTemplate
             }
@@ -1728,6 +1812,7 @@ function FormLetterContent() {
             warningLevelText={warningLevelText}
             offices={offices}
             deptMap={deptMap}
+            isViewOnly={isViewOnly}
           />
         )}
 
@@ -1794,6 +1879,7 @@ function FormOneTemplate({
   warningLevelText,
   offices,
   deptMap,
+  isViewOnly,
 }: any) {
   const totalCount =
     type === "leave"
@@ -1919,66 +2005,71 @@ function FormOneTemplate({
         {/* Body Content */}
         <div className="text-black text-xs leading-snug text-justify relative group/body">
           {isEditMode ? (
-            <div className="relative">
-              <Textarea
+            <div className="relative group">
+              <StandardRichTextEditor
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
-                className="min-h-[400px] w-full border-2 border-amber-200 focus-visible:ring-amber-500 rounded-xl p-6 font-serif text-[15px] leading-relaxed resize-none bg-amber-50/10 shadow-inner"
-                placeholder="Write the letter body here..."
+                onChange={(val: string) => setBody(val)}
+                isViewOnly={isViewOnly}
               />
-              <div className="absolute top-2 right-2 flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider animate-pulse">
-                <Edit3 className="w-3 h-3" />
-                Editing Mode
-              </div>
             </div>
           ) : (
-            <div className="flex-1 space-y-0">
-              {body.split("\n").map((line: string, idx: number) => {
-                const trimmed = line.trim();
-                if (!trimmed) return <div key={idx} className="h-2" />;
-                if (trimmed.startsWith("•")) {
-                  return (
-                    <div key={idx} className="flex gap-4 pl-12 mb-2">
-                      <span className="shrink-0">•</span>
-                      <span>{trimmed.substring(1).trim()}</span>
-                    </div>
-                  );
-                }
-                const numMatch = trimmed.match(/^(\d+)\.\s*(.*)/);
-                if (numMatch) {
-                  return (
-                    <div key={idx} className="flex gap-4 pl-12 mb-2">
-                      <span className="shrink-0 font-bold">{numMatch[1]}.</span>
-                      <span>{numMatch[2]}</span>
-                    </div>
-                  );
-                }
-                const isSalutation =
-                  trimmed.toLowerCase().startsWith("dear") ||
-                  trimmed.endsWith(",");
-                const isClosing =
-                  trimmed.toLowerCase() === "thank you." ||
-                  trimmed.toLowerCase() === "respectfully," ||
-                  trimmed.toLowerCase() === "respectfully yours,";
+            <div className="flex-1 space-y-0 text-slate-900">
+              {!/<[a-z/][\s\S]*>/i.test(body) ? (
+                body.split("\n").map((line: string, idx: number) => {
+                  const trimmed = line.trim();
+                  if (!trimmed) return <div key={idx} className="h-2" />;
+                  if (trimmed.startsWith("•")) {
+                    return (
+                      <div key={idx} className="flex gap-4 pl-10 mb-2">
+                        <span className="shrink-0">•</span>
+                        <span>{trimmed.substring(1).trim()}</span>
+                      </div>
+                    );
+                  }
+                  const numMatch = trimmed.match(/^(\d+)\.\s*(.*)/);
+                  if (numMatch) {
+                    return (
+                      <div key={idx} className="flex gap-4 pl-10 mb-2">
+                        <span className="shrink-0 font-bold">{numMatch[1]}.</span>
+                        <span>{numMatch[2]}</span>
+                      </div>
+                    );
+                  }
+                  const isSalutation =
+                    trimmed.toLowerCase().startsWith("dear") ||
+                    trimmed.endsWith(",");
+                  const isClosing =
+                    trimmed.toLowerCase() === "thank you." ||
+                    trimmed.toLowerCase() === "respectfully," ||
+                    trimmed.toLowerCase() === "respectfully yours,";
 
-                if (isSalutation || isClosing) {
+                  if (isSalutation || isClosing) {
+                    return (
+                      <div key={idx} className="mb-4">
+                        {line}
+                      </div>
+                    );
+                  }
+
+                  // Paragraph with first-line indent (only if line starts with 4 spaces)
+                  const hasIndent = line.startsWith("    ");
                   return (
-                    <div key={idx} className="mb-4">
-                      {line}
+                    <div
+                      key={idx}
+                      className="text-justify mb-2"
+                      style={{ textIndent: hasIndent ? "2rem" : "0" }}
+                    >
+                      {trimmed}
                     </div>
                   );
-                }
-
-                return (
-                  <div
-                    key={idx}
-                    className="text-justify mb-2"
-                    style={{ textIndent: "3.5rem" }}
-                  >
-                    {line}
-                  </div>
-                );
-              })}
+                })
+              ) : (
+                <div 
+                  className="rich-text-content" 
+                  dangerouslySetInnerHTML={{ __html: body }} 
+                  style={{ whiteSpace: "pre-wrap" }}
+                />
+              )}
             </div>
           )}
         </div>
@@ -2044,6 +2135,7 @@ function FormTwoTemplate({
   warningLevelText,
   offices,
   deptMap,
+  isViewOnly,
 }: any) {
   const totalDays =
     type === "leave"
@@ -2181,66 +2273,71 @@ function FormTwoTemplate({
         {/* Body Content */}
         <div className="text-black text-xs leading-snug text-justify relative group/body">
           {isEditMode ? (
-            <div className="relative">
-              <Textarea
+            <div className="relative group">
+              <StandardRichTextEditor
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
-                className="min-h-[500px] w-full border-2 border-amber-200 focus-visible:ring-amber-500 rounded-xl p-8 font-serif text-[15px] leading-relaxed resize-none bg-amber-50/10 shadow-inner"
-                placeholder="Write the letter body here..."
+                onChange={(val: string) => setBody(val)}
+                isViewOnly={isViewOnly}
               />
-              <div className="absolute top-2 right-2 flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider animate-pulse">
-                <Edit3 className="w-3 h-3" />
-                Editing Mode
-              </div>
             </div>
           ) : (
-            <div className="flex-1 space-y-0">
-              {body.split("\n").map((line: string, idx: number) => {
-                const trimmed = line.trim();
-                if (!trimmed) return <div key={idx} className="h-2" />;
-                if (trimmed.startsWith("•")) {
-                  return (
-                    <div key={idx} className="flex gap-4 pl-12 mb-2">
-                      <span className="shrink-0">•</span>
-                      <span>{trimmed.substring(1).trim()}</span>
-                    </div>
-                  );
-                }
-                const numMatch = trimmed.match(/^(\d+)\.\s*(.*)/);
-                if (numMatch) {
-                  return (
-                    <div key={idx} className="flex gap-4 pl-12 mb-2">
-                      <span className="shrink-0 font-bold">{numMatch[1]}.</span>
-                      <span>{numMatch[2]}</span>
-                    </div>
-                  );
-                }
-                const isSalutation =
-                  trimmed.toLowerCase().startsWith("dear") ||
-                  trimmed.endsWith(",");
-                const isClosing =
-                  trimmed.toLowerCase() === "thank you." ||
-                  trimmed.toLowerCase() === "respectfully," ||
-                  trimmed.toLowerCase() === "respectfully yours,";
+            <div className="flex-1 space-y-0 text-slate-900">
+              {!/<[a-z/][\s\S]*>/i.test(body) ? (
+                body.split("\n").map((line: string, idx: number) => {
+                  const trimmed = line.trim();
+                  if (!trimmed) return <div key={idx} className="h-2" />;
+                  if (trimmed.startsWith("•")) {
+                    return (
+                      <div key={idx} className="flex gap-4 pl-10 mb-2">
+                        <span className="shrink-0">•</span>
+                        <span>{trimmed.substring(1).trim()}</span>
+                      </div>
+                    );
+                  }
+                  const numMatch = trimmed.match(/^(\d+)\.\s*(.*)/);
+                  if (numMatch) {
+                    return (
+                      <div key={idx} className="flex gap-4 pl-10 mb-2">
+                        <span className="shrink-0 font-bold">{numMatch[1]}.</span>
+                        <span>{numMatch[2]}</span>
+                      </div>
+                    );
+                  }
+                  const isSalutation =
+                    trimmed.toLowerCase().startsWith("dear") ||
+                    trimmed.endsWith(",");
+                  const isClosing =
+                    trimmed.toLowerCase() === "thank you." ||
+                    trimmed.toLowerCase() === "respectfully," ||
+                    trimmed.toLowerCase() === "respectfully yours,";
 
-                if (isSalutation || isClosing) {
+                  if (isSalutation || isClosing) {
+                    return (
+                      <div key={idx} className="mb-4">
+                        {line}
+                      </div>
+                    );
+                  }
+
+                  // Paragraph with first-line indent (only if line starts with 4 spaces)
+                  const hasIndent = line.startsWith("    ");
                   return (
-                    <div key={idx} className="mb-4">
-                      {line}
+                    <div
+                      key={idx}
+                      className="text-justify mb-2"
+                      style={{ textIndent: hasIndent ? "2rem" : "0" }}
+                    >
+                      {trimmed}
                     </div>
                   );
-                }
-
-                return (
-                  <div
-                    key={idx}
-                    className="text-justify mb-2"
-                    style={{ textIndent: "3.5rem" }}
-                  >
-                    {line}
-                  </div>
-                );
-              })}
+                })
+              ) : (
+                <div 
+                  className="rich-text-content" 
+                  dangerouslySetInnerHTML={{ __html: body }} 
+                  style={{ whiteSpace: "pre-wrap" }}
+                />
+              )}
             </div>
           )}
         </div>

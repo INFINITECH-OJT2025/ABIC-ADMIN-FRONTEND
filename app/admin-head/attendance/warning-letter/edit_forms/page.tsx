@@ -22,6 +22,17 @@ import {
   Upload,
   Trash2,
   Image as ImageIcon,
+  Bold,
+  Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  List,
+  ListOrdered,
+  Indent,
+  Outdent,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,17 +67,17 @@ const DEFAULT_TARDINESS_REGULAR_TEMPLATE = {
 Good day.
 
 
-This letter serves as a Formal Warning regarding your tardiness. Please be reminded that your scheduled time-in is {{shift_time}}, with a five (5)-minute grace period until {{grace_period}}, in accordance with company policy.
+    This letter serves as a Formal Warning regarding your tardiness. Please be reminded that your scheduled time-in is {{shift_time}}, with a five (5)-minute grace period until {{grace_period}}, in accordance with company policy.
 
 
-Despite this allowance, you have incurred {{instances_text}} ({{instances_count}}) instances of tardiness beyond the allowable grace period within the current cut-off period, which constitutes a violation of the Company's Attendance and Punctuality Policy.
+    Despite this allowance, you have incurred {{instances_text}} ({{instances_count}}) instances of tardiness beyond the allowable grace period within the current cut-off period, which constitutes a violation of the Company's Attendance and Punctuality Policy.
 
 
 Below is the recorded instances for this cut-off period:
 {{entries_list}}
 
 
-Consistent tardiness negatively affects team productivity, disrupts workflow, and fails to meet the company's standards for punctuality and professionalism.
+    Consistent tardiness negatively affects team productivity, disrupts workflow, and fails to meet the company's standards for punctuality and professionalism.
 
 
 Please be reminded of the following:
@@ -90,17 +101,17 @@ const DEFAULT_TARDINESS_PROBEE_TEMPLATE = {
   body: `Dear {{salutation}} {{last_name}},
 
 
-This letter serves as a formal warning regarding your repeated tardiness. It has been recorded that you have reported late to work {{instances_text}} ({{instances_count}}) times, exceeding the company's grace period of five (5) minutes.
+    This letter serves as a formal warning regarding your repeated tardiness. It has been recorded that you have reported late to work {{instances_text}} ({{instances_count}}) times, exceeding the company's grace period of five (5) minutes.
 
 
-We trust that you will take this matter seriously and make the necessary adjustments to improve your attendance and punctuality moving forward.
+    We trust that you will take this matter seriously and make the necessary adjustments to improve your attendance and punctuality moving forward.
 
 
 Additionally, please note the specific dates of tardiness recorded for this cut-off:
 {{entries_list}}
 
 
-Consistent tardiness affects team productivity, disrupts workflow, and your evaluation needed for your regularization, which requires all employees to report to work on time and adhere to their scheduled working hours.
+    Consistent tardiness affects team productivity, disrupts workflow, and your evaluation needed for your regularization, which requires all employees to report to work on time and adhere to their scheduled working hours.
 
 
 Thank you.`,
@@ -116,14 +127,14 @@ const DEFAULT_LEAVE_TEMPLATE = {
   body: `Dear {{salutation}} {{last_name}},
 
 
-This letter serves as a Formal Warning regarding your attendance record for the current cutoff period.
+    This letter serves as a Formal Warning regarding your attendance record for the current cutoff period.
 
 
 It has been noted that you incurred {{instances_text}} ({{instances_count}}) absences within the {{cutoff_text}} of {{month}} {{year}}, specifically on the following dates:
 {{entries_list}}
 
 
-These absences negatively affect work operations and your evaluation needed for your regularization.
+    These absences negatively affect work operations and your evaluation needed for your regularization.
 
 
 Please be reminded that repeated absences, especially within a short period, may lead to further disciplinary action in accordance with company rules and regulations.
@@ -151,17 +162,17 @@ const DEFAULT_SUPERVISOR_TARDINESS_TEMPLATE = {
   body: `Dear {{salutation}} {{supervisor first name}},
 
 
-This letter serves as a Formal Warning regarding the tardiness of {{salutation}} {{employee_name}}. {{pronoun_he_she}} has accumulated {{instances_text}} ({{instances_count}}) occurrences of tardiness beyond the grace period of {{grace_period}} within the current cut-off period.
+    This letter serves as a Formal Warning regarding the tardiness of {{salutation}} {{employee_name}}. {{pronoun_he_she}} has accumulated {{instances_text}} ({{instances_count}}) occurrences of tardiness beyond the grace period of {{grace_period}} within the current cut-off period.
 
 
-In accordance with company policy, reaching the {{instances_count_ordinal}} occurrence of tardiness within a single cut-off period is subject to appropriate coaching, warning, and/or sanction. We request that you address this matter with the concerned employee and coordinate with the HR/Admin Department for proper documentation and necessary action.
+    In accordance with company policy, reaching the {{instances_count_ordinal}} occurrence of tardiness within a single cut-off period is subject to appropriate coaching, warning, and/or sanction. We request that you address this matter with the concerned employee and coordinate with the HR/Admin Department for proper documentation and necessary action.
 
 
 Additionally, please note the specific dates recorded for this cut-off:
 {{entries_list}}
 
 
-Consistent tardiness affects team productivity, disrupts workflow, and violates the company’s Attendance and Punctuality Policy, which requires all employees to report to work on time and adhere to their scheduled working hours.
+    Consistent tardiness affects team productivity, disrupts workflow, and violates the company’s Attendance and Punctuality Policy, which requires all employees to report to work on time and adhere to their scheduled working hours.
 
 
 Please be reminded of the following:
@@ -185,17 +196,17 @@ const DEFAULT_SUPERVISOR_LEAVE_TEMPLATE = {
   body: `Dear {{supervisor first name}},
 
 
-This letter serves as a Formal Warning regarding the leave absences of {{salutation}} {{employee_name}}. {{pronoun_he_she}} has accumulated {{instances_text}} ({{instances_count}}) days of leave within the current cut-off period.
+    This letter serves as a Formal Warning regarding the leave absences of {{salutation}} {{employee_name}}. {{pronoun_he_she}} has accumulated {{instances_text}} ({{instances_count}}) days of leave within the current cut-off period.
 
 
-In accordance with company policy, reaching this threshold within a single cut-off period is subject to appropriate coaching, warning, and/or sanction. We request that you address this matter with the concerned employee and coordinate with the HR/Admin Department for proper documentation and necessary action.
+    In accordance with company policy, reaching this threshold within a single cut-off period is subject to appropriate coaching, warning, and/or sanction. We request that you address this matter with the concerned employee and coordinate with the HR/Admin Department for proper documentation and necessary action.
 
 
 Additionally, please note the specific dates recorded for this cut-off:
 {{entries_list}}
 
 
-These absences negatively affect work operations and your evaluation needed for your regularization.
+    These absences negatively affect work operations and your evaluation needed for your regularization.
 
 
 Please be reminded of the following:
@@ -400,6 +411,85 @@ const SubtextInput = ({ officeId, initialValue, onSave, officeName }: any) => {
   );
 };
 
+/* --- Rich Text Editor for Word-like experience --- */
+const StandardRichTextEditor = ({ value, onChange, isViewOnly }: any) => {
+  const editorRef = React.useRef<HTMLDivElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
+
+  // Sync internal innerHTML with external value only when not focused
+  useEffect(() => {
+    if (editorRef.current && !isFocused && editorRef.current.innerHTML !== value) {
+      editorRef.current.innerHTML = value || "";
+    }
+  }, [value, isFocused]);
+
+  const execCommand = (command: string, arg: string | null = null) => {
+    if (isViewOnly) return;
+    document.execCommand(command, false, arg || undefined);
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const ToolbarButton = ({ command, icon: Icon, arg = null, title }: any) => (
+    <Button
+      size="sm"
+      variant="ghost"
+      type="button"
+      className="h-8 w-8 p-0 rounded-md hover:bg-[#A4163A]/10 hover:text-[#A4163A] transition-colors"
+      onClick={() => execCommand(command, arg)}
+      disabled={isViewOnly}
+      title={title}
+    >
+      <Icon className="w-4 h-4" />
+    </Button>
+  );
+
+  return (
+    <div className="flex flex-col border border-rose-100 rounded-2xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-[#A4163A]/10 transition-all bg-white">
+      {!isViewOnly && (
+        <div className="flex flex-wrap items-center gap-0.5 p-1.5 bg-slate-50/80 border-b border-rose-50 sticky top-0 z-10">
+          <ToolbarButton command="bold" icon={Bold} title="Bold (Ctrl+B)" />
+          <ToolbarButton command="italic" icon={Italic} title="Italic (Ctrl+I)" />
+          <ToolbarButton command="underline" icon={Underline} title="Underline (Ctrl+U)" />
+          <Separator orientation="vertical" className="h-6 mx-1 bg-rose-100" />
+          <ToolbarButton command="justifyLeft" icon={AlignLeft} title="Align Left" />
+          <ToolbarButton command="justifyCenter" icon={AlignCenter} title="Align Center" />
+          <ToolbarButton command="justifyRight" icon={AlignRight} title="Align Right" />
+          <ToolbarButton command="justifyFull" icon={AlignJustify} title="Justify" />
+          <Separator orientation="vertical" className="h-6 mx-1 bg-rose-100" />
+          <ToolbarButton command="insertUnorderedList" icon={List} title="Bullet List" />
+          <ToolbarButton command="insertOrderedList" icon={ListOrdered} title="Numbered List" />
+          <Separator orientation="vertical" className="h-6 mx-1 bg-rose-100" />
+          <ToolbarButton command="indent" icon={Indent} title="Indent" />
+          <ToolbarButton command="outdent" icon={Outdent} title="Outdent" />
+        </div>
+      )}
+      <div
+        ref={editorRef}
+        contentEditable={!isViewOnly}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => {
+          setIsFocused(false);
+          if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+          }
+        }}
+        onInput={() => {
+          if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+          }
+        }}
+        className={cn(
+          "min-h-[500px] p-8 focus:outline-none font-serif text-[15px] leading-relaxed text-[#4A081A]",
+          isViewOnly && "cursor-not-allowed opacity-80"
+        )}
+        style={{ whiteSpace: "pre-wrap" }}
+      />
+    </div>
+  );
+};
+
 export default function EditFormsPage() {
   const { isViewOnly } = useUserRole();
   const { confirm } = useConfirmation();
@@ -510,7 +600,6 @@ export default function EditFormsPage() {
                   console.error("Failed to parse branding config");
                 }
               }
-
             }
           });
 
@@ -529,13 +618,13 @@ export default function EditFormsPage() {
           // Check if local storage differs from recently fetched server data
           if (localSaved) {
             const local = JSON.parse(localSaved);
-            
+
             const normalize = (templatesObj: any) => {
               const normalized: any = {};
               Object.keys(templatesObj).forEach((slug) => {
                 // EXCLUDE branding-config from comparison since handleSave does not upload it!
                 if (slug === "branding-config") return;
-                
+
                 if (SERVER_TEMPLATE_KEYS.has(slug)) {
                   if (slug !== "evaluation") {
                     const copy = { ...templatesObj[slug] };
@@ -556,16 +645,19 @@ export default function EditFormsPage() {
             const stableStringify = (obj: any): string => {
               if (obj === null) return "null";
               if (typeof obj !== "object") return JSON.stringify(obj);
-              if (Array.isArray(obj)) return `[${obj.map(stableStringify).join(",")}]`;
+              if (Array.isArray(obj))
+                return `[${obj.map(stableStringify).join(",")}]`;
               const keys = Object.keys(obj).sort();
               return `{${keys.map((k) => `"${k}":${stableStringify(obj[k])}`).join(",")}}`;
             };
 
             const localServerSubset = normalize(local);
             const mappedServerSubset = normalize(mapped);
-            
-            const isDifferent = stableStringify(localServerSubset) !== stableStringify(mappedServerSubset);
-            
+
+            const isDifferent =
+              stableStringify(localServerSubset) !==
+              stableStringify(mappedServerSubset);
+
             setHasLocalOnlyChanges(isDifferent);
           }
         } else if (localSaved) {
@@ -698,8 +790,8 @@ export default function EditFormsPage() {
     }
 
     const mappedTypes: Record<string, string> = {
-      "tardiness-regular": "Regular Tardiness",
-      "tardiness-probee": "Probationary Tardiness",
+      "tardiness-regular": "Regular & Probee Tardiness",
+      "tardiness-probee": "Driver/Liaison Tardiness",
       leave: "Leave Absences",
       "supervisor-tardiness": "Supervisor (Tardiness)",
       "supervisor-leave": "Supervisor (Leave)",
@@ -1242,58 +1334,68 @@ export default function EditFormsPage() {
         </div>
 
         <div className="w-full text-justify text-sm leading-relaxed flex-1 text-slate-800">
-          {content.split("\n").map((line: string, idx: number) => {
-            const trimmed = line.trim();
-            if (!trimmed) return <div key={idx} className="h-4" />;
+          {/* Support both legacy plain text and new HTML bodies */}
+          {!/<[a-z/][\s\S]*>/i.test(content) ? (
+            content.split("\n").map((line: string, idx: number) => {
+              const trimmed = line.trim();
+              if (!trimmed) return <div key={idx} className="h-4" />;
 
-            // Bullet points
-            if (trimmed.startsWith("•")) {
+              // Bullet points
+              if (trimmed.startsWith("•")) {
+                return (
+                  <div key={idx} className="flex gap-4 pl-10 mb-2">
+                    <span className="shrink-0">•</span>
+                    <span>{trimmed.substring(1).trim()}</span>
+                  </div>
+                );
+              }
+
+              // Numbered lists (e.g., "1.", "2.")
+              const numMatch = trimmed.match(/^(\d+)\.\s*(.*)/);
+              if (numMatch) {
+                return (
+                  <div key={idx} className="flex gap-4 pl-10 mb-2">
+                    <span className="shrink-0 font-bold">{numMatch[1]}.</span>
+                    <span>{numMatch[2]}</span>
+                  </div>
+                );
+              }
+
+              // Salutation & Closing (usually small/no indent)
+              const isSalutation =
+                trimmed.toLowerCase().startsWith("dear") || trimmed.endsWith(",");
+              const isClosing =
+                trimmed.toLowerCase() === "thank you." ||
+                trimmed.toLowerCase() === "respectfully," ||
+                trimmed.toLowerCase() === "respectfully yours,";
+
+              if (isSalutation || isClosing) {
+                return (
+                  <div key={idx} className="mb-4">
+                    {line}
+                  </div>
+                );
+              }
+
+              // Paragraph with first-line indent (only if line starts with 4 spaces)
+              const hasIndent = line.startsWith("    ");
               return (
-                <div key={idx} className="flex gap-4 pl-12 mb-2">
-                  <span className="shrink-0">•</span>
-                  <span>{trimmed.substring(1).trim()}</span>
+                <div
+                  key={idx}
+                  className="text-justify mb-4"
+                  style={{ textIndent: hasIndent ? "2rem" : "0" }}
+                >
+                  {trimmed}
                 </div>
               );
-            }
-
-            // Numbered lists (e.g., "1.", "2.")
-            const numMatch = trimmed.match(/^(\d+)\.\s*(.*)/);
-            if (numMatch) {
-              return (
-                <div key={idx} className="flex gap-4 pl-12 mb-2">
-                  <span className="shrink-0 font-bold">{numMatch[1]}.</span>
-                  <span>{numMatch[2]}</span>
-                </div>
-              );
-            }
-
-            // Salutation & Closing (usually small/no indent)
-            const isSalutation =
-              trimmed.toLowerCase().startsWith("dear") || trimmed.endsWith(",");
-            const isClosing =
-              trimmed.toLowerCase() === "thank you." ||
-              trimmed.toLowerCase() === "respectfully," ||
-              trimmed.toLowerCase() === "respectfully yours,";
-
-            if (isSalutation || isClosing) {
-              return (
-                <div key={idx} className="mb-4">
-                  {line}
-                </div>
-              );
-            }
-
-            // Paragraph with first-line indent
-            return (
-              <div
-                key={idx}
-                className="text-justify mb-4"
-                style={{ textIndent: "3.5rem" }}
-              >
-                {line}
-              </div>
-            );
-          })}
+            })
+          ) : (
+            <div 
+              className="rich-text-content" 
+              dangerouslySetInnerHTML={{ __html: content }} 
+              style={{ whiteSpace: "pre-wrap" }}
+            />
+          )}
         </div>
 
         {/* Official Footer Signature */}
@@ -1342,7 +1444,7 @@ export default function EditFormsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#FDF4F6]">
+    <div className="min-h-screen bg-[#FDF4F6] overflow-x-hidden">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         {/* ----- INTEGRATED HEADER & TOOLBAR ----- */}
         <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-lg mb-6 sticky top-0 z-50">
@@ -1366,6 +1468,28 @@ export default function EditFormsPage() {
               </div>
 
               <div className="flex items-center gap-3">
+                {hasLocalOnlyChanges && (
+                  <button
+                    onClick={() => handleSave()}
+                    disabled={isSaving || isViewOnly}
+                    className="flex items-center gap-2.5 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl hover:bg-amber-500/20 transition-all group backdrop-blur-sm disabled:opacity-50"
+                    title="You have local changes. Click to sync to cloud."
+                  >
+                    <div className="relative">
+                      <AlertTriangle className="w-4 h-4 text-amber-400 group-hover:scale-110 transition-transform" />
+                      <div className="absolute inset-0 bg-amber-400/40 blur-md rounded-full animate-pulse" />
+                    </div>
+                    <div className="hidden sm:flex flex-col items-start leading-none">
+                      <span className="text-[9px] font-black text-amber-400 uppercase tracking-widest">
+                        Sync Required
+                      </span>
+                      <span className="text-[7px] text-amber-200/50 font-bold uppercase tracking-tighter mt-0.5">
+                        {isSaving ? "Syncing..." : "Local Changes"}
+                      </span>
+                    </div>
+                  </button>
+                )}
+
                 <Button
                   onClick={() => setIsFullWidth(!isFullWidth)}
                   variant="ghost"
@@ -1394,9 +1518,9 @@ export default function EditFormsPage() {
           </div>
 
           {/* Secondary Toolbar */}
-          <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm overflow-x-auto no-scrollbar">
-            <div className="w-full px-4 md:px-8 py-4">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm overflow-x-auto">
+            <div className="w-full max-w-[100vw] px-4 md:px-8 py-4">
+              <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
                 <div className="flex items-center">
                   <TabsList className="bg-slate-100 p-1 rounded-lg border border-slate-200 shadow-inner h-10 flex gap-1">
                     <TabsTrigger
@@ -1418,14 +1542,14 @@ export default function EditFormsPage() {
                       className="px-4 py-0 rounded-md text-[11px] font-bold transition-all whitespace-nowrap uppercase tracking-wider data-[state=active]:bg-[#800020] data-[state=active]:text-white data-[state=active]:shadow-md text-[#800020]/60 hover:bg-white/50 h-8 flex items-center gap-2"
                     >
                       <Clock className="w-4 h-4" />
-                      TARDINESS (REGULAR)
+                      TARDINESS
                     </TabsTrigger>
                     <TabsTrigger
                       value="tardiness-probee"
                       className="px-4 py-0 rounded-md text-[11px] font-bold transition-all whitespace-nowrap uppercase tracking-wider data-[state=active]:bg-[#800020] data-[state=active]:text-white data-[state=active]:shadow-md text-[#800020]/60 hover:bg-white/50 h-8 flex items-center gap-2"
                     >
                       <Clock className="w-4 h-4" />
-                      TARDINESS (PROBEE)
+                      TARDINESS (DRIVER/LIAISON)
                     </TabsTrigger>
                     <TabsTrigger
                       value="leave"
@@ -1499,43 +1623,17 @@ export default function EditFormsPage() {
 
         <div
           className={cn(
-            "mx-auto p-4 md:p-6 lg:p-8 transition-all duration-500 ease-in-out",
-            isFullWidth ? "max-w-[100%] px-4 md:px-10" : "max-w-[1400px]",
+            "mx-auto p-4 md:p-6 transition-all duration-500 ease-in-out",
+            isFullWidth
+              ? "max-w-[100%] px-4 md:px-6 lg:px-10"
+              : "max-w-[1400px]",
           )}
         >
-          {hasLocalOnlyChanges && (
-            <div className="bg-amber-50 border-2 border-amber-200 text-amber-800 p-5 rounded-3xl flex flex-col sm:flex-row items-center justify-between gap-4 shadow-lg animate-in fade-in slide-in-from-top-4 duration-700">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-amber-100 rounded-2xl">
-                  <AlertTriangle className="w-6 h-6 text-amber-600" />
-                </div>
-                <div>
-                  <h4 className="font-black text-lg tracking-tight">
-                    Sync Required
-                  </h4>
-                  <p className="text-sm font-medium opacity-80">
-                    You have customized templates in this browser that are not
-                    yet saved to the database.
-                  </p>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => handleSave()}
-                disabled={isViewOnly || isSaving}
-                className="bg-white hover:bg-amber-600 hover:text-white border-amber-300 text-amber-900 font-black rounded-2xl px-8 h-14 shadow-md transition-all active:scale-95"
-              >
-                {isSaving ? "Syncing..." : "Migrate to Cloud"}
-              </Button>
-            </div>
-          )}
-
           <div
             className={cn(
               "grid gap-8 transition-all duration-500",
               showPreview
-                ? "grid-cols-1 xl:grid-cols-[1fr_816px]"
+                ? "grid-cols-1 2xl:grid-cols-[1fr_816px]"
                 : "grid-cols-1 max-w-[1200px] mx-auto",
             )}
           >
@@ -1601,7 +1699,7 @@ export default function EditFormsPage() {
                         </div>
 
                         <div className="space-y-6">
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {offices.map((office: any) => {
                               const officeLogo = office.header_logo_image;
                               const officeDetail = office.header_details || "";
@@ -1795,7 +1893,7 @@ export default function EditFormsPage() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                           <div className="space-y-2.5">
                             <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
                               Name Label
@@ -1868,7 +1966,7 @@ export default function EditFormsPage() {
                                   key={criterion.id}
                                   className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm space-y-3"
                                 >
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                     <div className="space-y-2.5">
                                       <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
                                         Label
@@ -2078,7 +2176,7 @@ export default function EditFormsPage() {
                           />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                           <div className="space-y-2.5">
                             <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
                               Rated By Label
@@ -2171,19 +2269,18 @@ export default function EditFormsPage() {
                             </div>
                           </div>
                           <div className="relative group">
-                            <div className="absolute -inset-0.5 bg-gradient-to-b from-rose-100 to-transparent rounded-2xl opacity-0 group-focus-within:opacity-100 transition-opacity duration-300" />
-                            <Textarea
+                            <StandardRichTextEditor
                               value={(templates as any)[activeTab].body}
-                              onChange={(e) =>
-                                updateTemplate("body", e.target.value)
+                              onChange={(val: string) =>
+                                updateTemplate("body", val)
                               }
-                              className="relative min-h-[400px] bg-white border-rose-100 shadow-inner rounded-xl font-serif text-[15px] leading-relaxed text-[#4A081A] focus:ring-0 focus:border-[#A4163A] transition-all p-6 resize-y"
+                              isViewOnly={isViewOnly}
                             />
                           </div>
                         </div>
 
                         <div className="pt-6 border-t border-slate-100">
-                          <div className="grid grid-cols-2 gap-6">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             <div className="space-y-2.5">
                               <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
                                 Signatory Name
@@ -2309,10 +2406,13 @@ export default function EditFormsPage() {
                     Live Rendering
                   </Badge>
                 </div>
-                <div className="sticky top-[80px] lg:top-[180px] shadow-2xl rounded-sm overflow-auto border border-slate-200 bg-white max-h-[85vh]">
+                <div className="sticky top-[20px] lg:top-[120px] shadow-2xl rounded-sm overflow-auto border border-slate-200 bg-white max-h-[90vh]">
                   <div
-                    className="origin-top transition-transform duration-500"
-                    style={{ transform: "scale(0.95)" }}
+                    className="origin-top transition-transform duration-500 mx-auto"
+                    style={{
+                      transform: isFullWidth ? "scale(0.85)" : "scale(0.95)",
+                      width: "794px",
+                    }}
                   >
                     {renderPreview()}
                   </div>
