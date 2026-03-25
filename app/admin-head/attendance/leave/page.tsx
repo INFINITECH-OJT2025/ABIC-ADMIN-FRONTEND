@@ -499,35 +499,8 @@ function CalendarView({
 }) {
   // ─── Slotting Logic for Alignment ───
   const slottedEntries = useMemo(() => {
-    const priority = (status: string) => {
-      // User requested: Pending > Approved > Declined
-      if (status === "Pending") return 0;
-      const isApproved = !["Pending", "Declined"].includes(status);
-      if (isApproved) return 1;
-      if (status === "Declined") return 2;
-      return 3;
-    };
-
-    const sorted = [...entries].sort((a, b) => {
-      const pA = priority(a.approved_by);
-      const pB = priority(b.approved_by);
-      if (pA !== pB) return pA - pB;
-
-      const catA = a.category === "half-day" ? 0 : 1;
-      const catB = b.category === "half-day" ? 0 : 1;
-      if (catA !== catB) return catA - catB;
-
-      const sA = normalizeDate(a.start_date);
-      const sB = normalizeDate(b.start_date);
-      if (sA !== sB) return sA.localeCompare(sB);
-
-      // Longest first to fill slots efficiently
-      if (b.number_of_days !== a.number_of_days) {
-        return b.number_of_days - a.number_of_days;
-      }
-
-      return a.employee_name.localeCompare(b.employee_name);
-    });
+    // We respect the order provided by the parent (which handles Sort Order and filters)
+    const sorted = [...entries];
 
     const slotsUsage: { [date: string]: number[] } = {};
 
