@@ -947,7 +947,7 @@ export default function ClearanceChecklistPage() {
 
 
   return (
-    <div className="min-h-screen w-full bg-[#F5F6F8] text-stone-900 font-sans pb-10">
+    <div className="min-h-screen w-full bg-[#F5F6F8] text-stone-900 font-sans flex flex-col pb-0">
       <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-xl mb-6">
         {/* Main Header Row */}
         <div className="w-full px-4 md:px-8 py-6">
@@ -1301,6 +1301,13 @@ export default function ClearanceChecklistPage() {
           </div>
         </Card>
       </main>
+
+      <footer className="w-full bg-white border-t border-slate-200 py-4 px-4 md:px-8 shadow-sm mt-auto z-40 relative flex items-center">
+        <div className="mx-auto w-full max-w-[1600px] flex gap-4 items-center justify-between text-xs font-semibold text-slate-500">
+          <p>© {new Date().getFullYear()} ABIC Realty & Consultancy. All rights reserved.</p>
+          <p className="hidden md:block text-[10px] uppercase tracking-widest text-[#A4163A]/70 font-black">ADMINISTRATION FRAMEWORK - ABIC HR</p>
+        </div>
+      </footer>
 
       <AlertDialog open={saveConfirmOpen} onOpenChange={setSaveConfirmOpen}>
         <AlertDialogContent className="border-4 border-[#FFE5EC] rounded-3xl p-8 bg-white shadow-2xl">

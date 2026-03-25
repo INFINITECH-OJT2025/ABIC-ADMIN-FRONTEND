@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { Card } from '@/components/ui/card'
@@ -223,7 +223,7 @@ const initialTransactionDraft: TransactionDraft = {
   quantity_in: '0',
   quantity_out: '0',
   transaction_date: '',
-  issued_log: '',
+  issued_log: 'RESTOCK',
   requested_by_employee_id: '',
 }
 const INVENTORY_PAGE_SIZE = 10
@@ -467,10 +467,14 @@ export default function InventoryPage() {
     () => employees.find((employee) => employee.id === effectiveRequestedByEmployeeId) ?? null,
     [employees, effectiveRequestedByEmployeeId]
   )
+  const normalizeForDuplicateCheck = (name: string) => {
+    return String(name || '').trim().toLowerCase().split(/\s+/).sort().join(' ')
+  }
+
   const duplicateItemNameMatch = useMemo(() => {
-    const normalizedDraftName = String(itemDraft.item_name || '').trim().toLowerCase()
-    if (!normalizedDraftName) return null
-    return items.find((item) => String(item.item_name || '').trim().toLowerCase() === normalizedDraftName) ?? null
+    const draftNameRaw = normalizeForDuplicateCheck(itemDraft.item_name)
+    if (!draftNameRaw) return null
+    return items.find((item) => normalizeForDuplicateCheck(item.item_name) === draftNameRaw) ?? null
   }, [items, itemDraft.item_name])
   const isDuplicateItemName = duplicateItemNameMatch !== null
   const nextItemCodePreview = useMemo(() => {
@@ -1154,6 +1158,7 @@ export default function InventoryPage() {
       ...prev,
       quantity_in: nextType === 'in' ? prev.quantity_in : '0',
       quantity_out: nextType === 'out' ? prev.quantity_out : '0',
+      issued_log: nextType === 'in' ? 'RESTOCK' : (prev.issued_log === 'RESTOCK' ? '' : prev.issued_log),
       requested_by_employee_id: nextType === 'in' ? (adminSupervisorHrEmployee?.id ?? '') : '',
     }))
   }
@@ -1349,7 +1354,7 @@ export default function InventoryPage() {
     }
 
     const duplicateExists = items.some((item) =>
-      item.id !== itemId && String(item.item_name || '').trim().toLowerCase() === itemName.toLowerCase()
+      item.id !== itemId && normalizeForDuplicateCheck(item.item_name) === normalizeForDuplicateCheck(itemName)
     )
     if (duplicateExists) {
       toast.warning('Duplicate Item', {
@@ -1521,7 +1526,7 @@ export default function InventoryPage() {
         quantity_in: quantityInValue,
         quantity_out: quantityOutValue,
         transaction_at: getCurrentIsoDate(),
-        issued_log: transactionDraft.issued_log.trim() || null,
+        issued_log: movementType === 'in' ? 'RESTOCK' : (transactionDraft.issued_log.trim() || null),
         requested_by_employee_id: requesterId,
       }
 
@@ -1789,7 +1794,7 @@ export default function InventoryPage() {
                 <Input
                   value={itemDraft.item_name}
                   onChange={(e) => setItemDraft((prev) => ({ ...prev, item_name: normalizeUppercaseInventoryText(e.target.value) }))}
-                  placeholder="Bond Paper A4"
+                  placeholder="e.g. BOND PAPER A4, BALLPEN BLACK, STAPLER etc."
                   className={cn('rounded-sm h-10 uppercase', isDuplicateItemName ? 'border-rose-400 focus-visible:ring-rose-500' : '')}
                   disabled={!canEditItemSetup}
                 />
@@ -1802,15 +1807,15 @@ export default function InventoryPage() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-black uppercase tracking-wider text-slate-500">Category</Label>
-                <Input value={itemDraft.category} onChange={(e) => setItemDraft((prev) => ({ ...prev, category: normalizeUppercaseInventoryText(e.target.value) }))} placeholder="Stationery" className="rounded-sm h-10 uppercase" disabled={!canEditItemSetup} />
+                <Input value={itemDraft.category} onChange={(e) => setItemDraft((prev) => ({ ...prev, category: normalizeUppercaseInventoryText(e.target.value) }))} placeholder="e.g. STATIONERY, DESK / FASTENING TOOLS etc." className="rounded-sm h-10 uppercase" disabled={!canEditItemSetup} />
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-wider text-slate-500">Category Quick Picks</Label>
                 {categoryOptions.length === 0 ? (
                   <p className="text-xs text-slate-500">No saved categories yet. Create your first category above.</p>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {categoryOptions.slice(0, 12).map((category) => {
+                  <div className="flex overflow-x-auto gap-2 pb-2 scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
+                    {categoryOptions.map((category) => {
                       const isSelected = normalizedCategoryPreview.toLowerCase() === category.toLowerCase()
                       return (
                         <Button
@@ -1957,7 +1962,12 @@ export default function InventoryPage() {
                     <CommandList>
                       <CommandEmpty>No matching item found.</CommandEmpty>
                       {groupedItemsByCategory.map((group) => (
-                        <CommandGroup key={`item-category-${group.category}`} heading={group.category}>
+                        <CommandGroup key={`item-category-${group.category}`} heading={
+                          <div className="flex items-center justify-between w-full pr-2 pt-1 pb-0.5">
+                            <span className="text-xs font-medium text-slate-500 truncate min-w-0 mr-2">{group.category}</span>
+                            <span className="text-[10px] font-bold tracking-widest text-[#A4163A]/80 uppercase shrink-0">STOCK</span>
+                          </div>
+                        }>
                           {group.rows.map((item) => (
                             <CommandItem
                               key={item.id}
@@ -2162,7 +2172,7 @@ export default function InventoryPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs font-black uppercase tracking-wider text-slate-500">Issued (Log)</Label>
-                  <Textarea value={transactionDraft.issued_log} onChange={(e) => setTransactionDraft((prev) => ({ ...prev, issued_log: e.target.value }))} placeholder="Purpose for stock movement..." rows={3} className="rounded-sm" disabled={!canEditTransactions} />
+                  <Textarea value={transactionDraft.issued_log} onChange={(e) => setTransactionDraft((prev) => ({ ...prev, issued_log: e.target.value }))} placeholder="Purpose for stock movement..." rows={3} className="rounded-sm" disabled={!canEditTransactions || movementType === 'in'} />
                 </div>
               </div>
             </div>
@@ -2828,7 +2838,7 @@ export default function InventoryPage() {
           ) : null}
         </Card>
 
-        <div className="space-y-3">
+        <div className="space-y-3 hidden">
           {noStockItemsCount > 0 ? (
             <Card
               className={cn(
@@ -2874,6 +2884,46 @@ export default function InventoryPage() {
             </Card>
           ) : null}
         </div>
+
+      <footer className="sticky bottom-0 w-full bg-white border-t border-slate-200 py-3 px-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40 flex items-center overflow-hidden">
+        <div className="mx-auto w-full max-w-[1700px] flex items-center gap-4 text-xs font-bold whitespace-nowrap">
+          <span className="shrink-0 text-slate-500 pr-4 border-r border-slate-200">INVENTORY ALERTS</span>
+          {noStockItemsCount > 0 || stats.lowStock > 0 ? (
+            <div className="flex-1 overflow-hidden relative" style={{ maskImage: 'linear-gradient(to right, transparent, black 2%, black 98%, transparent)' }}>
+              <div className="animate-marquee inline-flex gap-8 whitespace-nowrap items-center min-w-full">
+                {noStockItemsCount > 0 && (
+                  <span className="text-rose-700 inline-flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    {noStockItemsCount} items have 0 stock. Please restock immediately.
+                  </span>
+                )}
+                {stats.lowStock > 0 && (
+                  <span className="text-amber-700 inline-flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    {stats.lowStock} items are in low stock (1 to 10). Consider restocking soon.
+                  </span>
+                )}
+                {noStockItemsCount > 0 && (
+                  <span className="text-rose-700 inline-flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    {noStockItemsCount} items have 0 stock. Please restock immediately.
+                  </span>
+                )}
+                {stats.lowStock > 0 && (
+                  <span className="text-amber-700 inline-flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" />
+                    {stats.lowStock} items are in low stock (1 to 10). Consider restocking soon.
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+             <span className="text-emerald-700 inline-flex items-center gap-2">
+               <PackageCheck className="h-4 w-4" /> All tracked inventory items are above low-stock threshold.
+             </span>
+          )}
+        </div>
+      </footer>
 
         <AlertDialog
           open={itemIdsToDelete.length > 0}
@@ -3903,6 +3953,15 @@ export default function InventoryPage() {
               animation: none !important;
               transition: none !important;
             }
+          }
+
+          @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+          }
+
+          .animate-marquee {
+            animation: marquee 25s linear infinite;
           }
         `}</style>
       </main>
