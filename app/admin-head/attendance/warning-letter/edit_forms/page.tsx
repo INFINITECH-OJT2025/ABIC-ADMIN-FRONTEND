@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { getApiUrl } from "@/lib/api";
 import { useUserRole } from "@/lib/hooks/useUserRole";
+import { useConfirmation } from "@/components/providers/confirmation-provider";
 
 type Office = {
   id: string;
@@ -379,6 +380,7 @@ const EditorSkeleton = () => (
 
 export default function EditFormsPage() {
   const { isViewOnly } = useUserRole();
+  const { confirm } = useConfirmation();
   const router = useRouter();
   const viewOnlyDescription =
     "Create, update, and delete actions are disabled in view only mode.";
@@ -567,61 +569,68 @@ export default function EditFormsPage() {
     }
 
     if (!silent) setIsSaving(true);
-    try {
-      const payload = Object.fromEntries(
-        Object.entries(templates)
-          .filter(([slug]) => SERVER_TEMPLATE_KEYS.has(slug))
-          .map(([slug, content]) => {
-            if (slug === "evaluation") {
-              const evaluationTemplate = {
-                ...DEFAULT_EVALUATION_TEMPLATE,
-                ...(content as any),
-              };
-              return [
-                slug,
-                {
-                  title: evaluationTemplate.title,
-                  body: JSON.stringify(evaluationTemplate),
-                },
-              ];
-            }
-            return [slug, content];
-          }),
-      );
-      const res = await fetch(
-        `${getApiUrl()}/api/warning-letter-templates/bulk`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        },
-      );
+    confirm({
+      title: "Sync Template Changes?",
+      description: "Are you sure you want to sync these template changes to the database? This will update the official letter formats.",
+      confirmText: "Sync Now",
+      onConfirm: async () => {
+        try {
+          const payload = Object.fromEntries(
+            Object.entries(templates)
+              .filter(([slug]) => SERVER_TEMPLATE_KEYS.has(slug))
+              .map(([slug, content]) => {
+                if (slug === "evaluation") {
+                  const evaluationTemplate = {
+                    ...DEFAULT_EVALUATION_TEMPLATE,
+                    ...(content as any),
+                  };
+                  return [
+                    slug,
+                    {
+                      title: evaluationTemplate.title,
+                      body: JSON.stringify(evaluationTemplate),
+                    },
+                  ];
+                }
+                return [slug, content];
+              }),
+          );
+          const res = await fetch(
+            `${getApiUrl()}/api/warning-letter-templates/bulk`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            },
+          );
 
-      if (res.ok) {
-        localStorage.setItem(
-          "warning_letter_templates",
-          JSON.stringify(templates),
-        );
-        setHasLocalOnlyChanges(false);
-        if (!silent)
-          toast.success("Form templates synced to database successfully!");
-      } else {
-        localStorage.setItem(
-          "warning_letter_templates",
-          JSON.stringify(templates),
-        );
-        if (!silent) toast.warning("Saved locally, but server sync failed.");
-      }
-    } catch (e) {
-      console.error("Save failed:", e);
-      localStorage.setItem(
-        "warning_letter_templates",
-        JSON.stringify(templates),
-      );
-      if (!silent) toast.error("Templates saved locally (Network error).");
-    } finally {
-      if (!silent) setIsSaving(false);
-    }
+          if (res.ok) {
+            localStorage.setItem(
+              "warning_letter_templates",
+              JSON.stringify(templates),
+            );
+            setHasLocalOnlyChanges(false);
+            if (!silent)
+              toast.success("Form templates synced to database successfully!");
+          } else {
+            localStorage.setItem(
+              "warning_letter_templates",
+              JSON.stringify(templates),
+            );
+            if (!silent) toast.warning("Saved locally, but server sync failed.");
+          }
+        } catch (e) {
+          console.error("Save failed:", e);
+          localStorage.setItem(
+            "warning_letter_templates",
+            JSON.stringify(templates),
+          );
+          if (!silent) toast.error("Templates saved locally (Network error).");
+        } finally {
+          if (!silent) setIsSaving(false);
+        }
+      },
+    });
   };
 
   const resetTemplate = (type: string) => {
@@ -630,40 +639,60 @@ export default function EditFormsPage() {
       return;
     }
 
-    const defaults: any = {
-      "tardiness-regular": DEFAULT_TARDINESS_REGULAR_TEMPLATE,
-      "tardiness-probee": DEFAULT_TARDINESS_PROBEE_TEMPLATE,
-      leave: DEFAULT_LEAVE_TEMPLATE,
-      "supervisor-tardiness": DEFAULT_SUPERVISOR_TARDINESS_TEMPLATE,
-      "supervisor-leave": DEFAULT_SUPERVISOR_LEAVE_TEMPLATE,
-      evaluation: DEFAULT_EVALUATION_TEMPLATE,
+    const mappedTypes: Record<string, string> = {
+      "tardiness-regular": "Regular Tardiness",
+      "tardiness-probee": "Probationary Tardiness",
+      leave: "Leave Absences",
+      "supervisor-tardiness": "Supervisor (Tardiness)",
+      "supervisor-leave": "Supervisor (Leave)",
+      evaluation: "Performance Evaluation",
     };
 
-    const newTemplate = defaults[type];
-    const shouldSyncHeader =
-      newTemplate &&
-      (Object.prototype.hasOwnProperty.call(newTemplate, "headerLogoImage") ||
-        Object.prototype.hasOwnProperty.call(newTemplate, "headerDetails"));
-    setHasLocalOnlyChanges(true);
+    confirm({
+      title: "Reset Template?",
+      description: `Are you sure you want to reset the '${mappedTypes[type] || type}' template to its default content? This will overwrite any current changes in this tab.`,
+      variant: "warning",
+      confirmText: "Reset to Default",
+      onConfirm: () => {
+        const defaults: any = {
+          "tardiness-regular": DEFAULT_TARDINESS_REGULAR_TEMPLATE,
+          "tardiness-probee": DEFAULT_TARDINESS_PROBEE_TEMPLATE,
+          leave: DEFAULT_LEAVE_TEMPLATE,
+          "supervisor-tardiness": DEFAULT_SUPERVISOR_TARDINESS_TEMPLATE,
+          "supervisor-leave": DEFAULT_SUPERVISOR_LEAVE_TEMPLATE,
+          evaluation: DEFAULT_EVALUATION_TEMPLATE,
+        };
 
-    setTemplates((prev) => {
-      const updated = { ...prev };
-      Object.keys(updated).forEach((slug) => {
-        if (slug === type) {
-          (updated as any)[slug] = newTemplate;
-        } else if (shouldSyncHeader) {
-          // Update header fields of other templates to match the reset template's defaults
-          (updated as any)[slug] = {
-            ...(updated as any)[slug],
-            headerLogoImage: newTemplate.headerLogoImage,
-            headerDetails: newTemplate.headerDetails,
-          };
-        }
-      });
-      return updated;
+        const newTemplate = defaults[type];
+        const shouldSyncHeader =
+          newTemplate &&
+          (Object.prototype.hasOwnProperty.call(
+            newTemplate,
+            "headerLogoImage",
+          ) ||
+            Object.prototype.hasOwnProperty.call(newTemplate, "headerDetails"));
+        setHasLocalOnlyChanges(true);
+
+        setTemplates((prev) => {
+          const updated = { ...prev };
+          Object.keys(updated).forEach((slug) => {
+            if (slug === type) {
+              (updated as any)[slug] = newTemplate;
+            } else if (shouldSyncHeader) {
+              // Update header fields of other templates to match the reset template's defaults
+              (updated as any)[slug] = {
+                ...(updated as any)[slug],
+                headerLogoImage: newTemplate.headerLogoImage,
+                headerDetails: newTemplate.headerDetails,
+              };
+            }
+          });
+          return updated;
+        });
+
+        toast.info("Template and global header reset to default values.");
+      },
     });
-
-    toast.info("Template and global header reset to default values.");
   };
 
   const updateTemplate = (key: string, value: any) => {

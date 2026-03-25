@@ -2,9 +2,11 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, RefObject } from "react";
 import { useUserRole } from "@/lib/hooks/useUserRole";
+import { useConfirmation } from "@/components/providers/confirmation-provider";
 import {
+  Bell,
   ChevronDown,
   Clock,
   Plus,
@@ -18,6 +20,7 @@ import {
   AlertTriangle,
   Loader2,
   RotateCcw,
+  AlertCircle,
   X,
   Calendar,
   Eye,
@@ -75,7 +78,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import { cn } from "@/lib/utils";
 import { getApiUrl } from "@/lib/api";
-import { useConfirmation } from "@/components/providers/confirmation-provider";
 
 // --- Skeleton Components ---
 const TardinessSkeleton = () => (
@@ -789,7 +791,6 @@ function exportToExcel(
   ]);
 
   // Signatory
-  AOA.push(["", "", "", ""]);
   AOA.push(["", "", "Reviewed by:", ""]);
   AOA.push(["", "", "", ""]);
   AOA.push(["", "", "________________________________", ""]);
@@ -1406,6 +1407,18 @@ function SummarySheet({
 }
 
 // ---------- CUSTOM TIME PICKER ----------
+// --- Time Constants ---
+const HOURS = Array.from({ length: 12 }, (_, i) =>
+  (i + 1).toString().padStart(2, "0"),
+);
+const MINUTES = Array.from({ length: 60 }, (_, i) =>
+  i.toString().padStart(2, "0"),
+);
+
+const INFINITE_HOURS = [...HOURS, ...HOURS, ...HOURS];
+const INFINITE_MINUTES = [...MINUTES, ...MINUTES, ...MINUTES];
+
+// ---------- CUSTOM TIME PICKER ----------
 const CustomTimePicker = ({
   value,
   onChange,
@@ -1427,6 +1440,10 @@ const CustomTimePicker = ({
   const [hour, setHour] = useState("12");
   const [minute, setMinute] = useState("00");
   const [ampm, setAmpm] = useState("AM");
+  const [isOpen, setIsOpen] = useState(false);
+
+  const hourScrollRef = useRef<HTMLDivElement>(null);
+  const minuteScrollRef = useRef<HTMLDivElement>(null);
 
   // Sync internal state with external value changes
   useEffect(() => {
@@ -1447,6 +1464,48 @@ const CustomTimePicker = ({
     }
   }, [value]);
 
+  const scrollToValue = (
+    container: HTMLDivElement | null,
+    val: string,
+    items: string[],
+    offset: number,
+  ) => {
+    if (!container) return;
+    const index = items.indexOf(val) + offset;
+    const target = container.children[index] as HTMLElement;
+    if (target) {
+      container.scrollTop =
+        target.offsetTop - container.clientHeight / 2 + target.clientHeight / 2;
+    }
+  };
+
+  // Center selected values when popover opens
+  useEffect(() => {
+    if (isOpen) {
+      // Small delay to ensure the content is rendered
+      const timer = setTimeout(() => {
+        scrollToValue(hourScrollRef.current, hour, HOURS, 12); // Middle set for hours
+        scrollToValue(minuteScrollRef.current, minute, MINUTES, 60); // Middle set for minutes
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, hour, minute]);
+
+  const handleInfiniteScroll = (
+    e: React.UIEvent<HTMLDivElement>,
+    totalItems: number,
+  ) => {
+    const container = e.currentTarget;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const singleSetHeight = scrollHeight / 3;
+
+    if (scrollTop < 10) {
+      container.scrollTop = scrollTop + singleSetHeight;
+    } else if (scrollTop + clientHeight > scrollHeight - 10) {
+      container.scrollTop = scrollTop - singleSetHeight;
+    }
+  };
+
   const handleUpdate = (h: string, m: string, ap: string) => {
     setHour(h);
     setMinute(m);
@@ -1460,7 +1519,7 @@ const CustomTimePicker = ({
   };
 
   return (
-    <Popover>
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <button
           disabled={disabled}
@@ -1475,77 +1534,85 @@ const CustomTimePicker = ({
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-auto p-3 bg-white border border-slate-200 shadow-xl rounded-xl"
+        className="w-auto p-4 bg-white border border-slate-200 shadow-2xl rounded-2xl"
         align="start"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-start gap-4 h-56">
           {/* Hour Scroller */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase text-center">
+          <div className="flex flex-col gap-2 h-full">
+            <span className="text-[10px] font-black text-slate-400 uppercase text-center tracking-widest">
               Hour
             </span>
-            <div
-              className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1"
-              style={{ scrollbarWidth: "none" }}
-            >
-              {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => {
-                const sHour = h.toString().padStart(2, "0");
-                return (
+            <div className="relative grow overflow-hidden rounded-lg">
+              {/* Vignette Overlay */}
+              <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-white to-transparent z-10 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-white to-transparent z-10 pointer-events-none" />
+
+              <div
+                ref={hourScrollRef}
+                onScroll={(e) => handleInfiniteScroll(e, 36)}
+                className="h-full overflow-y-auto w-16 no-scrollbar flex flex-col gap-1 px-1 py-12 scroll-smooth"
+              >
+                {INFINITE_HOURS.map((h, idx) => (
                   <button
-                    key={h}
-                    onClick={() => handleUpdate(sHour, minute, ampm)}
+                    key={`${h}-${idx}`}
+                    onClick={() => handleUpdate(h, minute, ampm)}
                     className={cn(
-                      "px-2 py-1.5 rounded text-xs font-bold transition-all",
-                      hour === sHour
-                        ? "bg-slate-200 text-black"
-                        : "hover:bg-slate-100 text-slate-700",
+                      "px-2 py-1.5 rounded-md text-xs font-bold transition-all shrink-0",
+                      hour === h
+                        ? "bg-rose-50 text-[#A4163A] shadow-sm"
+                        : "hover:bg-slate-50 text-slate-500",
                     )}
                   >
-                    {sHour}
+                    {h}
                   </button>
-                );
-              })}
+                ))}
+              </div>
             </div>
           </div>
 
           {/* Minute Scroller */}
-          <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold text-slate-500 uppercase text-center">
+          <div className="flex flex-col gap-2 h-full">
+            <span className="text-[10px] font-black text-slate-400 uppercase text-center tracking-widest">
               Min
             </span>
-            <div
-              className="h-48 overflow-y-auto w-16 scrollbar-hide flex flex-col gap-1 pr-1"
-              style={{ scrollbarWidth: "none" }}
-            >
-              {Array.from({ length: 60 }, (_, i) => i).map((m) => {
-                const sMin = m.toString().padStart(2, "0");
-                return (
+            <div className="relative grow overflow-hidden rounded-lg">
+              {/* Vignette Overlay */}
+              <div className="absolute top-0 left-0 w-full h-8 bg-gradient-to-b from-white to-transparent z-10 pointer-events-none" />
+              <div className="absolute bottom-0 left-0 w-full h-8 bg-gradient-to-t from-white to-transparent z-10 pointer-events-none" />
+
+              <div
+                ref={minuteScrollRef}
+                onScroll={(e) => handleInfiniteScroll(e, 180)}
+                className="h-full overflow-y-auto w-16 no-scrollbar flex flex-col gap-1 px-1 py-12 scroll-smooth"
+              >
+                {INFINITE_MINUTES.map((m, idx) => (
                   <button
-                    key={m}
-                    onClick={() => handleUpdate(hour, sMin, ampm)}
+                    key={`${m}-${idx}`}
+                    onClick={() => handleUpdate(hour, m, ampm)}
                     className={cn(
-                      "px-2 py-1.5 rounded text-xs font-bold transition-all",
-                      minute === sMin
-                        ? "bg-slate-200 text-black"
-                        : "hover:bg-slate-100 text-slate-700",
+                      "px-2 py-1.5 rounded-md text-xs font-bold transition-all shrink-0",
+                      minute === m
+                        ? "bg-rose-50 text-[#A4163A] shadow-sm"
+                        : "hover:bg-slate-50 text-slate-500",
                     )}
                   >
-                    {sMin}
+                    {m}
                   </button>
-                );
-              })}
+                ))}
+              </div>
             </div>
           </div>
 
           {/* AM/PM Toggles */}
-          <div className="flex flex-col gap-1 justify-start pt-[20px] h-full">
+          <div className="flex flex-col gap-2 justify-center h-full pt-6">
             <button
               onClick={() => handleUpdate(hour, minute, "AM")}
               className={cn(
-                "w-14 py-2 rounded text-xs font-bold transition-all",
+                "w-14 py-3 rounded-xl text-xs font-black transition-all border-2",
                 ampm === "AM"
-                  ? "bg-slate-200 text-black"
-                  : "hover:bg-slate-100 text-slate-700",
+                  ? "bg-rose-50 border-rose-200 text-[#A4163A] shadow-sm"
+                  : "bg-white border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50",
               )}
             >
               AM
@@ -1553,10 +1620,10 @@ const CustomTimePicker = ({
             <button
               onClick={() => handleUpdate(hour, minute, "PM")}
               className={cn(
-                "w-14 py-2 rounded text-xs font-bold transition-all",
+                "w-14 py-3 rounded-xl text-xs font-black transition-all border-2",
                 ampm === "PM"
-                  ? "bg-slate-200 text-black"
-                  : "hover:bg-slate-100 text-slate-700",
+                  ? "bg-rose-50 border-rose-200 text-[#A4163A] shadow-sm"
+                  : "bg-white border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50",
               )}
             >
               PM
@@ -1572,7 +1639,7 @@ const CustomTimePicker = ({
 export default function AttendanceDashboard() {
   const { confirm } = useConfirmation();
   const { isViewOnly } = useUserRole();
-  
+
   // State for year & month selection
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(
@@ -1586,6 +1653,72 @@ export default function AttendanceDashboard() {
   const [leaves, setLeaves] = useState<LeaveEntry[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Daily Reminder state
+  const [showDailyReminder, setShowDailyReminder] = useState(false);
+
+  useEffect(() => {
+    const checkReminder = () => {
+      const now = new Date();
+      // Show reminder only after 1:00 PM (13:00)
+      if (now.getHours() < 13) {
+        setShowDailyReminder(false);
+        return;
+      }
+
+      const todayStr = formatDate(now);
+      const checkedDate = localStorage.getItem(
+        "tardiness_reminder_checked_date",
+      );
+
+      // Only hide if checked today, regardless of records
+      if (checkedDate === todayStr) {
+        setShowDailyReminder(false);
+        return;
+      }
+
+      setShowDailyReminder(true);
+    };
+
+    checkReminder();
+    const intervalId = setInterval(checkReminder, 60000); // Re-check every minute
+    return () => clearInterval(intervalId);
+  }, [allEntries]);
+
+  const handleAcknowledgeReminder = () => {
+    confirm({
+      title: "Finish Daily Checklist?",
+      description:
+        "Are you sure you want to acknowledge the tardiness report as complete for today? This will hide the reminder banner.",
+      confirmText: "Yes, Done",
+      variant: "success",
+      onConfirm: () => {
+        const todayStr = formatDate(new Date());
+        localStorage.setItem("tardiness_reminder_checked_date", todayStr);
+        setShowDailyReminder(false);
+        // Sync notification badge in sidebar
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("tardiness-reminder-sync"));
+        }
+        toast.success("Reminder acknowledged for today", {
+          action: {
+            label: "Undo",
+            onClick: handleUndoAcknowledge,
+          },
+        });
+      },
+    });
+  };
+
+  const handleUndoAcknowledge = () => {
+    localStorage.removeItem("tardiness_reminder_checked_date");
+    setShowDailyReminder(true);
+    // Refresh sidebar badge
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("tardiness-reminder-sync"));
+    }
+    toast.info("Acknowledgement undone");
+  };
 
   // Fetch years list
   useEffect(() => {
@@ -2373,8 +2506,56 @@ export default function AttendanceDashboard() {
                     </>
                   )}
                 </Button>
+
+                {/* TEMPORARY TEST BUTTON */}
               </div>
             </div>
+
+            {/* Visual Reminder Row */}
+            {showDailyReminder && (
+              <div className="mt-4 flex justify-end animate-in fade-in slide-in-from-right-8 duration-700 delay-300">
+                <div className="bg-gradient-to-r from-[#A4163A]/20 to-amber-500/10 backdrop-blur-xl border border-white/20 rounded-2xl px-6 py-3 flex items-center gap-6 shadow-2xl shadow-rose-900/10 ring-1 ring-white/5">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 flex items-center justify-center bg-rose-500/20 rounded-xl shadow-inner group/icon border border-rose-500/10">
+                      <Bell className="w-5 h-5 text-rose-200 animate-[pulse_2s_infinite]" />
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-[11px] font-black uppercase tracking-widest text-white leading-tight">
+                          Daily Attendance Checklist
+                        </span>
+                        <div className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse shadow-[0_0_8px_rgba(251,113,133,0.6)]"></div>
+                      </div>
+                      <span className="text-[12px] font-bold text-white/50 mt-0.5 leading-none">
+                        Kindly acknowledge if you are done with today&apos;s records.
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="h-8 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+                  
+                  <label className="flex items-center gap-3.5 cursor-pointer group active:scale-95 transition-transform duration-150">
+                    <div className="relative flex items-center justify-center">
+                      <input
+                        type="checkbox"
+                        checked={false} // State managed via onChange hook invocation
+                        onChange={handleAcknowledgeReminder}
+                        className="peer h-6 w-6 appearance-none rounded-lg border-2 border-white/20 bg-white/5 group-hover:border-white/50 checked:bg-white checked:border-white transition-all duration-300 cursor-pointer shadow-sm group-hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                      />
+                      <Check className="absolute w-4 h-4 text-[#A4163A] stroke-[4px] opacity-0 peer-checked:opacity-100 transition-all duration-300 scale-50 peer-checked:scale-100" />
+                    </div>
+                    <div className="flex flex-col select-none">
+                      <span className="text-[12px] font-black uppercase text-white/90 tracking-tighter group-hover:text-white transition-colors leading-none">
+                        Done for today
+                      </span>
+                      <span className="text-[9px] font-bold text-rose-200/40 uppercase tracking-widest mt-1 group-hover:text-rose-200/70 transition-colors">
+                        Click to Hide
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Secondary Toolbar */}

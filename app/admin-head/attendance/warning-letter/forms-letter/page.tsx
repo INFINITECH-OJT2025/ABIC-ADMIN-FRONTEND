@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { useConfirmation } from "@/components/providers/confirmation-provider";
 
 // --- Skeleton Component ---
 const LetterSkeleton = () => (
@@ -321,6 +322,7 @@ function FormLetterContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isViewOnly } = useUserRole();
+  const { confirm } = useConfirmation();
   
   const employeeId = searchParams.get("employeeId");
   const type = searchParams.get("type"); // 'late' or 'leave'
@@ -903,160 +905,144 @@ function FormLetterContent() {
     );
     if (nonGmail.length > 0) {
       toast.error(
-        "Invalid Email: Only @gmail.com addresses are permitted for delivery.",
+        "Invalid email address. All recipients must use a Gmail address (@gmail.com).",
       );
       return;
     }
 
-    setIsSending(true);
-    const sendingToast = toast.loading("Generating PDF…");
+    confirm({
+      title: "Confirm Dissemination",
+      description: `You are about to send an official ${type === "late" ? "tardiness" : "leave"} warning letter to ${emailList.join(", ")}. Do you wish to proceed?`,
+      confirmText: "Send Notification",
+      onConfirm: async () => {
+        setIsSending(true);
+        const sendingToast = toast.loading("Preparing document package...");
+        try {
+          // ── Dynamically import heavy PDF libs (tree-shaken at build time) ────
+          const [{ default: html2canvas }, { default: jsPDF }] =
+            await Promise.all([import("html2canvas"), import("jspdf")]);
 
-    try {
-      // ── Dynamically import heavy PDF libs (tree-shaken at build time) ────
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf"),
-      ]);
+          // ── Collect ordered form element IDs that are currently rendered ─────
+          const formIds: { id: string; key: string }[] = [];
+          if (selectedForms.includes("form1"))
+            formIds.push({ id: "form-letter-1", key: "form1" });
+          if (selectedForms.includes("form2"))
+            formIds.push({ id: "form-letter-2", key: "form2" });
 
-      // ── Collect ordered form element IDs that are currently rendered ─────
-      const formIds: { id: string; key: string }[] = [];
-      if (selectedForms.includes("form1"))
-        formIds.push({ id: "form-letter-1", key: "form1" });
-      if (selectedForms.includes("form2"))
-        formIds.push({ id: "form-letter-2", key: "form2" });
+          if (formIds.length === 0) {
+            toast.dismiss(sendingToast);
+            toast.error("No form selected. Please select at least one form.");
+            setIsSending(false);
+            return;
+          }
 
-      if (formIds.length === 0) {
-        toast.dismiss(sendingToast);
-        toast.error("No form selected. Please select at least one form.");
-        setIsSending(false);
-        return;
-      }
+          // A4 size in points: 595 × 842 pt (210mm × 297mm at 72dpi)
+          const pdf = new jsPDF({
+            unit: "pt",
+            format: "a4",
+            orientation: "portrait",
+          });
+          const pageW = pdf.internal.pageSize.getWidth();
+          const pageH = pdf.internal.pageSize.getHeight();
 
-      // A4 size in points: 595 × 842 pt (210mm × 297mm at 72dpi)
-      const pdf = new jsPDF({
-        unit: "pt",
-        format: "a4",
-        orientation: "portrait",
-      });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
+          for (let i = 0; i < formIds.length; i++) {
+            const { id } = formIds[i];
+            const el = document.getElementById(id);
+            if (!el) continue;
 
-      for (let i = 0; i < formIds.length; i++) {
-        const { id } = formIds[i];
-        const el = document.getElementById(id);
-        if (!el) continue;
+            const canvas = await html2canvas(el as HTMLElement, {
+              scale: 2,
+              useCORS: true,
+              allowTaint: false,
+              backgroundColor: "#ffffff",
+              logging: false,
+              onclone: (clonedDoc) => {
+                fixModernColors(clonedDoc);
+              },
+            });
 
-        // Render the DOM element to a canvas at 2× for crisp output
-        const canvas = await html2canvas(el as HTMLElement, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: "#ffffff",
-          logging: false,
-          onclone: (clonedDoc) => {
-            fixModernColors(clonedDoc);
-          },
-        });
+            const imgData = canvas.toDataURL("image/jpeg", 0.95);
+            const imgW = canvas.width;
+            const imgH = canvas.height;
+            const ratio = pageW / imgW;
+            const finalW = pageW;
+            const scaledH = imgH * ratio;
+            const totalSlices = Math.max(1, Math.ceil((scaledH - 20) / pageH));
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        const imgW = canvas.width;
-        const imgH = canvas.height;
+            for (let p = 0; p < totalSlices; p++) {
+              if (i > 0 || p > 0) pdf.addPage();
+              pdf.addImage(imgData, "JPEG", 0, -(p * pageH), finalW, scaledH);
+            }
+          }
 
-        // Scale to fill the full page width (no right-side gap).
-        // If the scaled content height exceeds one A4 page, slice the same
-        // image across multiple pages by shifting the y-origin on each page.
-        const ratio = pageW / imgW;
-        const finalW = pageW;
-        const scaledH = imgH * ratio; // total rendered height in pt
-        // Add a 20pt buffer (approx 26px) to ignore tiny overflows that create blank pages
-        const totalSlices = Math.max(1, Math.ceil((scaledH - 20) / pageH));
+          const pdfBase64 = pdf.output("datauristring").split(",")[1];
+          toast.dismiss(sendingToast);
+          const mailingToast = toast.loading("Dispatching email...");
 
-        for (let p = 0; p < totalSlices; p++) {
-          // First slice of form 0 — no new page (PDF starts with page 1 already)
-          if (i > 0 || p > 0) pdf.addPage();
-          // Draw the full image but shifted up by (p * pageH) so this page's
-          // window shows the correct slice of content.
-          pdf.addImage(imgData, "JPEG", 0, -(p * pageH), finalW, scaledH);
+          const res = await fetch(
+            `${getApiUrl()}/api/warning-letter/send-email`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                recipients: emailList,
+                employee_name: employee?.name ?? "",
+                letter_type: type,
+                pdf_base64: pdfBase64,
+              }),
+            },
+          );
+          const data = await res.json();
+          toast.dismiss(mailingToast);
+
+          if (!res.ok || !data.success) {
+            const rawMsg = data.message || "Failed to send email.";
+            const userFriendlyMsg = getFriendlyErrorMessage(rawMsg);
+            toast.error(`Email Error: ${userFriendlyMsg}`, {
+              duration: 10000,
+            });
+            setIsSending(false);
+            return;
+          }
+
+          toast.success(`Notification successfully sent to: ${emailList.join(", ")}`);
+
+          // Log history
+          try {
+            const warningLevel = entries[0]?.warning_level ?? 1;
+            await fetch(`${getApiUrl()}/api/sent-warning-letters`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                employee_id: employeeId,
+                employee_name: employee?.name ?? "",
+                type: type,
+                warning_level: warningLevel,
+                month: month,
+                year: Number(year),
+                cutoff: cutoff,
+                recipients: recipients.map((r: any) => ({
+                  email: r.email,
+                  type: r.type,
+                })),
+                forms_included: selectedForms,
+                form1_body: selectedForms.includes("form1") ? f1Body : null,
+                form2_body: selectedForms.includes("form2") ? f2Body : null,
+              }),
+            });
+          } catch (e) {
+            console.error("Failed to save history:", e);
+          }
+        } catch (err: any) {
+          toast.dismiss();
+          const userFriendly =
+            err?.message || "An unexpected error occurred during dispatch.";
+          toast.error(`Dispatch Error: ${userFriendly}`, { duration: 8000 });
+        } finally {
+          setIsSending(false);
         }
-      }
-
-      // ── Convert to base64 (strip the data-uri prefix) ────────────────────
-      const pdfBase64 = pdf.output("datauristring").split(",")[1];
-
-      toast.dismiss(sendingToast);
-      const sendToast = toast.loading("Sending email…");
-
-      // ── POST to backend ────────────────────────────────────────────────────
-      const res = await fetch(`${getApiUrl()}/api/warning-letter/send-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipients: emailList,
-          employee_name: employee?.name ?? "",
-          letter_type: type,
-          pdf_base64: pdfBase64,
-        }),
-      });
-      const data = await res.json();
-      toast.dismiss(sendToast);
-
-      if (!res.ok || !data.success) {
-        const rawMsg = data.message || "Failed to send email.";
-        const userFriendlyMsg = getFriendlyErrorMessage(rawMsg);
-        toast.error(`Email Error: ${userFriendlyMsg}`, {
-          duration: 10000, // Show longer so user can read
-        });
-        setIsSending(false);
-        return;
-      }
-
-      toast.success(`Letter sent to: ${emailList.join(", ")}`);
-
-      // ── Persist history record ────────────────────────────────────────────
-      try {
-        const warningLevel = entries[0]?.warning_level ?? 1;
-        await fetch(`${getApiUrl()}/api/sent-warning-letters`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            employee_id: employeeId,
-            employee_name: employee?.name ?? "",
-            type: type,
-            warning_level: warningLevel,
-            month: month,
-            year: Number(year),
-            cutoff: cutoff,
-            recipients: recipients.map((r) => ({
-              email: r.email,
-              type: r.type,
-            })),
-            forms_included: selectedForms,
-            form1_body: selectedForms.includes("form1") ? f1Body : null,
-            form2_body: selectedForms.includes("form2") ? f2Body : null,
-          }),
-        });
-      } catch (e) {
-        console.error("Failed to save warning letter history:", e);
-      }
-    } catch (err: any) {
-      toast.dismiss();
-      const rawMsg = err?.message || "Something went wrong.";
-      const lower = rawMsg.toLowerCase();
-      let userFriendly = rawMsg;
-
-      if (
-        lower.includes("failed to fetch") ||
-        lower.includes("network error") ||
-        lower.includes("internet")
-      ) {
-        userFriendly =
-          "Network connectivity issues. Please check your internet and try again.";
-      }
-
-      toast.error(`Error: ${userFriendly}`, { duration: 8000 });
-    } finally {
-      setIsSending(false);
-    }
+      },
+    });
   };
 
   const handleAddRecipient = () => {
