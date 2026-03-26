@@ -193,7 +193,7 @@ const ALLOWED_UPLOAD_FORMATS = [
   "heic",
   "heif",
 ] as const;
-const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const CLOUDINARY_PAGE_SIZE = 9;
 const GENERAL_CONTACTS_PAGE_SIZE = 12;
 const OFFICIAL_PORTALS: PortalLink[] = [
@@ -323,6 +323,21 @@ const parseBackendDateMs = (value: string | null | undefined): number => {
   }
 
   return new Date(year, month, day, hour, minute, second, milli).getTime();
+};
+
+const EditableIndicator = ({ isEditing, dark = false }: { isEditing: boolean, dark?: boolean }) => {
+  if (isEditing) {
+    return (
+      <Badge variant="outline" className={cn("ml-2 shadow-md animate-pulse text-xs md:text-sm py-1 px-3 border-2 font-black tracking-wide", dark ? "bg-amber-500/30 text-amber-100 border-amber-400 backdrop-blur-sm" : "bg-amber-100 text-amber-700 border-amber-400")}>
+        <Edit3 className="w-4 h-4 mr-1.5" /> Currently Editing
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className={cn("ml-2 transition-all duration-300 text-xs md:text-sm py-1 px-3 font-bold tracking-wide shadow-md border-2", dark ? "bg-black/50 text-white border-white/40 hover:bg-black/70 backdrop-blur-md" : "bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200")}>
+      <Edit3 className="w-4 h-4 mr-1.5" /> Editable in Update Mode
+    </Badge>
+  );
 };
 
 export default function GovernmentDirectoryPage() {
@@ -1251,7 +1266,7 @@ export default function GovernmentDirectoryPage() {
       );
     }
     if (bytes > MAX_IMAGE_BYTES) {
-      throw new Error("File exceeds the 20MB upload limit.");
+      throw new Error("File exceeds the 5MB upload limit.");
     }
   };
 
@@ -1710,8 +1725,9 @@ export default function GovernmentDirectoryPage() {
                   <p className="text-xs font-black tracking-[0.22em] text-[#A4163A] uppercase">
                     Directory Group
                   </p>
-                  <h2 className="text-3xl font-black text-slate-900 tracking-tight mt-1">
+                  <h2 className="text-3xl font-black text-slate-900 tracking-tight mt-1 flex items-center">
                     General Contacts
+                    <EditableIndicator isEditing={editingGeneralContacts} />
                   </h2>
                   <p className="text-sm text-slate-600 mt-1">
                     Shared contact information not tied to a specific agency.
@@ -1953,88 +1969,100 @@ export default function GovernmentDirectoryPage() {
                                 </DropdownMenu>
                               </div>
                               <div className="flex gap-2">
-                                <Input
-                                  value={row.establishment_name}
-                                  onChange={(e) =>
-                                    updateGeneralContactField(
-                                      index,
-                                      "establishment_name",
-                                      e.target.value,
-                                    )
-                                  }
-                                  disabled={isViewOnly}
-                                  minLength={
-                                    VALIDATION_CONSTRAINTS.directory
-                                      .generalEstablishment.min
-                                  }
-                                  maxLength={
-                                    VALIDATION_CONSTRAINTS.directory
-                                      .generalEstablishment.max
-                                  }
-                                  title={`Establishment name must be ${VALIDATION_CONSTRAINTS.directory.generalEstablishment.min} to ${VALIDATION_CONSTRAINTS.directory.generalEstablishment.max} characters.`}
-                                  placeholder="Establishment Name (Required)"
-                                  className="h-9 rounded-sm"
-                                />
-                                <Input
-                                  value={row.services}
-                                  onChange={(e) =>
-                                    updateGeneralContactField(
-                                      index,
-                                      "services",
-                                      e.target.value,
-                                    )
-                                  }
-                                  disabled={isViewOnly}
-                                  maxLength={
-                                    VALIDATION_CONSTRAINTS.directory
-                                      .generalServices.max
-                                  }
-                                  title={`Services can be up to ${VALIDATION_CONSTRAINTS.directory.generalServices.max} characters.`}
-                                  placeholder="Services (Optional)"
-                                  className="h-9 rounded-sm"
-                                />
+                                <div className="flex-1 space-y-1">
+                                  <label className="text-[10px] uppercase font-bold text-slate-500">Establishment Name <span className="text-rose-500">*</span></label>
+                                  <Input
+                                    value={row.establishment_name}
+                                    onChange={(e) =>
+                                      updateGeneralContactField(
+                                        index,
+                                        "establishment_name",
+                                        e.target.value,
+                                      )
+                                    }
+                                    disabled={isViewOnly}
+                                    minLength={
+                                      VALIDATION_CONSTRAINTS.directory
+                                        .generalEstablishment.min
+                                    }
+                                    maxLength={
+                                      VALIDATION_CONSTRAINTS.directory
+                                        .generalEstablishment.max
+                                    }
+                                    title={`Establishment name must be ${VALIDATION_CONSTRAINTS.directory.generalEstablishment.min} to ${VALIDATION_CONSTRAINTS.directory.generalEstablishment.max} characters.`}
+                                    placeholder="Establishment Name (Required)"
+                                    className="h-9 rounded-sm"
+                                  />
+                                </div>
+                                <div className="flex-1 space-y-1">
+                                  <label className="text-[10px] uppercase font-bold text-slate-500">Services</label>
+                                  <Input
+                                    value={row.services}
+                                    onChange={(e) =>
+                                      updateGeneralContactField(
+                                        index,
+                                        "services",
+                                        e.target.value,
+                                      )
+                                    }
+                                    disabled={isViewOnly}
+                                    maxLength={
+                                      VALIDATION_CONSTRAINTS.directory
+                                        .generalServices.max
+                                    }
+                                    title={`Services can be up to ${VALIDATION_CONSTRAINTS.directory.generalServices.max} characters.`}
+                                    placeholder="Services (Optional)"
+                                    className="h-9 rounded-sm"
+                                  />
+                                </div>
                               </div>
-                              <div className="flex gap-2">
-                                <Input
-                                  value={row.contact_person}
-                                  onChange={(e) =>
-                                    updateGeneralContactField(
-                                      index,
-                                      "contact_person",
-                                      e.target.value,
-                                    )
-                                  }
-                                  disabled={isViewOnly}
-                                  maxLength={
-                                    VALIDATION_CONSTRAINTS.directory
-                                      .generalContactPerson.max
-                                  }
-                                  title={`Contact person can be up to ${VALIDATION_CONSTRAINTS.directory.generalContactPerson.max} characters.`}
-                                  placeholder="Contact Person (Optional)"
-                                  className="h-9 rounded-sm"
-                                />
-                                <Input
-                                  value={row.value}
-                                  onChange={(e) =>
-                                    updateGeneralContactField(
-                                      index,
-                                      "value",
-                                      e.target.value,
-                                    )
-                                  }
-                                  disabled={isViewOnly}
-                                  minLength={
-                                    VALIDATION_CONSTRAINTS.directory
-                                      .generalValue.min
-                                  }
-                                  maxLength={
-                                    VALIDATION_CONSTRAINTS.directory
-                                      .generalValue.max
-                                  }
-                                  title={`Contact value must be ${VALIDATION_CONSTRAINTS.directory.generalValue.min} to ${VALIDATION_CONSTRAINTS.directory.generalValue.max} characters.`}
-                                  placeholder="Contact Number / Value (Required)"
-                                  className="h-9 rounded-sm"
-                                />
+                              <div className="flex gap-2 items-end">
+                                <div className="flex-1 space-y-1">
+                                  <label className="text-[10px] uppercase font-bold text-slate-500">Contact Person</label>
+                                  <Input
+                                    value={row.contact_person}
+                                    onChange={(e) =>
+                                      updateGeneralContactField(
+                                        index,
+                                        "contact_person",
+                                        e.target.value,
+                                      )
+                                    }
+                                    disabled={isViewOnly}
+                                    maxLength={
+                                      VALIDATION_CONSTRAINTS.directory
+                                        .generalContactPerson.max
+                                    }
+                                    title={`Contact person can be up to ${VALIDATION_CONSTRAINTS.directory.generalContactPerson.max} characters.`}
+                                    placeholder="Contact Person (Optional)"
+                                    className="h-9 rounded-sm"
+                                  />
+                                </div>
+                                <div className="flex-1 space-y-1">
+                                  <label className="text-[10px] uppercase font-bold text-slate-500">Contact Number / Value <span className="text-rose-500">*</span></label>
+                                  <Input
+                                    value={row.value}
+                                    onChange={(e) =>
+                                      updateGeneralContactField(
+                                        index,
+                                        "value",
+                                        e.target.value,
+                                      )
+                                    }
+                                    disabled={isViewOnly}
+                                    minLength={
+                                      VALIDATION_CONSTRAINTS.directory
+                                        .generalValue.min
+                                    }
+                                    maxLength={
+                                      VALIDATION_CONSTRAINTS.directory
+                                        .generalValue.max
+                                    }
+                                    title={`Contact value must be ${VALIDATION_CONSTRAINTS.directory.generalValue.min} to ${VALIDATION_CONSTRAINTS.directory.generalValue.max} characters.`}
+                                    placeholder="Contact Number / Value (Required)"
+                                    className="h-9 rounded-sm"
+                                  />
+                                </div>
                                 <Button
                                   size="icon"
                                   variant="ghost"
@@ -2044,7 +2072,7 @@ export default function GovernmentDirectoryPage() {
                                     }
                                   }}
                                   disabled={isViewOnly}
-                                  className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 h-9 w-9 rounded-lg"
+                                  className="text-rose-500 hover:bg-rose-50 hover:text-rose-600 h-9 w-9 rounded-lg shrink-0 mb-[1px]"
                                   aria-label="Remove row"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -2276,9 +2304,14 @@ export default function GovernmentDirectoryPage() {
                     )}
                     Select from Image uploads
                   </Button>
-                  <p className="text-[10px] font-bold text-white/80 text-right mt-1 drop-shadow-md">
-                    Max 20MB - JPG, JPEG, PNG, GIF, WebP, HEIC, HEIF
-                  </p>
+                  <div className="mt-2 bg-black/50 backdrop-blur-md border border-white/20 rounded-lg p-3 shadow-xl right-0 text-right w-full sm:w-auto">
+                    <p className="text-xs md:text-sm font-black text-white drop-shadow-md">
+                      Max 5MB Upload Size
+                    </p>
+                    <p className="text-[10px] md:text-xs font-semibold text-white/80 mt-0.5">
+                      JPG, JPEG, PNG, GIF, WebP, HEIC, HEIF
+                    </p>
+                  </div>
                 </div>
 
                 <div className="absolute bottom-0 left-0 p-10 w-full max-w-4xl">
@@ -2286,6 +2319,7 @@ export default function GovernmentDirectoryPage() {
                     <p className="text-xs md:text-sm font-black text-white/80 tracking-[0.3em] uppercase bg-white/10 backdrop-blur-md px-4 py-1.5 rounded-sm inline-block border border-white/20 shadow-sm">
                       AGENCY DIRECTORY
                     </p>
+                    <EditableIndicator isEditing={editMode} dark />
                   </div>
 
                   {editMode && draft ? (
@@ -2356,8 +2390,9 @@ export default function GovernmentDirectoryPage() {
                     <p className="text-lg font-black text-[#A4163A] uppercase tracking-[0.25em] mb-2">
                       GOVERNMENT CONTRIBUTION
                     </p>
-                    <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight">
+                    <h3 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tight flex items-center">
                       Process Steps
+                      <EditableIndicator isEditing={editMode} />
                     </h3>
                     {editMode && draft && (
                       <>
@@ -2587,6 +2622,7 @@ export default function GovernmentDirectoryPage() {
                 <h3 className="text-xl font-black text-slate-800 tracking-tight flex items-center gap-2">
                   <Phone className="w-5 h-5 text-[#A4163A]" />
                   Contact Information
+                  <EditableIndicator isEditing={editMode} />
                 </h3>
                 <p className="text-slate-500 font-medium text-sm mt-1">
                   24/7 hotline, mobile support, callback service, and main
@@ -2650,53 +2686,62 @@ export default function GovernmentDirectoryPage() {
                               </p>
                             )}
                             <div className="flex gap-2">
+                              <div className="flex-1 space-y-1">
+                                <label className="text-[10px] uppercase font-bold text-slate-500">Type</label>
+                                <Input
+                                  value={row.type}
+                                  onChange={(e) =>
+                                    updateContactAt(idx, "type", e.target.value)
+                                  }
+                                  disabled={isViewOnly}
+                                  maxLength={
+                                    VALIDATION_CONSTRAINTS.directory.contactType
+                                      .max
+                                  }
+                                  title={`Type can be up to ${VALIDATION_CONSTRAINTS.directory.contactType.max} characters.`}
+                                  placeholder="Type (e.g. Hotline)"
+                                  className="font-bold text-xs uppercase rounded-sm h-8"
+                                />
+                              </div>
+                              <div className="flex-1 space-y-1">
+                                <label className="text-[10px] uppercase font-bold text-slate-500">Label</label>
+                                <Input
+                                  value={row.label}
+                                  onChange={(e) =>
+                                    updateContactAt(idx, "label", e.target.value)
+                                  }
+                                  disabled={isViewOnly}
+                                  maxLength={
+                                    VALIDATION_CONSTRAINTS.directory.contactLabel
+                                      .max
+                                  }
+                                  title={`Label can be up to ${VALIDATION_CONSTRAINTS.directory.contactLabel.max} characters.`}
+                                  placeholder="Label"
+                                  className="font-bold text-xs uppercase rounded-sm h-8"
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] uppercase font-bold text-slate-500">Value</label>
                               <Input
-                                value={row.type}
+                                value={row.value}
                                 onChange={(e) =>
-                                  updateContactAt(idx, "type", e.target.value)
+                                  updateContactAt(idx, "value", e.target.value)
                                 }
                                 disabled={isViewOnly}
+                                minLength={
+                                  VALIDATION_CONSTRAINTS.directory.contactValue
+                                    .min
+                                }
                                 maxLength={
-                                  VALIDATION_CONSTRAINTS.directory.contactType
+                                  VALIDATION_CONSTRAINTS.directory.contactValue
                                     .max
                                 }
-                                title={`Type can be up to ${VALIDATION_CONSTRAINTS.directory.contactType.max} characters.`}
-                                placeholder="Type (e.g. Hotline)"
-                                className="font-bold text-xs uppercase rounded-sm h-8"
-                              />
-                              <Input
-                                value={row.label}
-                                onChange={(e) =>
-                                  updateContactAt(idx, "label", e.target.value)
-                                }
-                                disabled={isViewOnly}
-                                maxLength={
-                                  VALIDATION_CONSTRAINTS.directory.contactLabel
-                                    .max
-                                }
-                                title={`Label can be up to ${VALIDATION_CONSTRAINTS.directory.contactLabel.max} characters.`}
-                                placeholder="Label"
-                                className="font-bold text-xs uppercase rounded-sm h-8"
+                                title={`Value must be ${VALIDATION_CONSTRAINTS.directory.contactValue.min} to ${VALIDATION_CONSTRAINTS.directory.contactValue.max} characters.`}
+                                placeholder="Value"
+                                className="rounded-sm h-9"
                               />
                             </div>
-                            <Input
-                              value={row.value}
-                              onChange={(e) =>
-                                updateContactAt(idx, "value", e.target.value)
-                              }
-                              disabled={isViewOnly}
-                              minLength={
-                                VALIDATION_CONSTRAINTS.directory.contactValue
-                                  .min
-                              }
-                              maxLength={
-                                VALIDATION_CONSTRAINTS.directory.contactValue
-                                  .max
-                              }
-                              title={`Value must be ${VALIDATION_CONSTRAINTS.directory.contactValue.min} to ${VALIDATION_CONSTRAINTS.directory.contactValue.max} characters.`}
-                              placeholder="Value"
-                              className="rounded-sm h-9"
-                            />
                             <TextFieldStatus
                               value={row.type}
                               max={
@@ -2880,7 +2925,7 @@ export default function GovernmentDirectoryPage() {
             <DialogDescription>
               Choose an existing image from your uploads in{" "}
               <span className="font-mono">{cloudinaryPickerFolderPath}</span>.
-              Max 20MB and allowed formats: JPG, JPEG, PNG, GIF, WebP, HEIC,
+              Max 5MB and allowed formats: JPG, JPEG, PNG, GIF, WebP, HEIC,
               HEIF.
             </DialogDescription>
           </DialogHeader>
