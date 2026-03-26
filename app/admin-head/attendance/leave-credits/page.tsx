@@ -63,7 +63,20 @@ export default function LeaveCreditsPage() {
       const response = await fetch(`${getApiUrl()}/api/leaves/credits`);
       const result = await response.json();
       if (result.success) {
-        setCredits(result.data);
+        const adjustedData = result.data.map((c: any) => {
+          const isQualified = c.has_one_year_regular;
+          const maxVL = isQualified ? 5 : 0;
+          return {
+            ...c,
+            vl_total: maxVL,
+            vl_balance: isQualified ? Math.max(0, 5 - c.vl_used) : 0,
+            vl_used: c.vl_used || 0,
+            sl_balance: 0,
+            sl_total: 0,
+            sl_used: 0,
+          };
+        });
+        setCredits(adjustedData);
       } else {
         toast.error("Failed to fetch leave credits");
       }
@@ -89,9 +102,9 @@ export default function LeaveCreditsPage() {
       if (!a.has_one_year_regular && b.has_one_year_regular) return 1;
 
 
-      // Within same status, sort by total leave balance (VL + SL) highest to lowest
-      const totalA = a.vl_balance + a.sl_balance;
-      const totalB = b.vl_balance + b.sl_balance;
+      // Within same status, sort by total leave balance highest to lowest
+      const totalA = a.vl_balance;
+      const totalB = b.vl_balance;
       return totalB - totalA;
     });
 
@@ -107,7 +120,6 @@ export default function LeaveCreditsPage() {
     totalEmployees: credits.length,
     qualified: credits.filter((c) => c.has_one_year_regular).length,
     totalVLRemaining: credits.reduce((sum, c) => sum + c.vl_balance, 0),
-    totalSLRemaining: credits.reduce((sum, c) => sum + c.sl_balance, 0),
   };
 
 
@@ -128,7 +140,7 @@ export default function LeaveCreditsPage() {
                 </h1>
                 <p className="text-white/80 text-xs md:text-sm flex items-center gap-2 font-medium">
                   <Calendar className="w-4 h-4" />
-                  Manage and track employee vacation and sick leave entitlements
+                  Manage and track employee vacation leave entitlements
                 </p>
               </div>
             </div>
@@ -155,12 +167,6 @@ export default function LeaveCreditsPage() {
                 <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 shadow-sm">
                   <TrendingUp className="h-4 w-4" />
                   VL Balance: {stats.totalVLRemaining}
-                </div>
-
-
-                <div className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-3 py-2 shadow-sm">
-                  <Briefcase className="h-4 w-4" />
-                  SL Balance: {stats.totalSLRemaining}
                 </div>
               </div>
 
@@ -223,9 +229,6 @@ export default function LeaveCreditsPage() {
                       </th>
                       <th className="px-4 py-3 text-[11px] font-black text-[#800020] uppercase tracking-widest text-center">
                         Vacation Leave
-                      </th>
-                      <th className="px-4 py-3 text-[11px] font-black text-[#800020] uppercase tracking-widest text-center">
-                        Sick Leave
                       </th>
                     </tr>
                   </thead>
@@ -290,34 +293,11 @@ export default function LeaveCreditsPage() {
                               </span>
                             </div>
                           </td>
-                          <td className="px-4 py-3">
-                            <div className="flex flex-col items-center">
-                              <div className="flex items-end gap-1">
-                                <span className="text-base font-black text-[#4A081A]">
-                                  {item.sl_balance}
-                                </span>
-                                <span className="text-[9px] font-black text-stone-400 uppercase mb-0.5">
-                                  / {item.sl_total}
-                                </span>
-                              </div>
-                              <div className="w-20 h-1.5 bg-stone-100 rounded-full mt-1.5 overflow-hidden border border-stone-100/50">
-                                <div
-                                  className="h-full bg-orange-500 rounded-full"
-                                  style={{
-                                    width: `${item.sl_total > 0 ? (item.sl_balance / item.sl_total) * 100 : 0}%`,
-                                  }}
-                                />
-                              </div>
-                              <span className="text-[9px] text-stone-500 font-black uppercase mt-1 tracking-tight">
-                                {item.sl_used} Used
-                              </span>
-                            </div>
-                          </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="px-6 py-20 text-center">
+                        <td colSpan={4} className="px-6 py-20 text-center">
                           <div className="flex flex-col items-center gap-4">
                             <div className="w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-200">
                               <Users className="w-8 h-8" />
@@ -426,11 +406,7 @@ export default function LeaveCreditsPage() {
               <p className="text-stone-600 leading-relaxed font-bold text-xs">
                 Employees are granted{" "}
                 <span className="text-[#630C22] underline decoration-rose-200">
-                  15 days Vacation Leave
-                </span>{" "}
-                and{" "}
-                <span className="text-orange-600 underline decoration-orange-100">
-                  15 days Sick Leave
+                  5 days Vacation Leave
                 </span>{" "}
                 annually. Benefits are automatically enabled after{" "}
                 <span className="font-black text-[#4A081A]">

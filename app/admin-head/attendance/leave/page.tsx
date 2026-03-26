@@ -1390,7 +1390,10 @@ export default function LeavePage() {
     const emp = employees.find((e) => String(e.id) === String(empId));
     if (!emp) return [];
 
-    const normalize = (value: unknown) => String(value || "").toLowerCase().trim();
+    const normalize = (value: unknown) =>
+      String(value || "")
+        .toLowerCase()
+        .trim();
     const normalizeRole = (value: unknown) =>
       normalize(value)
         .replace(/[^a-z0-9]+/g, " ")
@@ -1408,7 +1411,9 @@ export default function LeavePage() {
 
     const ancestorPositionNames = new Set<string>();
     const coreRoles = hierarchies
-      .filter((h: any) => h.department_id == null && (h?.position?.name || h?.name))
+      .filter(
+        (h: any) => h.department_id == null && (h?.position?.name || h?.name),
+      )
       .map((h: any) => normalizeRole(h?.position?.name || h?.name));
 
     if (!node) {
@@ -1417,7 +1422,9 @@ export default function LeavePage() {
       hierarchies
         .filter((h: any) => !h.parent_id && (h?.position?.name || h?.name))
         .forEach((h: any) =>
-          ancestorPositionNames.add(normalizeRole(h?.position?.name || h?.name)),
+          ancestorPositionNames.add(
+            normalizeRole(h?.position?.name || h?.name),
+          ),
         );
     } else {
       let currentParentId = node.parent_id;

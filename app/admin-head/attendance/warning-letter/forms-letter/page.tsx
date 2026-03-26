@@ -870,6 +870,13 @@ function FormLetterContent() {
               new Date(e.start_date).getFullYear() === Number(year),
           );
 
+          console.log(`[Leave Letter] Filtered leaves for emp ${employeeId}, year ${year}:`, {
+            total: leaveData.data.length,
+            filtered: empLeaves.length,
+            month: month,
+            cutoff: cutoff,
+          });
+
           const creditsMap = new Map<string, any>();
           if (creditsData.success) {
             creditsData.data.forEach((c: any) => creditsMap.set(String(c.employee_id), c));
@@ -880,8 +887,16 @@ function FormLetterContent() {
           const isEligible = creditInfo?.has_one_year_regular;
 
           // Group by month and cutoff to identify qualifying incidents (>= 3 days)
-          // We must process ALL leaves for the year to correctly deduct credits chronologically
+          // WARNING SYSTEM: Count ACTUAL days, not deducted days
+          // Credit deduction is for reporting, not for warning qualification
           const yearLeavesSorted = [...empLeaves].sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime());
+          
+          console.log(`[Leave Letter] Processing ${yearLeavesSorted.length} leaves for emp ${employeeId}:`, {
+            month: month,
+            year: year,
+            cutoff: cutoff,
+            isEligible,
+          });
           
           const leaveGroups = new Map<string, any>();
           yearLeavesSorted.forEach((e: any) => {
@@ -891,19 +906,15 @@ function FormLetterContent() {
             const co = day <= 15 ? "cutoff1" : "cutoff2";
             const key = `${MONTHS[m]}-${co}`;
 
+            // Count ACTUAL days - no credit deduction for warning purposes
             let daysToCharge = Number(e.number_of_days);
-            if (isEligible) {
-              const remarks = String(e.remarks || "").toLowerCase();
-              if (remarks.includes("sick")) {
-                const deduct = Math.min(daysToCharge, runningCredits.sl);
-                runningCredits.sl -= deduct;
-                daysToCharge -= deduct;
-              } else if (remarks.includes("vacation")) {
-                const deduct = Math.min(daysToCharge, runningCredits.vl);
-                runningCredits.vl -= deduct;
-                daysToCharge -= deduct;
-              }
-            }
+            const remarks = String(e.remarks || "").toLowerCase();
+            
+            console.log(`[Leave Letter] Leave entry:`, {
+              key,
+              type: remarks,
+              actualDays: daysToCharge,
+            });
 
             if (!leaveGroups.has(key)) {
               leaveGroups.set(key, {
@@ -932,6 +943,8 @@ function FormLetterContent() {
                 new Date(b.start_date).getTime(),
             );
 
+          console.log(`[Leave Letter] Qualifying incidents (>= 3 days):`, qualifyingIncidents.length, qualifyingIncidents.map((q: any) => ({ month: q.month, cutoff: q.cutoff, days: q.total_days })));
+
           qualifyingIncidents.forEach((inst, idx) => {
             inst.warning_level = idx + 1;
           });
@@ -940,6 +953,12 @@ function FormLetterContent() {
           const filtered = qualifyingIncidents.filter(
             (g) => g.month === month && g.cutoff === cutoff,
           );
+
+          console.log(`[Leave Letter] Filtering by month='${month}' cutoff='${cutoff}', results:`, filtered.length);
+          if (filtered.length === 0) {
+            console.warn(`[Leave Letter] No matching entries! Looking for month='${month}' (type: ${typeof month}), cutoff='${cutoff}'`);
+            console.log(`[Leave Letter] Available groups:`, Array.from(leaveGroups.values()).map((g: any) => ({ month: g.month, cutoff: g.cutoff, days: g.total_days })));
+          }
 
           setEntries(filtered);
         }
@@ -1203,7 +1222,6 @@ function FormLetterContent() {
   useEffect(() => {
     if (
       employee &&
-      entries.length > 0 &&
       !hasInitializedContent &&
       !isLoading &&
       templatesLoaded &&
@@ -1212,6 +1230,26 @@ function FormLetterContent() {
     ) {
       // Helper to process template or fallback
       const generateInitialBodies = () => {
+        // Handle empty entries case
+        if (entries.length === 0) {
+          const emptyF1 =
+            `Dear ${supervisorSalutation && supervisorFirstName ? `${supervisorSalutation} ${supervisorFirstName}` : "Supervisor"},\n\n` +
+            `    This letter was generated but no qualifying attendance records were found for ${salutationPrefix} ${employee.name} for the selected period.\n\n` +
+            `Please verify the employee's records and the selected time period.\n\n` +
+            `Thank you.`;
+          
+          const emptyF2 =
+            `Dear ${salutationPrefix} ${lastName},\n\n` +
+            `    This letter was generated but no qualifying attendance records were found for the selected period.\n\n` +
+            `Please contact your HR department if you believe this is an error.\n\n` +
+            `Thank you.`;
+          
+          setF1Body(emptyF1);
+          setF2Body(emptyF2);
+          setHasInitializedContent(true);
+          return;
+        }
+
         const totalCount =
           type === "leave"
             ? entries.reduce(

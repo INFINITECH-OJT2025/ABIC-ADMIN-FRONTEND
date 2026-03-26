@@ -1388,7 +1388,7 @@ export default function DayOffsPage() {
                                   className="flex items-center gap-3 rounded-xl py-3 px-4 cursor-pointer focus:bg-rose-50 focus:text-[#A4163A] font-bold"
                                 >
                                   <Pencil className="w-4 h-4" />
-                                  <span>Modify Schedule</span>
+                                  <span>Edit</span>
                                 </DropdownMenuItem>
 
                                 <DropdownMenuItem
@@ -1398,7 +1398,7 @@ export default function DayOffsPage() {
                                   className="flex items-center gap-3 rounded-xl py-3 px-4 cursor-pointer text-red-500 focus:bg-red-50 focus:text-red-600 font-bold"
                                 >
                                   <Trash2 className="w-4 h-4" />
-                                  <span>Remove Entry</span>
+                                  <span>Delete</span>
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>

@@ -462,8 +462,8 @@ export default function AdminHeadSidebar() {
             <div className="flex items-center gap-3 relative">
               <Calendar size={22} className="shrink-0" />
               {isCollapsed && showTardinessReminder && (
-                <span className="absolute -top-1 -right-1 flex h-3 w-3 rounded-full bg-white text-[#7B0F2B] shadow-sm animate-bounce">
-                  <AlertCircle size={8} strokeWidth={4} />
+                <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-white text-[#7B0F2B] shadow-sm animate-bounce">
+                  <AlertCircle size={10} strokeWidth={3} />
                 </span>
               )}
               {!isCollapsed && (
