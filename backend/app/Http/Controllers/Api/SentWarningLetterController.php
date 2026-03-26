@@ -20,7 +20,12 @@ class SentWarningLetterController extends Controller
             $query->where('employee_id', $request->employee_id);
         }
         if ($request->filled('type')) {
-            $query->where('type', $request->type);
+            if ($request->type === 'late') {
+                // Backward compatibility for older records that used "tardiness"
+                $query->whereIn('type', ['late', 'tardiness']);
+            } else {
+                $query->where('type', $request->type);
+            }
         }
 
         $letters = $query->orderByDesc('sent_at')->get();
@@ -37,11 +42,15 @@ class SentWarningLetterController extends Controller
      */
     public function store(Request $request)
     {
+        $incomingType = $request->input('type');
+        $normalizedType = $incomingType === 'tardiness' ? 'late' : $incomingType;
+        $request->merge(['type' => $normalizedType]);
+
         $validated = $request->validate([
             'employee_id'    => 'required|string',
             'employee_name'  => 'required|string',
-            'type'           => 'required|in:late,leave',
-            'warning_level'  => 'required|integer|min:1',
+            'type'           => 'required|in:late,leave,tardiness',
+            'warning_level'  => 'required|integer|min:0',
             'month'          => 'required|string',
             'year'           => 'required|integer',
             'cutoff'         => 'required|string',
@@ -50,6 +59,9 @@ class SentWarningLetterController extends Controller
             'form1_body'     => 'nullable|string',
             'form2_body'     => 'nullable|string',
         ]);
+
+        $validated['type'] = $validated['type'] === 'tardiness' ? 'late' : $validated['type'];
+        $validated['warning_level'] = max(1, (int) $validated['warning_level']);
 
         $letter = SentWarningLetter::create($validated);
 

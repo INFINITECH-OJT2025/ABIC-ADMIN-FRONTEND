@@ -414,6 +414,8 @@ function FormLetterContent() {
   
   const employeeId = searchParams.get("employeeId");
   const type = searchParams.get("type"); // 'late' or 'leave'
+  const normalizedType = type === "tardiness" ? "late" : type;
+  const effectiveType = normalizedType === "leave" ? "leave" : "late";
   const month = searchParams.get("month");
   const year = searchParams.get("year");
   const cutoff = searchParams.get("cutoff");
@@ -536,7 +538,7 @@ function FormLetterContent() {
           });
           setCustomLeaveTemplate(mapped["leave"]);
           setCustomSupervisorTemplate(
-            type === "late"
+            effectiveType === "late"
               ? mapped["supervisor-tardiness"]
               : mapped["supervisor-leave"],
           );
@@ -566,7 +568,7 @@ function FormLetterContent() {
             });
             setCustomLeaveTemplate(mapped["leave"]);
             setCustomSupervisorTemplate(
-              type === "late"
+              effectiveType === "late"
                 ? mapped["supervisor-tardiness"] || mapped["supervisor"]
                 : mapped["supervisor-leave"] || mapped["supervisor"],
             );
@@ -831,7 +833,7 @@ function FormLetterContent() {
       }
 
       // 2. Fetch Entries
-      if (type === "late") {
+      if (effectiveType === "late") {
         const lateRes = await fetch(
           `${getApiUrl()}/api/admin-head/attendance/tardiness?month=${month}&year=${year}`,
         );
@@ -1096,7 +1098,7 @@ function FormLetterContent() {
               body: JSON.stringify({
                 recipients: emailList,
                 employee_name: employee?.name ?? "",
-                letter_type: type,
+                letter_type: effectiveType,
                 pdf_base64: pdfBase64,
               }),
             },
@@ -1118,14 +1120,28 @@ function FormLetterContent() {
 
           // Log history
           try {
-            const warningLevel = entries[0]?.warning_level ?? 1;
-            await fetch(`${getApiUrl()}/api/sent-warning-letters`, {
+            const warningLevel =
+              effectiveType === "late"
+                ? (() => {
+                    const highestDbLevel = Math.max(
+                      0,
+                      ...entries.map((e: any) => Number(e.warning_level) || 0),
+                    );
+                    if (highestDbLevel > 0) return highestDbLevel;
+                    const lateCount = entries.filter(
+                      (e: any) => Number(e.minutes_late ?? e.minutesLate ?? 0) > 0,
+                    ).length;
+                    return Math.max(1, lateCount - 2);
+                  })()
+                : Math.max(1, Number(entries[0]?.warning_level) || 1);
+
+            const saveHistoryRes = await fetch(`${getApiUrl()}/api/sent-warning-letters`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 employee_id: employeeId,
                 employee_name: employee?.name ?? "",
-                type: type,
+                type: effectiveType,
                 warning_level: warningLevel,
                 month: month,
                 year: Number(year),
@@ -1139,8 +1155,17 @@ function FormLetterContent() {
                 form2_body: selectedForms.includes("form2") ? f2Body : null,
               }),
             });
+            if (!saveHistoryRes.ok) {
+              const saveHistoryData = await saveHistoryRes.json().catch(() => ({}));
+              console.error("Failed to save history:", saveHistoryData);
+              toast.error(
+                saveHistoryData?.message ||
+                  "Email sent, but failed to save letter history.",
+              );
+            }
           } catch (e) {
             console.error("Failed to save history:", e);
+            toast.error("Email sent, but failed to save letter history.");
           }
         } catch (err: any) {
           toast.dismiss();

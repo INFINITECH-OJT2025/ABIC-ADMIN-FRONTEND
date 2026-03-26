@@ -149,7 +149,7 @@ interface SentLetter {
   id: number;
   employee_id: string | number;
   employee_name: string;
-  type: "late" | "leave";
+  type: "late" | "leave" | "tardiness";
   warning_level: number;
   month: string;
   year: number;
@@ -206,6 +206,9 @@ export default function WarningLetterPage() {
   const [historyLetters, setHistoryLetters] = useState<SentLetter[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  const normalizeWarningType = (type: string) =>
+    type === "tardiness" ? "late" : type;
+
   const openHistory = async (
     employeeId: string | number,
     employeeName: string,
@@ -216,11 +219,30 @@ export default function WarningLetterPage() {
     setHistoryLoading(true);
     setHistoryLetters([]);
     try {
-      const res = await fetch(
+      const primaryRes = await fetch(
         `${getApiUrl()}/api/sent-warning-letters?employee_id=${employeeId}&type=${type}`,
       );
-      const data = await res.json();
-      if (data.success) setHistoryLetters(data.data);
+      const primaryData = await primaryRes.json();
+
+      let letters: SentLetter[] = primaryData.success ? primaryData.data : [];
+
+      // Backward compatibility: older late warning records may be saved as "tardiness"
+      if (type === "late" && letters.length === 0) {
+        const legacyRes = await fetch(
+          `${getApiUrl()}/api/sent-warning-letters?employee_id=${employeeId}&type=tardiness`,
+        );
+        const legacyData = await legacyRes.json();
+        if (legacyData.success) {
+          letters = legacyData.data;
+        }
+      }
+
+      setHistoryLetters(
+        letters.map((letter) => ({
+          ...letter,
+          type: normalizeWarningType(letter.type) as SentLetter["type"],
+        })),
+      );
     } catch (e) {
       console.error("Failed to load history:", e);
     } finally {
@@ -1237,7 +1259,7 @@ export default function WarningLetterPage() {
                         variant="outline"
                         onClick={() => {
                           router.push(
-                            `/admin-head/attendance/warning-letter/forms-letter?employeeId=${letter.employee_id}&type=${letter.type}&month=${letter.month}&year=${letter.year}&cutoff=${letter.cutoff}&mode=review&letterId=${letter.id}`,
+                            `/admin-head/attendance/warning-letter/forms-letter?employeeId=${letter.employee_id}&type=${normalizeWarningType(letter.type)}&month=${letter.month}&year=${letter.year}&cutoff=${letter.cutoff}&mode=review&letterId=${letter.id}`,
                           )
                         }}
                         className="h-8 px-3 text-[10px] font-bold uppercase tracking-wider text-[#A4163A] border-rose-200 hover:bg-rose-50 hover:text-[#7B0F2B]"
