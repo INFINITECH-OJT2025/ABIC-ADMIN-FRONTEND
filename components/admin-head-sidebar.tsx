@@ -531,6 +531,14 @@ export default function AdminHeadSidebar() {
               <FileText size={18} />
               <span>Warning Letter</span>
             </Link>
+            <Link
+              href="/admin-head/attendance/day-offs"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <Calendar size={18} />
+              <span>Day-Offs</span>
+            </Link>
+
           </div>
         </div>
 

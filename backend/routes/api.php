@@ -147,6 +147,10 @@ Route::post('/sent-warning-letters', [SentWarningLetterController::class, 'store
 use App\Http\Controllers\Api\WarningLetterMailController;
 Route::post('/warning-letter/send-email', [WarningLetterMailController::class, 'send']);
 
+// Day Offs Routes
+use App\Http\Controllers\DayOffController;
+Route::apiResource('day_offs', DayOffController::class);
+
 // Hiring routes
 Route::get('/hiring/interviews', [HiringController::class, 'interviews']);
 Route::post('/hiring/interviews', [HiringController::class, 'storeInterview']);
