@@ -685,6 +685,80 @@ export default function AdminHeadHierarchyPage() {
     }
   }
 
+  const handleDeleteOffice = async (office: Office) => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
+
+    const linkedDepartments = departments.filter((d) => d.officeId === office.id)
+    if (linkedDepartments.length > 0) {
+      toast.error("Cannot delete office with assigned departments. Delete or reassign its departments first.")
+      return
+    }
+
+    if (!window.confirm(`Delete office \"${office.name}\"?`)) return
+
+    setLoading(true)
+    try {
+      const res = await fetch(`${getApiUrl()}/api/offices/${office.id}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      })
+
+      const payload = await res.json().catch(() => null)
+      if (!res.ok || payload?.success === false) {
+        throw new Error(payload?.message || 'Failed to delete office')
+      }
+
+      setOffices((prev) => prev.filter((o) => o.id !== office.id))
+      if (selectedOffice === office.id) setSelectedOffice("")
+      toast.success('Office deleted successfully')
+    } catch (err) {
+      console.error(err)
+      toast.error(err instanceof Error ? err.message : 'Failed to delete office')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteDepartment = async (department: Department) => {
+    if (isViewOnly) {
+      notifyViewOnly()
+      return
+    }
+
+    const linkedPositions = positions.filter((p) => p.departmentId === department.id)
+    if (linkedPositions.length > 0) {
+      toast.error("Cannot delete department with positions. Delete or move its positions first.")
+      return
+    }
+
+    if (!window.confirm(`Delete department \"${department.name}\"?`)) return
+
+    setLoading(true)
+    try {
+      const res = await fetch(`${getApiUrl()}/api/departments/${department.id}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      })
+
+      const payload = await res.json().catch(() => null)
+      if (!res.ok || payload?.success === false) {
+        throw new Error(payload?.message || 'Failed to delete department')
+      }
+
+      setDepartments((prev) => prev.filter((d) => d.id !== department.id))
+      if (selectedDepartment === department.id) setSelectedDepartment("")
+      toast.success('Department deleted successfully')
+    } catch (err) {
+      console.error(err)
+      toast.error(err instanceof Error ? err.message : 'Failed to delete department')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleAddOffice = async () => {
     if (isViewOnly) {
       notifyViewOnly()
@@ -850,6 +924,24 @@ export default function AdminHeadHierarchyPage() {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
+              {offices.length > 0 && (
+                <div className="max-h-36 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-white space-y-1.5">
+                  {offices.map((office) => (
+                    <div key={office.id} className="flex items-center justify-between rounded-md px-2 py-1.5 hover:bg-slate-50">
+                      <span className="text-xs font-semibold text-slate-700">{office.name}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteOffice(office)}
+                        disabled={isViewOnly || loading}
+                        className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="h-px w-full bg-slate-200" />
@@ -888,6 +980,30 @@ export default function AdminHeadHierarchyPage() {
                   {loading ? 'Adding...' : 'Add'}
                 </Button>
               </div>
+              {departments.length > 0 && (
+                <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-white space-y-1.5">
+                  {departments.map((department) => {
+                    const officeName = offices.find((o) => o.id === department.officeId)?.name || 'No Office'
+                    return (
+                      <div key={department.id} className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 hover:bg-slate-50">
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold text-slate-700 truncate">{department.name}</p>
+                          <p className="text-[10px] text-slate-500 truncate">{officeName}</p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteDepartment(department)}
+                          disabled={isViewOnly || loading}
+                          className="h-7 px-2 text-red-600 hover:text-red-700 hover:bg-red-50 shrink-0"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="h-px w-full bg-slate-200" />

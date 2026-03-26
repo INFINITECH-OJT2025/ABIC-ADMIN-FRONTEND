@@ -36,6 +36,7 @@ Route::post('/departments/bulk', [DepartmentController::class, 'bulkCreate']);
 use App\Http\Controllers\Api\OfficeController;
 Route::get('/offices', [OfficeController::class, 'index']);
 Route::post('/offices', [OfficeController::class, 'store']);
+Route::delete('/offices/{id}', [OfficeController::class, 'destroy']);
 Route::patch('/offices/{id}/branding', [OfficeController::class, 'updateBranding']);
 
 // Onboarding routes
