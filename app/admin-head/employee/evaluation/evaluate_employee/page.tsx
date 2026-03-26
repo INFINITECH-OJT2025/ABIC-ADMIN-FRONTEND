@@ -74,11 +74,11 @@ interface Department {
 interface Office {
   id: string
   name: string
+  header_logo_image?: string | null
+  header_details?: string | null
 }
 
 type EvaluationTemplate = {
-  officeLogos: Record<string, string>
-  officeNameOverrides: Record<string, string>
   title: string
   metaNameLabel: string
   metaDepartmentLabel: string
@@ -126,8 +126,6 @@ const CRITERIA = [
 ] as const
 
 const DEFAULT_EVALUATION_TEMPLATE = {
-  officeLogos: {},
-  officeNameOverrides: {},
   title: "PERFORMANCE APPRAISAL",
   metaNameLabel: "NAME",
   metaDepartmentLabel: "DEPARTMENT/JOB TITLE",
@@ -304,14 +302,6 @@ function EvaluateEmployeeForm() {
             ...localTemplate,
             ...parsedBody,
             title: parsedBody.title || dbTemplate.title || DEFAULT_EVALUATION_TEMPLATE.title,
-            officeLogos: {
-              ...((localTemplate.officeLogos as Record<string, string>) || {}),
-              ...((parsedBody.officeLogos as Record<string, string>) || {}),
-            },
-            officeNameOverrides: {
-              ...((localTemplate.officeNameOverrides as Record<string, string>) || {}),
-              ...((parsedBody.officeNameOverrides as Record<string, string>) || {}),
-            },
           })
           return
         }
@@ -531,30 +521,26 @@ function EvaluateEmployeeForm() {
       department: deptObj?.name || selectedEmployee.department || 'Not Assigned',
       office: officeObj?.name || '',
       officeId: officeObj?.id ? String(officeObj.id) : '',
+      officeHeaderLogo: officeObj?.header_logo_image || null,
+      officeHeaderDetails: officeObj?.header_details || '',
     }
   }, [selectedEmployee, departments, offices])
 
-  const selectedEvaluationLogo = useMemo(() => {
-    const officeId = employeeDetails?.officeId || ''
-    const officeLogos = (evaluationTemplate.officeLogos || {}) as Record<string, string>
-    if (officeId && officeLogos[officeId]) {
-      return officeLogos[officeId]
-    }
-    return null
-  }, [employeeDetails?.officeId, evaluationTemplate])
+  const selectedLetterheadLogo = useMemo(() => {
+    return employeeDetails?.officeHeaderLogo || null
+  }, [employeeDetails?.officeHeaderLogo])
 
-  const selectedOfficeDisplayName = useMemo(() => {
-    const officeId = employeeDetails?.officeId || ''
-    const officeNameOverrides = (evaluationTemplate.officeNameOverrides || {}) as Record<string, string>
-    const customName = officeId ? officeNameOverrides[officeId] : ''
-    if (customName && String(customName).trim()) {
-      return String(customName).trim()
-    }
+  const selectedLetterheadOfficeName = useMemo(() => {
     if (employeeDetails?.office && String(employeeDetails.office).trim()) {
       return String(employeeDetails.office).trim()
     }
     return 'OFFICE NOT SET'
-  }, [employeeDetails?.office, employeeDetails?.officeId, evaluationTemplate])
+  }, [employeeDetails?.office])
+
+  const selectedLetterheadAddress = useMemo(() => {
+    const raw = employeeDetails?.officeHeaderDetails || ''
+    return String(raw).trim()
+  }, [employeeDetails?.officeHeaderDetails])
 
   const totalScore = useMemo(() => {
     return Object.values(scores).reduce((acc, curr) => acc + (parseInt(curr) || 0), 0)
@@ -656,8 +642,9 @@ function EvaluateEmployeeForm() {
     try {
       const templateForExport = {
         ...evaluationTemplate,
-        companyName: selectedOfficeDisplayName,
-        evaluationLogoImage: selectedEvaluationLogo,
+        companyName: selectedLetterheadOfficeName,
+        evaluationLogoImage: selectedLetterheadLogo,
+        headerDetails: selectedLetterheadAddress,
       }
       const response = await fetch(
         `${getApiUrl()}/api/evaluations/${selectedEmployeeId}/pdf`,
@@ -716,8 +703,9 @@ function EvaluateEmployeeForm() {
     try {
       const templateForExport = {
         ...evaluationTemplate,
-        companyName: selectedOfficeDisplayName,
-        evaluationLogoImage: selectedEvaluationLogo,
+        companyName: selectedLetterheadOfficeName,
+        evaluationLogoImage: selectedLetterheadLogo,
+        headerDetails: selectedLetterheadAddress,
       }
       const response = await fetch(`${getApiUrl()}/api/evaluations/${selectedEmployeeId}/email-pdf`, {
         method: 'POST',
@@ -952,17 +940,22 @@ function EvaluateEmployeeForm() {
         {showFirstEvaluationPanel && (
           <div className="bg-white shadow-2xl p-[60px] text-[13px] leading-relaxed text-black border border-slate-300">
             <div className="text-center mb-10">
-            {selectedEvaluationLogo && (
+            {selectedLetterheadLogo && (
               <div className="mb-4 flex justify-center">
                 <img
-                  src={selectedEvaluationLogo}
+                  src={selectedLetterheadLogo}
                   alt="Office Logo"
                   className="max-h-[84px] max-w-[180px] object-contain"
                 />
               </div>
             )}
+            {selectedLetterheadAddress && (
+              <p className="mt-1 text-[11px] font-medium text-slate-600 whitespace-pre-line">
+                {selectedLetterheadAddress}
+              </p>
+            )}
             <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">
-              {selectedOfficeDisplayName.toUpperCase()}
+              {selectedLetterheadOfficeName.toUpperCase()}
             </h1>
               <h2 className="font-bold text-lg uppercase tracking-wider">
                 {evaluationTemplate.title}
@@ -1161,17 +1154,22 @@ function EvaluateEmployeeForm() {
         
         {/* Header */}
         <div className="text-center mb-10">
-          {selectedEvaluationLogo && (
+          {selectedLetterheadLogo && (
             <div className="mb-4 flex justify-center">
               <img
-                src={selectedEvaluationLogo}
+                src={selectedLetterheadLogo}
                 alt="Office Logo"
                 className="max-h-[84px] max-w-[180px] object-contain"
               />
             </div>
           )}
+          {selectedLetterheadAddress && (
+            <p className="mt-1 text-[11px] font-medium text-slate-600 whitespace-pre-line">
+              {selectedLetterheadAddress}
+            </p>
+          )}
           <h1 className="text-[#D32F2F] font-bold text-lg uppercase tracking-tight">
-            {selectedOfficeDisplayName.toUpperCase()}
+            {selectedLetterheadOfficeName.toUpperCase()}
           </h1>
           <h2 className="font-bold text-lg uppercase tracking-wider">
             {evaluationTemplate.title}

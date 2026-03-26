@@ -159,6 +159,7 @@ class EvaluationController extends Controller
     {
         $defaultTemplate = $this->getDefaultTemplate();
         $template = $this->mergeTemplate($defaultTemplate, $template);
+        $office = $this->resolveOffice($employee);
 
         $officeId = $this->resolveOfficeId($employee);
         $officeLogos = is_array($template['officeLogos'] ?? null) ? $template['officeLogos'] : [];
@@ -179,6 +180,14 @@ class EvaluationController extends Controller
             if ($officeName) {
                 $template['companyName'] = $officeName;
             }
+        }
+
+        if (empty($template['headerDetails']) && !empty($office?->header_details)) {
+            $template['headerDetails'] = trim((string) $office->header_details);
+        }
+
+        if (empty($template['evaluationLogoImage']) && !empty($office?->header_logo_image)) {
+            $template['evaluationLogoImage'] = $office->header_logo_image;
         }
 
         // DomPDF image decoding depends on GD in this environment.
@@ -291,6 +300,7 @@ class EvaluationController extends Controller
     {
         return [
             'evaluationLogoImage' => null,
+            'headerDetails' => null,
             'officeLogos' => [],
             'officeNameOverrides' => [],
             'companyName' => 'ABIC REALTY & CONSULTANCY CORPORATION',
@@ -361,6 +371,25 @@ class EvaluationController extends Controller
         }
 
         return (string) $department->office_id;
+    }
+
+    private function resolveOffice(Employee $employee): ?Office
+    {
+        $deptValue = (string) ($employee->department ?? '');
+        if ($deptValue === '') {
+            return null;
+        }
+
+        $department = Department::query()
+            ->where('id', $deptValue)
+            ->orWhere('name', $deptValue)
+            ->first();
+
+        if (!$department || !$department->office_id) {
+            return null;
+        }
+
+        return Office::query()->find($department->office_id);
     }
 
     private function buildPdfFilename(Employee $employee): string

@@ -11,6 +11,7 @@
         .header { text-align: center; margin-bottom: 8px; margin-top: 0; padding: 4px 0; }
         .logo-wrap { margin-bottom: 4px; }
         .logo-image { max-height: 56px; max-width: 140px; object-fit: contain; }
+        .address { font-size: 9px; line-height: 1.2; margin-bottom: 4px; white-space: pre-line; }
         .company { color: #000; font-weight: 700; font-size: 19px; letter-spacing: 0.3px; margin-bottom: 5px; }
         .title { font-weight: 700; font-size: 16px; letter-spacing: 0.5px; margin-top: 5px; }
         .meta { margin-bottom: 8px; }
@@ -89,6 +90,9 @@
                 <div class="logo-wrap">
                     <img class="logo-image" src="{{ $template['evaluationLogoImage'] }}" alt="Office Logo">
                 </div>
+            @endif
+            @if(!empty($template['headerDetails']))
+                <div class="address">{{ $template['headerDetails'] }}</div>
             @endif
             <div class="company">{{ $template['companyName'] ?? 'Company Name' }}</div>
             <div class="title">{{ $template['title'] ?? 'PERFORMANCE APPRAISAL' }}</div>
@@ -209,6 +213,9 @@
                 <div class="logo-wrap">
                     <img class="logo-image" src="{{ $template['evaluationLogoImage'] }}" alt="Office Logo">
                 </div>
+            @endif
+            @if(!empty($template['headerDetails']))
+                <div class="address">{{ $template['headerDetails'] }}</div>
             @endif
             <div class="company">{{ $template['companyName'] ?? 'Company Name' }}</div>
             <div class="title">{{ $template['title'] ?? 'PERFORMANCE APPRAISAL' }}</div>

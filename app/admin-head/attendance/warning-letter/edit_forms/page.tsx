@@ -279,8 +279,6 @@ const EVALUATION_CRITERIA_DEFAULTS = [
 ] as const;
 
 const DEFAULT_EVALUATION_TEMPLATE = {
-  officeLogos: {},
-  officeNameOverrides: {},
   title: "PERFORMANCE APPRAISAL",
   metaNameLabel: "NAME",
   metaDepartmentLabel: "DEPARTMENT/JOB TITLE",
@@ -564,11 +562,17 @@ export default function EditFormsPage() {
                   }
                 }
 
+                const {
+                  officeLogos: _legacyOfficeLogos,
+                  officeNameOverrides: _legacyOfficeNames,
+                  ...sanitizedEvaluation
+                } = parsedEvaluation as any;
+
                 mapped.evaluation = {
                   ...DEFAULT_EVALUATION_TEMPLATE,
-                  ...parsedEvaluation,
+                  ...sanitizedEvaluation,
                   title:
-                    (parsedEvaluation as any).title ||
+                    (sanitizedEvaluation as any).title ||
                     template.title ||
                     DEFAULT_EVALUATION_TEMPLATE.title,
                 };
@@ -591,11 +595,6 @@ export default function EditFormsPage() {
                     ...mapped["branding-config"],
                     ...brandingData,
                   };
-                  // Sync to other templates for internal state consistency
-                  Object.keys(mapped).forEach((k) => {
-                    mapped[k].officeLogos = brandingData.officeLogos || {};
-                    mapped[k].officeDetails = brandingData.officeDetails || {};
-                  });
                 } catch (e) {
                   console.error("Failed to parse branding config");
                 }
@@ -731,11 +730,16 @@ export default function EditFormsPage() {
               .map(([slug, content]) => {
                 if (slug === "evaluation") {
                   const t = (finalTemplates as any)[slug];
+                  const {
+                    officeLogos: _legacyOfficeLogos,
+                    officeNameOverrides: _legacyOfficeNames,
+                    ...sanitizedEvaluation
+                  } = t || {};
                   return [
                     slug,
                     {
-                      title: t.title || "EVALUATION",
-                      body: JSON.stringify(t),
+                      title: sanitizedEvaluation.title || "EVALUATION",
+                      body: JSON.stringify(sanitizedEvaluation),
                     },
                   ];
                 }
@@ -872,79 +876,6 @@ export default function EditFormsPage() {
         evaluation: {
           ...current,
           criteriaOverrides: overrides,
-        },
-      };
-    });
-  };
-
-  const handleOfficeEvaluationLogoUpload = (
-    officeId: string,
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Image is too large. Please select a logo under 2MB.");
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result as string;
-      setHasLocalOnlyChanges(true);
-      setTemplates((prev) => {
-        const currentEvaluation =
-          ((prev as any).evaluation as any) || DEFAULT_EVALUATION_TEMPLATE;
-        return {
-          ...prev,
-          evaluation: {
-            ...currentEvaluation,
-            officeLogos: {
-              ...(currentEvaluation.officeLogos || {}),
-              [officeId]: base64,
-            },
-          },
-        };
-      });
-      toast.success("Office evaluation logo uploaded successfully!");
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleOfficeEvaluationNameChange = (
-    officeId: string,
-    value: string,
-  ) => {
-    setHasLocalOnlyChanges(true);
-    setTemplates((prev) => {
-      const currentEvaluation =
-        ((prev as any).evaluation as any) || DEFAULT_EVALUATION_TEMPLATE;
-      return {
-        ...prev,
-        evaluation: {
-          ...currentEvaluation,
-          officeNameOverrides: {
-            ...(currentEvaluation.officeNameOverrides || {}),
-            [officeId]: value,
-          },
-        },
-      };
-    });
-  };
-
-  const removeOfficeEvaluationLogo = (officeId: string) => {
-    setHasLocalOnlyChanges(true);
-    setTemplates((prev) => {
-      const currentEvaluation =
-        ((prev as any).evaluation as any) || DEFAULT_EVALUATION_TEMPLATE;
-      const nextOfficeLogos = { ...(currentEvaluation.officeLogos || {}) };
-      delete nextOfficeLogos[officeId];
-      return {
-        ...prev,
-        evaluation: {
-          ...currentEvaluation,
-          officeLogos: nextOfficeLogos,
         },
       };
     });
@@ -1285,13 +1216,7 @@ export default function EditFormsPage() {
                 className="max-w-[150px] max-h-[100px] object-contain"
               />
             </div>
-          ) : (
-            <img
-              src="/images/abic-header.png"
-              alt="Company Header"
-              className="max-w-[650px] w-full object-contain"
-            />
-          )}
+          ) : null}
 
           {template.headerDetails && (
             <div className="text-center mt-1 text-[10px] leading-tight text-slate-600 max-w-[500px] whitespace-pre-wrap">
@@ -1786,100 +1711,6 @@ export default function EditFormsPage() {
                       </div>
                     ) : activeTab === "evaluation" ? (
                       <div className="space-y-8">
-                        <div className="space-y-4">
-                          <div className="flex items-center gap-3 mb-1">
-                            <div className="p-2 bg-rose-100 rounded-lg">
-                              <Layout className="w-4 h-4 text-[#A4163A]" />
-                            </div>
-                            <h4 className="text-xs font-black text-[#A4163A] uppercase tracking-wider">
-                              Office-specific Evaluation Logos
-                            </h4>
-                          </div>
-                          <div className="space-y-4">
-                            {offices.length === 0 ? (
-                              <p className="text-xs text-slate-500">
-                                No offices found. Add offices first to set
-                                office-based logos.
-                              </p>
-                            ) : (
-                              offices.map((office) => {
-                                const officeLogo = ((templates as any)[
-                                  activeTab
-                                ].officeLogos || {})[String(office.id)];
-                                const officeNameOverride =
-                                  ((templates as any)[activeTab]
-                                    .officeNameOverrides || {})[
-                                    String(office.id)
-                                  ] || office.name;
-                                return (
-                                  <div
-                                    key={office.id}
-                                    className="rounded-2xl border border-rose-100 bg-white p-4 shadow-sm"
-                                  >
-                                    <div className="mb-3 space-y-2">
-                                      <div className="text-[11px] font-black text-[#7B0F2B] uppercase tracking-wider">
-                                        Office Name (for evaluation)
-                                      </div>
-                                      <Input
-                                        value={officeNameOverride}
-                                        onChange={(e) =>
-                                          handleOfficeEvaluationNameChange(
-                                            String(office.id),
-                                            e.target.value,
-                                          )
-                                        }
-                                        className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-10"
-                                      />
-                                    </div>
-                                    {officeLogo ? (
-                                      <div className="relative group w-full max-w-[320px] aspect-video bg-white rounded-2xl border-2 border-dashed border-rose-200 overflow-hidden flex items-center justify-center p-4">
-                                        <img
-                                          src={officeLogo}
-                                          alt={`${office.name} logo`}
-                                          className="max-h-full max-w-full object-contain"
-                                        />
-                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                          <Button
-                                            variant="outline"
-                                            size="sm"
-                                            className="h-10 px-4 rounded-xl bg-red-500 hover:bg-red-600 border-0 text-white font-bold"
-                                            onClick={() =>
-                                              removeOfficeEvaluationLogo(
-                                                String(office.id),
-                                              )
-                                            }
-                                          >
-                                            <Trash2 className="w-4 h-4 mr-2" />
-                                            Remove
-                                          </Button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      <label className="w-full max-w-[320px] aspect-video bg-white hover:bg-rose-50/50 rounded-2xl border-2 border-dashed border-rose-200 flex flex-col items-center justify-center gap-2 cursor-pointer transition-all hover:border-[#A4163A] group">
-                                        <input
-                                          type="file"
-                                          className="hidden"
-                                          accept="image/*"
-                                          onChange={(e) =>
-                                            handleOfficeEvaluationLogoUpload(
-                                              String(office.id),
-                                              e,
-                                            )
-                                          }
-                                        />
-                                        <Upload className="w-7 h-7 text-rose-300 group-hover:text-[#A4163A]" />
-                                        <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">
-                                          Upload {office.name} Logo
-                                        </span>
-                                      </label>
-                                    )}
-                                  </div>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-
                         <div className="space-y-2.5">
                           <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
                             Document Title

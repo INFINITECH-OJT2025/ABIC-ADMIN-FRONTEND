@@ -1941,13 +1941,7 @@ function FormOneTemplate({
                       className="max-w-[150px] max-h-[100px] object-contain"
                     />
                   </div>
-                ) : (
-                  <img
-                    src="/images/abic-header.png"
-                    alt="Company Header"
-                    className="max-w-[650px] w-full object-contain"
-                  />
-                )}
+                ) : null}
 
                 {detailsToUse && (
                   <div className="text-center mt-1 text-[10px] leading-tight text-slate-600 max-w-[500px] whitespace-pre-wrap">
@@ -2190,13 +2184,7 @@ function FormTwoTemplate({
                       className="max-w-[150px] max-h-[100px] object-contain"
                     />
                   </div>
-                ) : (
-                  <img
-                    src="/images/abic-header.png"
-                    alt="Company Header"
-                    className="max-w-[650px] w-full object-contain"
-                  />
-                )}
+                ) : null}
 
                 {detailsToUse && (
                   <div className="text-center mt-1 text-[10px] leading-tight text-slate-600 max-w-[500px] whitespace-pre-wrap">
