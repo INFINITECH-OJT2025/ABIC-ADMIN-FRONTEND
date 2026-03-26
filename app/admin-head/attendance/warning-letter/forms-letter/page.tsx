@@ -18,8 +18,18 @@ import {
   Edit3,
   Calendar,
   ShieldCheck,
-
   X,
+  Bold,
+  Italic,
+  Underline,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  AlignJustify,
+  List,
+  ListOrdered,
+  Indent,
+  Outdent,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,6 +53,7 @@ import {
 } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { useConfirmation } from "@/components/providers/confirmation-provider";
 
 // --- Skeleton Component ---
 const LetterSkeleton = () => (
@@ -286,6 +297,84 @@ function formatTime(timeStr: string): string {
   return timeStr;
 }
 
+/* --- Rich Text Editor for Word-like experience --- */
+const StandardRichTextEditor = ({ value, onChange, isViewOnly }: any) => {
+  const editorRef = React.useRef<HTMLDivElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
+
+  useEffect(() => {
+    if (editorRef.current && !isFocused && editorRef.current.innerHTML !== value) {
+      editorRef.current.innerHTML = value || "";
+    }
+  }, [value, isFocused]);
+
+  const execCommand = (command: string, arg: string | null = null) => {
+    if (isViewOnly) return;
+    document.execCommand(command, false, arg || undefined);
+    if (editorRef.current) {
+      onChange(editorRef.current.innerHTML);
+    }
+  };
+
+  const ToolbarButton = ({ command, icon: Icon, arg = null, title }: any) => (
+    <Button
+      size="sm"
+      variant="ghost"
+      type="button"
+      className="h-8 w-8 p-0 rounded-md hover:bg-[#A4163A]/10 hover:text-[#A4163A] transition-colors"
+      onClick={() => execCommand(command, arg)}
+      disabled={isViewOnly}
+      title={title}
+    >
+      <Icon className="w-4 h-4" />
+    </Button>
+  );
+
+  return (
+    <div className="flex flex-col border-2 border-amber-100 rounded-2xl overflow-hidden shadow-sm focus-within:ring-2 focus-within:ring-amber-500/10 transition-all bg-white">
+      {!isViewOnly && (
+        <div className="flex flex-wrap items-center gap-0.5 p-1.5 bg-amber-50/50 border-b border-amber-100 sticky top-0 z-10">
+          <ToolbarButton command="bold" icon={Bold} title="Bold (Ctrl+B)" />
+          <ToolbarButton command="italic" icon={Italic} title="Italic (Ctrl+I)" />
+          <ToolbarButton command="underline" icon={Underline} title="Underline (Ctrl+U)" />
+          <Separator orientation="vertical" className="h-6 mx-1 bg-amber-200" />
+          <ToolbarButton command="justifyLeft" icon={AlignLeft} title="Align Left" />
+          <ToolbarButton command="justifyCenter" icon={AlignCenter} title="Align Center" />
+          <ToolbarButton command="justifyRight" icon={AlignRight} title="Align Right" />
+          <ToolbarButton command="justifyFull" icon={AlignJustify} title="Justify" />
+          <Separator orientation="vertical" className="h-6 mx-1 bg-amber-200" />
+          <ToolbarButton command="insertUnorderedList" icon={List} title="Bullet List" />
+          <ToolbarButton command="insertOrderedList" icon={ListOrdered} title="Numbered List" />
+          <Separator orientation="vertical" className="h-6 mx-1 bg-amber-200" />
+          <ToolbarButton command="indent" icon={Indent} title="Indent" />
+          <ToolbarButton command="outdent" icon={Outdent} title="Outdent" />
+        </div>
+      )}
+      <div
+        ref={editorRef}
+        contentEditable={!isViewOnly}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => {
+          setIsFocused(false);
+          if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+          }
+        }}
+        onInput={() => {
+          if (editorRef.current) {
+            onChange(editorRef.current.innerHTML);
+          }
+        }}
+        className={cn(
+          "min-h-[400px] p-8 focus:outline-none font-serif text-[15px] leading-relaxed text-[#4A081A]",
+          isViewOnly && "cursor-not-allowed opacity-80"
+        )}
+        style={{ whiteSpace: "pre-wrap" }}
+      />
+    </div>
+  );
+};
+
 function extractStartTime(shiftOption: string): string {
   const parts = shiftOption.split(/\s*[–-]\s*/);
   return parts[0].trim();
@@ -321,6 +410,7 @@ function FormLetterContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { isViewOnly } = useUserRole();
+  const { confirm } = useConfirmation();
   
   const employeeId = searchParams.get("employeeId");
   const type = searchParams.get("type"); // 'late' or 'leave'
@@ -352,6 +442,7 @@ function FormLetterContent() {
   const [customLeaveTemplate, setCustomLeaveTemplate] = useState<any>(null);
   const [customSupervisorTemplate, setCustomSupervisorTemplate] =
     useState<any>(null);
+  const [offices, setOffices] = useState<any[]>([]);
   const [isProbee, setIsProbee] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [f1Body, setF1Body] = useState("");
@@ -531,6 +622,7 @@ function FormLetterContent() {
           if (Object.keys(newSchedules).length > 0) {
             setDynamicSchedules(newSchedules);
           }
+          setOffices(officeData.data || []);
         }
 
         if (deptData.success && officeData.success) {
@@ -903,160 +995,144 @@ function FormLetterContent() {
     );
     if (nonGmail.length > 0) {
       toast.error(
-        "Invalid Email: Only @gmail.com addresses are permitted for delivery.",
+        "Invalid email address. All recipients must use a Gmail address (@gmail.com).",
       );
       return;
     }
 
-    setIsSending(true);
-    const sendingToast = toast.loading("Generating PDF…");
+    confirm({
+      title: "Confirm Dissemination",
+      description: `You are about to send an official ${type === "late" ? "tardiness" : "leave"} warning letter to ${emailList.join(", ")}. Do you wish to proceed?`,
+      confirmText: "Send Notification",
+      onConfirm: async () => {
+        setIsSending(true);
+        const sendingToast = toast.loading("Preparing document package...");
+        try {
+          // ── Dynamically import heavy PDF libs (tree-shaken at build time) ────
+          const [{ default: html2canvas }, { default: jsPDF }] =
+            await Promise.all([import("html2canvas"), import("jspdf")]);
 
-    try {
-      // ── Dynamically import heavy PDF libs (tree-shaken at build time) ────
-      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
-        import("html2canvas"),
-        import("jspdf"),
-      ]);
+          // ── Collect ordered form element IDs that are currently rendered ─────
+          const formIds: { id: string; key: string }[] = [];
+          if (selectedForms.includes("form1"))
+            formIds.push({ id: "form-letter-1", key: "form1" });
+          if (selectedForms.includes("form2"))
+            formIds.push({ id: "form-letter-2", key: "form2" });
 
-      // ── Collect ordered form element IDs that are currently rendered ─────
-      const formIds: { id: string; key: string }[] = [];
-      if (selectedForms.includes("form1"))
-        formIds.push({ id: "form-letter-1", key: "form1" });
-      if (selectedForms.includes("form2"))
-        formIds.push({ id: "form-letter-2", key: "form2" });
+          if (formIds.length === 0) {
+            toast.dismiss(sendingToast);
+            toast.error("No form selected. Please select at least one form.");
+            setIsSending(false);
+            return;
+          }
 
-      if (formIds.length === 0) {
-        toast.dismiss(sendingToast);
-        toast.error("No form selected. Please select at least one form.");
-        setIsSending(false);
-        return;
-      }
+          // A4 size in points: 595 × 842 pt (210mm × 297mm at 72dpi)
+          const pdf = new jsPDF({
+            unit: "pt",
+            format: "a4",
+            orientation: "portrait",
+          });
+          const pageW = pdf.internal.pageSize.getWidth();
+          const pageH = pdf.internal.pageSize.getHeight();
 
-      // A4 size in points: 595 × 842 pt (210mm × 297mm at 72dpi)
-      const pdf = new jsPDF({
-        unit: "pt",
-        format: "a4",
-        orientation: "portrait",
-      });
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
+          for (let i = 0; i < formIds.length; i++) {
+            const { id } = formIds[i];
+            const el = document.getElementById(id);
+            if (!el) continue;
 
-      for (let i = 0; i < formIds.length; i++) {
-        const { id } = formIds[i];
-        const el = document.getElementById(id);
-        if (!el) continue;
+            const canvas = await html2canvas(el as HTMLElement, {
+              scale: 2,
+              useCORS: true,
+              allowTaint: false,
+              backgroundColor: "#ffffff",
+              logging: false,
+              onclone: (clonedDoc) => {
+                fixModernColors(clonedDoc);
+              },
+            });
 
-        // Render the DOM element to a canvas at 2× for crisp output
-        const canvas = await html2canvas(el as HTMLElement, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: "#ffffff",
-          logging: false,
-          onclone: (clonedDoc) => {
-            fixModernColors(clonedDoc);
-          },
-        });
+            const imgData = canvas.toDataURL("image/jpeg", 0.95);
+            const imgW = canvas.width;
+            const imgH = canvas.height;
+            const ratio = pageW / imgW;
+            const finalW = pageW;
+            const scaledH = imgH * ratio;
+            const totalSlices = Math.max(1, Math.ceil((scaledH - 20) / pageH));
 
-        const imgData = canvas.toDataURL("image/jpeg", 0.95);
-        const imgW = canvas.width;
-        const imgH = canvas.height;
+            for (let p = 0; p < totalSlices; p++) {
+              if (i > 0 || p > 0) pdf.addPage();
+              pdf.addImage(imgData, "JPEG", 0, -(p * pageH), finalW, scaledH);
+            }
+          }
 
-        // Scale to fill the full page width (no right-side gap).
-        // If the scaled content height exceeds one A4 page, slice the same
-        // image across multiple pages by shifting the y-origin on each page.
-        const ratio = pageW / imgW;
-        const finalW = pageW;
-        const scaledH = imgH * ratio; // total rendered height in pt
-        // Add a 20pt buffer (approx 26px) to ignore tiny overflows that create blank pages
-        const totalSlices = Math.max(1, Math.ceil((scaledH - 20) / pageH));
+          const pdfBase64 = pdf.output("datauristring").split(",")[1];
+          toast.dismiss(sendingToast);
+          const mailingToast = toast.loading("Dispatching email...");
 
-        for (let p = 0; p < totalSlices; p++) {
-          // First slice of form 0 — no new page (PDF starts with page 1 already)
-          if (i > 0 || p > 0) pdf.addPage();
-          // Draw the full image but shifted up by (p * pageH) so this page's
-          // window shows the correct slice of content.
-          pdf.addImage(imgData, "JPEG", 0, -(p * pageH), finalW, scaledH);
+          const res = await fetch(
+            `${getApiUrl()}/api/warning-letter/send-email`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                recipients: emailList,
+                employee_name: employee?.name ?? "",
+                letter_type: type,
+                pdf_base64: pdfBase64,
+              }),
+            },
+          );
+          const data = await res.json();
+          toast.dismiss(mailingToast);
+
+          if (!res.ok || !data.success) {
+            const rawMsg = data.message || "Failed to send email.";
+            const userFriendlyMsg = getFriendlyErrorMessage(rawMsg);
+            toast.error(`Email Error: ${userFriendlyMsg}`, {
+              duration: 10000,
+            });
+            setIsSending(false);
+            return;
+          }
+
+          toast.success(`Notification successfully sent to: ${emailList.join(", ")}`);
+
+          // Log history
+          try {
+            const warningLevel = entries[0]?.warning_level ?? 1;
+            await fetch(`${getApiUrl()}/api/sent-warning-letters`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                employee_id: employeeId,
+                employee_name: employee?.name ?? "",
+                type: type,
+                warning_level: warningLevel,
+                month: month,
+                year: Number(year),
+                cutoff: cutoff,
+                recipients: recipients.map((r: any) => ({
+                  email: r.email,
+                  type: r.type,
+                })),
+                forms_included: selectedForms,
+                form1_body: selectedForms.includes("form1") ? f1Body : null,
+                form2_body: selectedForms.includes("form2") ? f2Body : null,
+              }),
+            });
+          } catch (e) {
+            console.error("Failed to save history:", e);
+          }
+        } catch (err: any) {
+          toast.dismiss();
+          const userFriendly =
+            err?.message || "An unexpected error occurred during dispatch.";
+          toast.error(`Dispatch Error: ${userFriendly}`, { duration: 8000 });
+        } finally {
+          setIsSending(false);
         }
-      }
-
-      // ── Convert to base64 (strip the data-uri prefix) ────────────────────
-      const pdfBase64 = pdf.output("datauristring").split(",")[1];
-
-      toast.dismiss(sendingToast);
-      const sendToast = toast.loading("Sending email…");
-
-      // ── POST to backend ────────────────────────────────────────────────────
-      const res = await fetch(`${getApiUrl()}/api/warning-letter/send-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipients: emailList,
-          employee_name: employee?.name ?? "",
-          letter_type: type,
-          pdf_base64: pdfBase64,
-        }),
-      });
-      const data = await res.json();
-      toast.dismiss(sendToast);
-
-      if (!res.ok || !data.success) {
-        const rawMsg = data.message || "Failed to send email.";
-        const userFriendlyMsg = getFriendlyErrorMessage(rawMsg);
-        toast.error(`Email Error: ${userFriendlyMsg}`, {
-          duration: 10000, // Show longer so user can read
-        });
-        setIsSending(false);
-        return;
-      }
-
-      toast.success(`Letter sent to: ${emailList.join(", ")}`);
-
-      // ── Persist history record ────────────────────────────────────────────
-      try {
-        const warningLevel = entries[0]?.warning_level ?? 1;
-        await fetch(`${getApiUrl()}/api/sent-warning-letters`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            employee_id: employeeId,
-            employee_name: employee?.name ?? "",
-            type: type,
-            warning_level: warningLevel,
-            month: month,
-            year: Number(year),
-            cutoff: cutoff,
-            recipients: recipients.map((r) => ({
-              email: r.email,
-              type: r.type,
-            })),
-            forms_included: selectedForms,
-            form1_body: selectedForms.includes("form1") ? f1Body : null,
-            form2_body: selectedForms.includes("form2") ? f2Body : null,
-          }),
-        });
-      } catch (e) {
-        console.error("Failed to save warning letter history:", e);
-      }
-    } catch (err: any) {
-      toast.dismiss();
-      const rawMsg = err?.message || "Something went wrong.";
-      const lower = rawMsg.toLowerCase();
-      let userFriendly = rawMsg;
-
-      if (
-        lower.includes("failed to fetch") ||
-        lower.includes("network error") ||
-        lower.includes("internet")
-      ) {
-        userFriendly =
-          "Network connectivity issues. Please check your internet and try again.";
-      }
-
-      toast.error(`Error: ${userFriendly}`, { duration: 8000 });
-    } finally {
-      setIsSending(false);
-    }
+      },
+    });
   };
 
   const handleAddRecipient = () => {
@@ -1249,8 +1325,8 @@ function FormLetterContent() {
               ? `${supervisorSalutation} ${supervisorFirstName}`
               : supervisorFirstName || "Supervisor";
           initialF1 =
-            `Dear ${supSalutation},\n\nThis letter serves as a Formal Warning regarding the ${issueType} of ${salutationPrefix} ${employee.name}. ${employee.gender?.toLowerCase() === "male" ? "He" : "She"} has accumulated ${numberToText(totalCount)} (${totalCount}) ${totalCount === 1 ? (type === "late" ? "occurrence" : "day") : type === "late" ? "occurrences" : "days"} of ${issueType} within the current cut-off period.\n\n` +
-            `In accordance with company policy, reaching this threshold within a single cut-off period is subject to appropriate coaching, warning, and/or sanction. We request that you address this matter with the concerned employee.\n\n` +
+            `Dear ${supSalutation},\n\n    This letter serves as a Formal Warning regarding the ${issueType} of ${salutationPrefix} ${employee.name}. ${employee.gender?.toLowerCase() === "male" ? "He" : "She"} has accumulated ${numberToText(totalCount)} (${totalCount}) ${totalCount === 1 ? (type === "late" ? "occurrence" : "day") : type === "late" ? "occurrences" : "days"} of ${issueType} within the current cut-off period.\n\n` +
+            `    In accordance with company policy, reaching this threshold within a single cut-off period is subject to appropriate coaching, warning, and/or sanction. We request that you address this matter with the concerned employee.\n\n` +
             `Specific dates recorded:\n${entryListStr}${reminders}` +
             `Kindly ensure that the employee is informed and that corrective action is enforced appropriately.\n\n` +
             `Thank you.`;
@@ -1262,7 +1338,7 @@ function FormLetterContent() {
         const targetTemplate =
           type === "late"
             ? customTardinessTemplate?.[
-                isProbee ? "tardiness-probee" : "tardiness-regular"
+                employee?.position?.toLowerCase().includes("driver") || employee?.position?.toLowerCase().includes("liaison") ? "tardiness-probee" : "tardiness-regular"
               ]
             : customLeaveTemplate;
 
@@ -1279,30 +1355,22 @@ function FormLetterContent() {
             .replace(/{{year}}/g, year)
             .replace(/{{entries_list}}/g, entryListStr)
             .replace(/Employee Acknowledgment:[\s\S]*$/, ""); // Remove if present in stored template
-
-          // If Probee and is Leave template, remove the reminders section
-          if (isProbee && type === "leave") {
-            initialF2 = initialF2.replace(
-              /(Moving forward, you are expected to:|Please be reminded of the following:)[\s\S]*?(?=Thank you|Failure to comply|Please acknowledge)/gi,
-              "",
-            );
-          }
         } else {
           if (type === "late") {
             initialF2 =
               `Dear ${salutationPrefix} ${lastName},\n\n` +
-              `This letter serves as a Formal Warning regarding your tardiness. Your scheduled time-in is ${shiftTime}, with a five (5)-minute grace period until ${gracePeriod}.\n\n` +
-              `You have incurred ${numberToText(totalCount)} (${totalCount}) instances of tardiness within the current cut-off period, which constitutes a violation of the Company's Attendance and Punctuality Policy.\n\n` +
+              `    This letter serves as a Formal Warning regarding your tardiness. Your scheduled time-in is ${shiftTime}, with a five (5)-minute grace period until ${gracePeriod}.\n\n` +
+              `    You have incurred ${numberToText(totalCount)} (${totalCount}) instances of tardiness within the current cut-off period, which constitutes a violation of the Company's Attendance and Punctuality Policy.\n\n` +
               `Recorded instances:\n${entryListStr}\n\n` +
-              `Consistent tardiness disrupts workflow. You are expected to immediately correct your attendance behavior. Future occurrences may result in stricter disciplinary action.\n\n` +
+              `    Consistent tardiness disrupts workflow. You are expected to immediately correct your attendance behavior. Future occurrences may result in stricter disciplinary action.\n\n` +
               `Thank you.`;
           } else {
             initialF2 =
               `Dear ${salutationPrefix} ${lastName},\n\n` +
-              `This letter serves as a Formal Warning regarding your attendance record for the current cutoff period.\n\n` +
+              `    This letter serves as a Formal Warning regarding your attendance record for the current cutoff period.\n\n` +
               `It has been noted that you incurred ${numberToText(totalCount)} (${totalCount}) days of leave within the ${cutoffText} of ${month} ${year}, specifically on the following dates:\n\n` +
               `${entryListStr}\n\n` +
-              `These absences negatively affect work operations. Repeated absences may lead to further disciplinary action.\n\n` +
+              `    These absences negatively affect work operations. Repeated absences may lead to further disciplinary action.\n\n` +
               `Moving forward, you are expected to improve your attendance immediately and avoid unapproved absences.\n\n` +
               `Thank you.`;
           }
@@ -1705,6 +1773,9 @@ function FormLetterContent() {
             setBody={setF1Body}
             letterTitle={letterTitle}
             warningLevelText={warningLevelText}
+            offices={offices}
+            deptMap={deptMap}
+            isViewOnly={isViewOnly}
           />
         )}
 
@@ -1727,7 +1798,10 @@ function FormLetterContent() {
             customTemplate={
               type === "late"
                 ? customTardinessTemplate?.[
-                    isProbee ? "tardiness-probee" : "tardiness-regular"
+                    employee?.position?.toLowerCase().includes("driver") ||
+                    employee?.position?.toLowerCase().includes("liaison")
+                      ? "tardiness-probee"
+                      : "tardiness-regular"
                   ]
                 : customLeaveTemplate
             }
@@ -1736,6 +1810,9 @@ function FormLetterContent() {
             body={f2Body}
             setBody={setF2Body}
             warningLevelText={warningLevelText}
+            offices={offices}
+            deptMap={deptMap}
+            isViewOnly={isViewOnly}
           />
         )}
 
@@ -1800,6 +1877,9 @@ function FormOneTemplate({
   setBody,
   letterTitle,
   warningLevelText,
+  offices,
+  deptMap,
+  isViewOnly,
 }: any) {
   const totalCount =
     type === "leave"
@@ -1827,27 +1907,56 @@ function FormOneTemplate({
           className="flex flex-col items-center mb-2 w-full"
           style={{ marginTop: "0.5cm" }}
         >
-          {customTemplate?.headerLogoImage ? (
-            <div className="flex flex-col items-center gap-2">
-              <img
-                src={customTemplate.headerLogoImage}
-                alt="Custom Logo"
-                className="max-w-[150px] max-h-[100px] object-contain"
-              />
-            </div>
-          ) : (
-            <img
-              src="/images/abic-header.png"
-              alt="Company Header"
-              className="max-w-[650px] w-full object-contain"
-            />
-          )}
+          {(() => {
+            // Enhanced Resolution:
+            // 1. Try direct office_id or department_id from employee
+            // 2. Try looking up the office name via deptMap if we only have a department string
+            let resolvedOfficeId = String(employee.office_id || employee.department?.office_id || "");
+            
+            if (!resolvedOfficeId) {
+              const deptName = employee.department || employee.office_name;
+              if (deptName) {
+                const offName = deptMap[deptName.toUpperCase().trim()];
+                if (offName) {
+                  const mappedOffice = offices.find((o: any) => o.name.toUpperCase().trim() === offName);
+                  if (mappedOffice) resolvedOfficeId = String(mappedOffice.id);
+                }
+              }
+            }
 
-          {customTemplate?.headerDetails && (
-            <div className="text-center mt-1 text-[10px] leading-tight text-slate-600 max-w-[500px] whitespace-pre-wrap">
-              {customTemplate.headerDetails}
-            </div>
-          )}
+            const office = offices.find((o: any) => String(o.id) === String(resolvedOfficeId));
+            const officeLogo = office?.header_logo_image;
+            const officeDetails = office?.header_details;
+            
+            const logoToUse = officeLogo || customTemplate?.headerLogoImage;
+            const detailsToUse = officeDetails || customTemplate?.headerDetails;
+
+            return (
+              <>
+                {logoToUse ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <img
+                      src={logoToUse}
+                      alt="Company Logo"
+                      className="max-w-[150px] max-h-[100px] object-contain"
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src="/images/abic-header.png"
+                    alt="Company Header"
+                    className="max-w-[650px] w-full object-contain"
+                  />
+                )}
+
+                {detailsToUse && (
+                  <div className="text-center mt-1 text-[10px] leading-tight text-slate-600 max-w-[500px] whitespace-pre-wrap">
+                    {detailsToUse}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Title */}
@@ -1896,66 +2005,71 @@ function FormOneTemplate({
         {/* Body Content */}
         <div className="text-black text-xs leading-snug text-justify relative group/body">
           {isEditMode ? (
-            <div className="relative">
-              <Textarea
+            <div className="relative group">
+              <StandardRichTextEditor
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
-                className="min-h-[400px] w-full border-2 border-amber-200 focus-visible:ring-amber-500 rounded-xl p-6 font-serif text-[15px] leading-relaxed resize-none bg-amber-50/10 shadow-inner"
-                placeholder="Write the letter body here..."
+                onChange={(val: string) => setBody(val)}
+                isViewOnly={isViewOnly}
               />
-              <div className="absolute top-2 right-2 flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider animate-pulse">
-                <Edit3 className="w-3 h-3" />
-                Editing Mode
-              </div>
             </div>
           ) : (
-            <div className="flex-1 space-y-0">
-              {body.split("\n").map((line: string, idx: number) => {
-                const trimmed = line.trim();
-                if (!trimmed) return <div key={idx} className="h-2" />;
-                if (trimmed.startsWith("•")) {
-                  return (
-                    <div key={idx} className="flex gap-4 pl-12 mb-2">
-                      <span className="shrink-0">•</span>
-                      <span>{trimmed.substring(1).trim()}</span>
-                    </div>
-                  );
-                }
-                const numMatch = trimmed.match(/^(\d+)\.\s*(.*)/);
-                if (numMatch) {
-                  return (
-                    <div key={idx} className="flex gap-4 pl-12 mb-2">
-                      <span className="shrink-0 font-bold">{numMatch[1]}.</span>
-                      <span>{numMatch[2]}</span>
-                    </div>
-                  );
-                }
-                const isSalutation =
-                  trimmed.toLowerCase().startsWith("dear") ||
-                  trimmed.endsWith(",");
-                const isClosing =
-                  trimmed.toLowerCase() === "thank you." ||
-                  trimmed.toLowerCase() === "respectfully," ||
-                  trimmed.toLowerCase() === "respectfully yours,";
+            <div className="flex-1 space-y-0 text-slate-900">
+              {!/<[a-z/][\s\S]*>/i.test(body) ? (
+                body.split("\n").map((line: string, idx: number) => {
+                  const trimmed = line.trim();
+                  if (!trimmed) return <div key={idx} className="h-2" />;
+                  if (trimmed.startsWith("•")) {
+                    return (
+                      <div key={idx} className="flex gap-4 pl-10 mb-2">
+                        <span className="shrink-0">•</span>
+                        <span>{trimmed.substring(1).trim()}</span>
+                      </div>
+                    );
+                  }
+                  const numMatch = trimmed.match(/^(\d+)\.\s*(.*)/);
+                  if (numMatch) {
+                    return (
+                      <div key={idx} className="flex gap-4 pl-10 mb-2">
+                        <span className="shrink-0 font-bold">{numMatch[1]}.</span>
+                        <span>{numMatch[2]}</span>
+                      </div>
+                    );
+                  }
+                  const isSalutation =
+                    trimmed.toLowerCase().startsWith("dear") ||
+                    trimmed.endsWith(",");
+                  const isClosing =
+                    trimmed.toLowerCase() === "thank you." ||
+                    trimmed.toLowerCase() === "respectfully," ||
+                    trimmed.toLowerCase() === "respectfully yours,";
 
-                if (isSalutation || isClosing) {
+                  if (isSalutation || isClosing) {
+                    return (
+                      <div key={idx} className="mb-4">
+                        {line}
+                      </div>
+                    );
+                  }
+
+                  // Paragraph with first-line indent (only if line starts with 4 spaces)
+                  const hasIndent = line.startsWith("    ");
                   return (
-                    <div key={idx} className="mb-4">
-                      {line}
+                    <div
+                      key={idx}
+                      className="text-justify mb-2"
+                      style={{ textIndent: hasIndent ? "2rem" : "0" }}
+                    >
+                      {trimmed}
                     </div>
                   );
-                }
-
-                return (
-                  <div
-                    key={idx}
-                    className="text-justify mb-2"
-                    style={{ textIndent: "3.5rem" }}
-                  >
-                    {line}
-                  </div>
-                );
-              })}
+                })
+              ) : (
+                <div 
+                  className="rich-text-content" 
+                  dangerouslySetInnerHTML={{ __html: body }} 
+                  style={{ whiteSpace: "pre-wrap" }}
+                />
+              )}
             </div>
           )}
         </div>
@@ -2019,6 +2133,9 @@ function FormTwoTemplate({
   body,
   setBody,
   warningLevelText,
+  offices,
+  deptMap,
+  isViewOnly,
 }: any) {
   const totalDays =
     type === "leave"
@@ -2039,27 +2156,56 @@ function FormTwoTemplate({
           className="flex flex-col items-center mb-2 w-full"
           style={{ marginTop: "0.5cm" }}
         >
-          {customTemplate?.headerLogoImage ? (
-            <div className="flex flex-col items-center gap-2">
-              <img
-                src={customTemplate.headerLogoImage}
-                alt="Custom Logo"
-                className="max-w-[150px] max-h-[100px] object-contain"
-              />
-            </div>
-          ) : (
-            <img
-              src="/images/abic-header.png"
-              alt="Company Header"
-              className="max-w-[650px] w-full object-contain"
-            />
-          )}
+          {(() => {
+            // Enhanced Resolution:
+            // 1. Try direct office_id or department_id from employee
+            // 2. Try looking up the office name via deptMap if we only have a department string
+            let resolvedOfficeId = String(employee.office_id || employee.department?.office_id || "");
+            
+            if (!resolvedOfficeId) {
+              const deptName = employee.department || employee.office_name;
+              if (deptName) {
+                const offName = deptMap[deptName.toUpperCase().trim()];
+                if (offName) {
+                  const mappedOffice = offices.find((o: any) => o.name.toUpperCase().trim() === offName);
+                  if (mappedOffice) resolvedOfficeId = String(mappedOffice.id);
+                }
+              }
+            }
 
-          {customTemplate?.headerDetails && (
-            <div className="text-center mt-1 text-[10px] leading-tight text-slate-600 max-w-[500px] whitespace-pre-wrap">
-              {customTemplate.headerDetails}
-            </div>
-          )}
+            const office = offices.find((o: any) => String(o.id) === String(resolvedOfficeId));
+            const officeLogo = office?.header_logo_image;
+            const officeDetails = office?.header_details;
+            
+            const logoToUse = officeLogo || customTemplate?.headerLogoImage;
+            const detailsToUse = officeDetails || customTemplate?.headerDetails;
+
+            return (
+              <>
+                {logoToUse ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <img
+                      src={logoToUse}
+                      alt="Company Logo"
+                      className="max-w-[150px] max-h-[100px] object-contain"
+                    />
+                  </div>
+                ) : (
+                  <img
+                    src="/images/abic-header.png"
+                    alt="Company Header"
+                    className="max-w-[650px] w-full object-contain"
+                  />
+                )}
+
+                {detailsToUse && (
+                  <div className="text-center mt-1 text-[10px] leading-tight text-slate-600 max-w-[500px] whitespace-pre-wrap">
+                    {detailsToUse}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
 
         {/* Title */}
@@ -2127,66 +2273,71 @@ function FormTwoTemplate({
         {/* Body Content */}
         <div className="text-black text-xs leading-snug text-justify relative group/body">
           {isEditMode ? (
-            <div className="relative">
-              <Textarea
+            <div className="relative group">
+              <StandardRichTextEditor
                 value={body}
-                onChange={(e) => setBody(e.target.value)}
-                className="min-h-[500px] w-full border-2 border-amber-200 focus-visible:ring-amber-500 rounded-xl p-8 font-serif text-[15px] leading-relaxed resize-none bg-amber-50/10 shadow-inner"
-                placeholder="Write the letter body here..."
+                onChange={(val: string) => setBody(val)}
+                isViewOnly={isViewOnly}
               />
-              <div className="absolute top-2 right-2 flex items-center gap-1 bg-amber-100 text-amber-700 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider animate-pulse">
-                <Edit3 className="w-3 h-3" />
-                Editing Mode
-              </div>
             </div>
           ) : (
-            <div className="flex-1 space-y-0">
-              {body.split("\n").map((line: string, idx: number) => {
-                const trimmed = line.trim();
-                if (!trimmed) return <div key={idx} className="h-2" />;
-                if (trimmed.startsWith("•")) {
-                  return (
-                    <div key={idx} className="flex gap-4 pl-12 mb-2">
-                      <span className="shrink-0">•</span>
-                      <span>{trimmed.substring(1).trim()}</span>
-                    </div>
-                  );
-                }
-                const numMatch = trimmed.match(/^(\d+)\.\s*(.*)/);
-                if (numMatch) {
-                  return (
-                    <div key={idx} className="flex gap-4 pl-12 mb-2">
-                      <span className="shrink-0 font-bold">{numMatch[1]}.</span>
-                      <span>{numMatch[2]}</span>
-                    </div>
-                  );
-                }
-                const isSalutation =
-                  trimmed.toLowerCase().startsWith("dear") ||
-                  trimmed.endsWith(",");
-                const isClosing =
-                  trimmed.toLowerCase() === "thank you." ||
-                  trimmed.toLowerCase() === "respectfully," ||
-                  trimmed.toLowerCase() === "respectfully yours,";
+            <div className="flex-1 space-y-0 text-slate-900">
+              {!/<[a-z/][\s\S]*>/i.test(body) ? (
+                body.split("\n").map((line: string, idx: number) => {
+                  const trimmed = line.trim();
+                  if (!trimmed) return <div key={idx} className="h-2" />;
+                  if (trimmed.startsWith("•")) {
+                    return (
+                      <div key={idx} className="flex gap-4 pl-10 mb-2">
+                        <span className="shrink-0">•</span>
+                        <span>{trimmed.substring(1).trim()}</span>
+                      </div>
+                    );
+                  }
+                  const numMatch = trimmed.match(/^(\d+)\.\s*(.*)/);
+                  if (numMatch) {
+                    return (
+                      <div key={idx} className="flex gap-4 pl-10 mb-2">
+                        <span className="shrink-0 font-bold">{numMatch[1]}.</span>
+                        <span>{numMatch[2]}</span>
+                      </div>
+                    );
+                  }
+                  const isSalutation =
+                    trimmed.toLowerCase().startsWith("dear") ||
+                    trimmed.endsWith(",");
+                  const isClosing =
+                    trimmed.toLowerCase() === "thank you." ||
+                    trimmed.toLowerCase() === "respectfully," ||
+                    trimmed.toLowerCase() === "respectfully yours,";
 
-                if (isSalutation || isClosing) {
+                  if (isSalutation || isClosing) {
+                    return (
+                      <div key={idx} className="mb-4">
+                        {line}
+                      </div>
+                    );
+                  }
+
+                  // Paragraph with first-line indent (only if line starts with 4 spaces)
+                  const hasIndent = line.startsWith("    ");
                   return (
-                    <div key={idx} className="mb-4">
-                      {line}
+                    <div
+                      key={idx}
+                      className="text-justify mb-2"
+                      style={{ textIndent: hasIndent ? "2rem" : "0" }}
+                    >
+                      {trimmed}
                     </div>
                   );
-                }
-
-                return (
-                  <div
-                    key={idx}
-                    className="text-justify mb-2"
-                    style={{ textIndent: "3.5rem" }}
-                  >
-                    {line}
-                  </div>
-                );
-              })}
+                })
+              ) : (
+                <div 
+                  className="rich-text-content" 
+                  dangerouslySetInnerHTML={{ __html: body }} 
+                  style={{ whiteSpace: "pre-wrap" }}
+                />
+              )}
             </div>
           )}
         </div>

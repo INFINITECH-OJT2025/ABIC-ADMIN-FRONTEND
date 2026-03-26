@@ -36,6 +36,7 @@ Route::post('/departments/bulk', [DepartmentController::class, 'bulkCreate']);
 use App\Http\Controllers\Api\OfficeController;
 Route::get('/offices', [OfficeController::class, 'index']);
 Route::post('/offices', [OfficeController::class, 'store']);
+Route::patch('/offices/{id}/branding', [OfficeController::class, 'updateBranding']);
 
 // Onboarding routes
 Route::post('/employees/{id}/onboard', [EmployeeController::class, 'onboard']);
@@ -145,6 +146,10 @@ Route::post('/sent-warning-letters', [SentWarningLetterController::class, 'store
 // Warning Letter Email (PDF via SMTP)
 use App\Http\Controllers\Api\WarningLetterMailController;
 Route::post('/warning-letter/send-email', [WarningLetterMailController::class, 'send']);
+
+// Day Offs Routes
+use App\Http\Controllers\DayOffController;
+Route::apiResource('day_offs', DayOffController::class);
 
 // Hiring routes
 Route::get('/hiring/interviews', [HiringController::class, 'interviews']);

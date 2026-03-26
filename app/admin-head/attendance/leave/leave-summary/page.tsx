@@ -203,9 +203,10 @@ export default function LeaveSummaryPage() {
       if (val % 1 !== 0) {
         const days = Math.floor(val);
         const hours = (val % 1) * 8;
-        return days > 0 ? `${days}d ${hours}hrs` : `${hours}hrs`;
+        const dayLabel = days === 1 ? "dy" : "dys";
+        return days > 0 ? `${days}${dayLabel} ${hours}hrs` : `${hours}hrs`;
       }
-      return val; // Whole number
+      return `${val}${val === 1 ? "dy" : "dys"}`;
     };
 
     // ── Maroon Gradient Palette ────────────────────────────────────────────────
@@ -331,7 +332,7 @@ export default function LeaveSummaryPage() {
       "",
       "",
       "",
-      formatExcelValue(summaryData.length),
+      summaryData.length,
       "",
       "",
       "",
@@ -603,7 +604,7 @@ export default function LeaveSummaryPage() {
               <h1 className="text-xl md:text-2xl font-black uppercase tracking-tight">
                 Yearly Leave Summary
               </h1>
-              <p className="text-white/80 text-[10px] md:text-xs font-bold flex items-center gap-2 uppercase tracking-widest">
+              <p className="text-white/80 text-[13px] font-bold flex items-center gap-2 uppercase tracking-widest">
                 <Calendar className="w-3.5 h-3.5" />
                 Leave Monitoring {selectedYear}
               </p>
@@ -613,7 +614,7 @@ export default function LeaveSummaryPage() {
               <Link href="/admin-head/attendance/leave">
                 <Button
                   variant="outline"
-                  className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-2"
+                  className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[11px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-2"
                 >
                   <ChevronLeft className="w-3.5 h-3.5" />
                   <span>Back to leave entry</span>
@@ -629,12 +630,12 @@ export default function LeaveSummaryPage() {
             <div className="flex flex-wrap items-center gap-3 md:gap-6">
               {/* Year Selection */}
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-white/60 uppercase tracking-widest">
+                <span className="text-[13px] font-black text-white/60 uppercase tracking-widest">
                   Year
                 </span>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-[11px] h-8 px-3 min-w-[90px] justify-between shadow-sm font-black inline-flex items-center whitespace-nowrap rounded-md cursor-pointer group border-2">
+                    <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-[13px] h-8 px-3 min-w-[90px] justify-between shadow-sm font-black inline-flex items-center whitespace-nowrap rounded-md cursor-pointer group border-2">
                       <span>{selectedYear}</span>
                       <ChevronDown className="w-3.5 h-3.5 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
                     </div>
@@ -648,7 +649,7 @@ export default function LeaveSummaryPage() {
                         key={year}
                         onClick={() => setSelectedYear(year)}
                         className={cn(
-                          "flex items-center justify-between rounded-md px-2 py-1.5 text-xs cursor-pointer transition-colors",
+                          "flex items-center justify-between rounded-md px-2 py-1.5 text-[13px] cursor-pointer transition-colors",
                           selectedYear === year
                             ? "bg-red-50 text-red-900 font-bold"
                             : "text-slate-600 hover:bg-slate-50",
@@ -668,7 +669,7 @@ export default function LeaveSummaryPage() {
               <Button
                 variant="outline"
                 onClick={handleExport}
-                className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-2"
+                className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[11px] font-black uppercase tracking-wider h-8 px-3 rounded-md flex items-center gap-2"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Export Report</span>
@@ -682,7 +683,7 @@ export default function LeaveSummaryPage() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search Employee..."
-                    className="pl-9 h-8 w-[250px] lg:w-[320px] bg-white border-2 border-[#FFE5EC] text-[#800020] placeholder:text-slate-400 font-bold text-xs rounded-md shadow-sm focus-visible:ring-rose-200 transition-all duration-200"
+                    className="pl-9 h-10 w-[250px] lg:w-[420px] bg-white border-2 border-[#FFE5EC] text-[#800020] placeholder:text-slate-400 font-bold text-[13px] rounded-md shadow-sm focus-visible:ring-rose-200 transition-all duration-200"
                   />
                 </div>
               </div>
@@ -706,9 +707,9 @@ export default function LeaveSummaryPage() {
                 Loading leave data...
               </div>
             ) : (
-              <table className="w-full text-xs border-collapse">
+              <table className="w-full text-[13px] border-collapse">
                 <thead>
-                  <tr className="bg-[#FFF1F3] text-[#7B0F2B] border-b border-rose-200 font-black uppercase text-[10px] tracking-wider">
+                  <tr className="bg-[#FFF1F3] text-[#7B0F2B] border-b border-rose-200 font-black uppercase text-[13px] tracking-wider">
                     <th className="px-3 py-4 text-center border-r border-rose-200/50 w-24">
                       ID Number
                     </th>
@@ -753,19 +754,19 @@ export default function LeaveSummaryPage() {
                           className={cn(
                             "px-2 py-3 text-center border-r border-rose-100/50",
                             val >= 3
-                              ? "bg-rose-100 text-[#800020] font-black text-xs"
-                              : "text-slate-500 font-bold text-xs",
+                              ? "bg-rose-100 text-[#800020] font-black text-[13px]"
+                              : "text-slate-500 font-bold text-[13px]",
                           )}
                         >
                           {val > 0 ? (
                             val % 1 !== 0 ? (
                               Math.floor(val) > 0 ? (
-                                `${Math.floor(val)}d ${(val % 1) * 8}hrs`
+                                `${Math.floor(val)}${Math.floor(val) === 1 ? "dy" : "dys"} ${(val % 1) * 8}hrs`
                               ) : (
                                 `${val * 8}hrs`
                               )
                             ) : (
-                              val
+                              `${val}${val === 1 ? "dy" : "dys"}`
                             )
                           ) : (
                             <span className="text-slate-200">-</span>
@@ -777,12 +778,12 @@ export default function LeaveSummaryPage() {
                         {record.total > 0 ? (
                           record.total % 1 !== 0 ? (
                             Math.floor(record.total) > 0 ? (
-                              `${Math.floor(record.total)}d ${(record.total % 1) * 8}hrs`
+                              `${Math.floor(record.total)}${Math.floor(record.total) === 1 ? "dy" : "dys"} ${(record.total % 1) * 8}hrs`
                             ) : (
                               `${record.total * 8}hrs`
                             )
                           ) : (
-                            record.total
+                            `${record.total}${record.total === 1 ? "dy" : "dys"}`
                           )
                         ) : (
                           <span className="text-slate-300">-</span>

@@ -50,6 +50,7 @@ export default function AdminHeadSidebar() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingEmployeeCount, setPendingEmployeeCount] = useState(0);
+  const [showTardinessReminder, setShowTardinessReminder] = useState(false);
   const router = useRouter();
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
@@ -162,6 +163,39 @@ export default function AdminHeadSidebar() {
       window.removeEventListener('activity-log-unread-changed', onUnreadChanged as EventListener);
     };
   }, []);
+
+  const fetchTardinessReminder = useCallback(async () => {
+    const now = new Date();
+    // Show reminder only after 1:00 PM (13:00)
+    if (now.getHours() < 13) {
+      setShowTardinessReminder(false);
+      return;
+    }
+
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const checkedDate = localStorage.getItem("tardiness_reminder_checked_date");
+
+    if (checkedDate === todayStr) {
+      setShowTardinessReminder(false);
+      return;
+    }
+
+    // Persist reminder after 1 PM until manually checked, regardless of entries
+    setShowTardinessReminder(true);
+  }, []);
+
+  useEffect(() => {
+    fetchTardinessReminder();
+    const intervalId = setInterval(fetchTardinessReminder, 60000);
+
+    const handleReminderSync = () => fetchTardinessReminder();
+    window.addEventListener("tardiness-reminder-sync", handleReminderSync);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener("tardiness-reminder-sync", handleReminderSync);
+    };
+  }, [fetchTardinessReminder]);
 
   return (
     <div
@@ -425,12 +459,24 @@ export default function AdminHeadSidebar() {
               isCollapsed ? "justify-center" : "justify-between",
             )}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 relative">
               <Calendar size={22} className="shrink-0" />
-              {!isCollapsed && (
-                <span className="font-medium whitespace-nowrap">
-                  ATTENDANCE
+              {isCollapsed && showTardinessReminder && (
+                <span className="absolute -top-1 -right-1 flex h-3 w-3 rounded-full bg-white text-[#7B0F2B] shadow-sm animate-bounce">
+                  <AlertCircle size={8} strokeWidth={4} />
                 </span>
+              )}
+              {!isCollapsed && (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium whitespace-nowrap">
+                    ATTENDANCE
+                  </span>
+                  {showTardinessReminder && (
+                    <span className="inline-flex w-4 h-4 items-center justify-center rounded-full bg-white text-[#7B0F2B] shadow-sm animate-bounce">
+                      <AlertCircle size={10} strokeWidth={3} />
+                    </span>
+                  )}
+                </div>
               )}
             </div>
             {!isCollapsed && (
@@ -466,10 +512,17 @@ export default function AdminHeadSidebar() {
             </Link>
             <Link
               href="/admin-head/attendance/tardiness"
-              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+              className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
-              <Clock size={18} />
-              <span>Tardiness</span>
+              <div className="flex items-center gap-2">
+                <Clock size={18} />
+                <span>Tardiness</span>
+              </div>
+              {showTardinessReminder && (
+                <span className="inline-flex w-5 h-5 items-center justify-center rounded-full bg-white text-[#7B0F2B] shadow-sm animate-bounce">
+                  <AlertCircle size={12} strokeWidth={3} />
+                </span>
+              )}
             </Link>
             <Link
               href="/admin-head/attendance/warning-letter"
@@ -478,6 +531,14 @@ export default function AdminHeadSidebar() {
               <FileText size={18} />
               <span>Warning Letter</span>
             </Link>
+            <Link
+              href="/admin-head/attendance/day-offs"
+              className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+            >
+              <Calendar size={18} />
+              <span>Day-Offs</span>
+            </Link>
+
           </div>
         </div>
 

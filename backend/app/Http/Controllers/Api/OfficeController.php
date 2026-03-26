@@ -22,4 +22,20 @@ class OfficeController extends Controller
         $office = Office::create($request->all());
         return response()->json(['success' => true, 'data' => $office]);
     }
+    public function updateBranding(Request $request, $id)
+    {
+        $office = Office::findOrFail($id);
+        $request->validate([
+            'header_logo_image' => 'nullable|string',
+            'header_details' => 'nullable|string'
+        ]);
+
+        $office->update($request->only(['header_logo_image', 'header_details']));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Office branding updated successfully.',
+            'data' => $office
+        ]);
+    }
 }
