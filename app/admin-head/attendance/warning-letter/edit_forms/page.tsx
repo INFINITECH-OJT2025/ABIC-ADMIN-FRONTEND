@@ -1204,8 +1204,8 @@ export default function EditFormsPage() {
     const todayLabel = "[Letter Date]";
 
     // Placeholder replacements for preview instead of mock data
-    const mockEntriesList = `
-    • [Entry 1 — Attendance/Leave Detail]
+    const mockEntriesList = 
+    `• [Entry 1 — Attendance/Leave Detail]
 
     • [Entry 2 — Attendance/Leave Detail]
 
