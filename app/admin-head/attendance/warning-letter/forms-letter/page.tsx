@@ -1901,7 +1901,7 @@ function FormOneTemplate({
       className="border-0 shadow-2xl rounded-none print:shadow-none min-h-[1120px] w-[794px] flex flex-col bg-white"
       id="form-letter-1"
     >
-      <CardContent className="px-14 py-8 flex-1 flex flex-col font-serif leading-snug text-[#333]">
+      <CardContent className="px-14 py-8 flex-1 flex flex-col font-serif leading-snug text-[#333] text-xs">
         {/* Header Branding */}
         <div
           className="flex flex-col items-center mb-2 w-full"
@@ -2078,7 +2078,7 @@ function FormOneTemplate({
         <div className="mt-6">
           <p>Respectfully,</p>
           <div className="mt-5">
-            <p className="font-black text-sm underline uppercase">
+            <p className="font-black text-xs underline uppercase">
               {customTemplate?.signatoryName || "AIZLE MARIE M. ATIENZA"}
             </p>
             <p className="font-medium text-slate-700">
@@ -2150,7 +2150,7 @@ function FormTwoTemplate({
       className="border-0 shadow-2xl rounded-none print:shadow-none min-h-[1120px] w-[794px] flex flex-col bg-white"
       id="form-letter-2"
     >
-      <CardContent className="px-14 py-8 flex-1 flex flex-col font-serif leading-snug text-[#333]">
+      <CardContent className="px-14 py-8 flex-1 flex flex-col font-serif leading-snug text-[#333] text-xs">
         {/* Header Branding */}
         <div
           className="flex flex-col items-center mb-2 w-full"
@@ -2346,7 +2346,7 @@ function FormTwoTemplate({
         <div className="mt-6">
           <p>Respectfully,</p>
           <div className="mt-5">
-            <p className="font-black text-sm underline uppercase">
+            <p className="font-black text-xs underline uppercase">
               {customTemplate?.signatoryName || "AIZLE MARIE M. ATIENZA"}
             </p>
             <p className="font-medium text-slate-700">
