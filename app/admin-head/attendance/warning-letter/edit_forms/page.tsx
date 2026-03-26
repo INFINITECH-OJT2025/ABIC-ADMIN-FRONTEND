@@ -1204,7 +1204,12 @@ export default function EditFormsPage() {
     const todayLabel = "[Letter Date]";
 
     // Placeholder replacements for preview instead of mock data
-    const mockEntriesList = `[List of Attendance/Leave Entries for current cut-off]`;
+    const mockEntriesList = `
+    • [Entry 1 — Attendance/Leave Detail]
+
+    • [Entry 2 — Attendance/Leave Detail]
+
+    • [Entry 3 — Attendance/Leave Detail]`;
 
     if (type.startsWith("tardiness")) {
       content = content

@@ -1090,7 +1090,7 @@ function FormLetterContent() {
             return;
           }
 
-          // A4 size in points: 595 × 842 pt (210mm × 297mm at 72dpi)
+          // A4 size in points: 595 x 842 pt (210mm x 297mm at 72dpi)
           const pdf = new jsPDF({
             unit: "pt",
             format: "a4",
@@ -1380,9 +1380,9 @@ function FormLetterContent() {
                   e.remarks ||
                   e.cite_reason ||
                   "No stated reason";
-            return `• ${formatDateLong(e.date || e.start_date)} — ${detail}`;
+            return `- ${formatDateLong(e.date || e.start_date)} - ${detail}`;
           })
-          .join("\n");
+          .join("\n\n");
 
         // Form 1 body (Supervisor)
         let initialF1 = "";
@@ -1987,7 +1987,7 @@ function FormLetterContent() {
         @media print {
           @page {
             margin: 0;
-            size: A4; /* 210mm × 297mm */
+            size: A4; /* 210mm x 297mm */
           }
           html,
           body {
@@ -2543,3 +2543,4 @@ export default function FormLetterPage() {
     </Suspense>
   );
 }
+
