@@ -18,7 +18,8 @@ class WarningLetterMailController extends Controller
      *   "recipients":    ["email1@gmail.com"],
      *   "employee_name": "Jay Joy",
      *   "letter_type":   "late",          // 'late' | 'leave'
-     *   "pdf_base64":    "<base64 string>" // PDF generated client-side
+     *   "pdf_base64":    "<base64 string>", // PDF generated client-side
+     *   "pdf_filename":  "2nd_warning_letter_Doe, John.pdf" // optional
      * }
      */
     public function send(Request $request)
@@ -29,6 +30,7 @@ class WarningLetterMailController extends Controller
             'employee_name' => 'required|string',
             'letter_type'   => 'required|in:late,leave',
             'pdf_base64'    => 'required|string',
+            'pdf_filename'  => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -42,6 +44,7 @@ class WarningLetterMailController extends Controller
         $employeeName = $request->input('employee_name');
         $letterType   = $request->input('letter_type');
         $pdfBase64    = $request->input('pdf_base64');
+        $pdfFilename  = $request->input('pdf_filename');
 
         // Decode the base64 PDF
         $pdfContent = base64_decode($pdfBase64);
@@ -60,7 +63,7 @@ class WarningLetterMailController extends Controller
         foreach ($recipients as $to) {
             try {
                 Mail::to($to)->send(
-                    new WarningLetterMail($employeeName, $letterType, $pdfContent, $subject, $emailBody)
+                    new WarningLetterMail($employeeName, $letterType, $pdfContent, $subject, $emailBody, $pdfFilename)
                 );
             } catch (\Exception $e) {
                 $errors[$to] = $e->getMessage();

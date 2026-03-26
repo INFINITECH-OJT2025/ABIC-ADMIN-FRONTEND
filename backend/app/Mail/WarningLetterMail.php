@@ -15,6 +15,7 @@ class WarningLetterMail extends Mailable
     public string $pdfContent;   // raw PDF binary
     public string $mailSubject;  // renamed to avoid Mailable::$subject conflict
     public string $bodyHtml;
+    public ?string $pdfFilename;
 
     public function __construct(
         string $employeeName,
@@ -22,17 +23,20 @@ class WarningLetterMail extends Mailable
         string $pdfContent,
         string $mailSubject,
         string $bodyHtml,
+        ?string $pdfFilename = null,
     ) {
         $this->employeeName = $employeeName;
         $this->letterType   = $letterType;
         $this->pdfContent   = $pdfContent;
         $this->mailSubject  = $mailSubject;
         $this->bodyHtml     = $bodyHtml;
+        $this->pdfFilename  = $pdfFilename;
     }
 
     public function build(): static
     {
-        $filename = 'Warning_Letter_' . str_replace(' ', '_', $this->employeeName) . '.pdf';
+        $fallback = 'Warning_Letter_' . str_replace(' ', '_', $this->employeeName) . '.pdf';
+        $filename = $this->sanitizePdfFilename($this->pdfFilename ?: $fallback);
 
         return $this
             ->subject($this->mailSubject)
@@ -40,5 +44,18 @@ class WarningLetterMail extends Mailable
             ->attachData($this->pdfContent, $filename, [
                 'mime' => 'application/pdf',
             ]);
+    }
+
+    private function sanitizePdfFilename(string $filename): string
+    {
+        $safe = preg_replace('/[^\w\s,\.-]+/u', '', $filename) ?? 'warning_letter.pdf';
+        $safe = trim($safe);
+        if ($safe === '') {
+            $safe = 'warning_letter';
+        }
+        if (!str_ends_with(strtolower($safe), '.pdf')) {
+            $safe .= '.pdf';
+        }
+        return $safe;
     }
 }

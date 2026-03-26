@@ -432,6 +432,7 @@ function FormLetterContent() {
     "form2",
   ]);
   const [isActionOpen, setIsActionOpen] = useState(false);
+  const [selectedWarningLevel, setSelectedWarningLevel] = useState(1);
   const [recipients, setRecipients] = useState<
     { email: string; type: "employee" | "supervisor" | "custom" }[]
   >([]);
@@ -509,6 +510,19 @@ function FormLetterContent() {
     () => (cutoff === "cutoff1" ? "first cutoff" : "second cutoff"),
     [cutoff],
   );
+
+  const deriveLateWarningLevel = (lateEntries: any[]) => {
+    if (!lateEntries.length) return 1;
+    const highestDbLevel = Math.max(
+      0,
+      ...lateEntries.map((e: any) => Number(e.warning_level) || 0),
+    );
+    if (highestDbLevel > 0) return highestDbLevel;
+    const lateCount = lateEntries.filter(
+      (e: any) => Number(e.minutes_late ?? e.minutesLate ?? 0) > 0,
+    ).length;
+    return Math.max(1, lateCount - 2);
+  };
 
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -980,6 +994,9 @@ function FormLetterContent() {
               if (history.recipients) setRecipients(history.recipients);
               if (history.forms_included)
                 setSelectedForms(history.forms_included);
+              if (history.warning_level) {
+                setSelectedWarningLevel(Math.max(1, Number(history.warning_level) || 1));
+              }
               setHasInitializedContent(true);
             }
           }
@@ -1023,7 +1040,7 @@ function FormLetterContent() {
 
     confirm({
       title: "Confirm Dissemination",
-      description: `You are about to send an official ${type === "late" ? "tardiness" : "leave"} warning letter to ${emailList.join(", ")}. Do you wish to proceed?`,
+      description: `You are about to send an official ${effectiveType === "late" ? "tardiness" : "leave"} warning letter to ${emailList.join(", ")}. Do you wish to proceed?`,
       confirmText: "Send Notification",
       onConfirm: async () => {
         setIsSending(true);
@@ -1100,6 +1117,28 @@ function FormLetterContent() {
                 employee_name: employee?.name ?? "",
                 letter_type: effectiveType,
                 pdf_base64: pdfBase64,
+                pdf_filename:
+                  effectiveType === "late"
+                    ? (() => {
+                        const firstName =
+                          employee?.first_name ||
+                          employee?.name?.trim()?.split(/\s+/)[0] ||
+                          "Employee";
+                        const lastName =
+                          employee?.last_name ||
+                          employee?.name?.trim()?.split(/\s+/).slice(-1)[0] ||
+                          "Unknown";
+                        const warningLabel =
+                          selectedWarningLevel === 1
+                            ? "1st_warning_letter"
+                            : selectedWarningLevel === 2
+                              ? "2nd_warning_letter"
+                              : selectedWarningLevel === 3
+                                ? "final_warning_letter"
+                                : `${selectedWarningLevel}th_warning_letter`;
+                        return `${warningLabel}_${lastName}, ${firstName}.pdf`;
+                      })()
+                    : undefined,
               }),
             },
           );
@@ -1122,17 +1161,7 @@ function FormLetterContent() {
           try {
             const warningLevel =
               effectiveType === "late"
-                ? (() => {
-                    const highestDbLevel = Math.max(
-                      0,
-                      ...entries.map((e: any) => Number(e.warning_level) || 0),
-                    );
-                    if (highestDbLevel > 0) return highestDbLevel;
-                    const lateCount = entries.filter(
-                      (e: any) => Number(e.minutes_late ?? e.minutesLate ?? 0) > 0,
-                    ).length;
-                    return Math.max(1, lateCount - 2);
-                  })()
+                ? selectedWarningLevel
                 : Math.max(1, Number(entries[0]?.warning_level) || 1);
 
             const saveHistoryRes = await fetch(`${getApiUrl()}/api/sent-warning-letters`, {
@@ -1399,7 +1428,7 @@ function FormLetterContent() {
         // Form 2 body
         let initialF2 = "";
         const targetTemplate =
-          type === "late"
+          effectiveType === "late"
             ? customTardinessTemplate?.[
                 employee?.position?.toLowerCase().includes("driver") || employee?.position?.toLowerCase().includes("liaison") ? "tardiness-probee" : "tardiness-regular"
               ]
@@ -1419,7 +1448,7 @@ function FormLetterContent() {
             .replace(/{{entries_list}}/g, entryListStr)
             .replace(/Employee Acknowledgment:[\s\S]*$/, ""); // Remove if present in stored template
         } else {
-          if (type === "late") {
+          if (effectiveType === "late") {
             initialF2 =
               `Dear ${salutationPrefix} ${lastName},\n\n` +
               `    This letter serves as a Formal Warning regarding your tardiness. Your scheduled time-in is ${shiftTime}, with a five (5)-minute grace period until ${gracePeriod}.\n\n` +
@@ -1457,7 +1486,23 @@ function FormLetterContent() {
     supervisorSalutation,
     templatesLoaded,
     supervisorResolved,
+    effectiveType,
   ]);
+
+  const lateWarningCap = deriveLateWarningLevel(entries);
+  const lateWarningChoices = Array.from(
+    { length: Math.max(1, lateWarningCap) },
+    (_, i) => i + 1,
+  );
+
+  useEffect(() => {
+    if (isReviewMode) return;
+    if (effectiveType === "late") {
+      setSelectedWarningLevel(Math.max(1, lateWarningCap));
+    } else {
+      setSelectedWarningLevel(Math.max(1, Number(entries[0]?.warning_level) || 1));
+    }
+  }, [effectiveType, lateWarningCap, entries, isReviewMode]);
 
   const handlePrint = () => {
     window.print();
@@ -1477,20 +1522,26 @@ function FormLetterContent() {
     ...entries.map((e: any) => e.warning_level || 0),
     0,
   );
+  const effectiveWarningLevel =
+    effectiveType === "late" ? selectedWarningLevel : maxWarning;
 
   const warningLevelText =
-    maxWarning === 1 ? "FIRST" : maxWarning === 2 ? "SECOND" : "FINAL";
+    effectiveWarningLevel === 1
+      ? "FIRST"
+      : effectiveWarningLevel === 2
+        ? "SECOND"
+        : "FINAL";
 
-  if (type === "late") {
-    if (maxWarning === 1) letterTitle = "FIRST WARNING LETTER";
-    else if (maxWarning === 2) letterTitle = "SECOND WARNING LETTER";
-    else if (maxWarning >= 3) letterTitle = "FOR CONSULTATION LETTER";
+  if (effectiveType === "late") {
+    if (effectiveWarningLevel === 1) letterTitle = "FIRST WARNING LETTER";
+    else if (effectiveWarningLevel === 2) letterTitle = "SECOND WARNING LETTER";
+    else if (effectiveWarningLevel >= 3) letterTitle = "FOR CONSULTATION LETTER";
     else letterTitle = "ATTENDANCE WARNING LETTER";
   } else {
     // Leave logic
-    if (maxWarning === 1) letterTitle = "FIRST WARNING LETTER";
-    else if (maxWarning === 2) letterTitle = "SECOND WARNING LETTER";
-    else if (maxWarning >= 3) letterTitle = "FINAL WARNING";
+    if (effectiveWarningLevel === 1) letterTitle = "FIRST WARNING LETTER";
+    else if (effectiveWarningLevel === 2) letterTitle = "SECOND WARNING LETTER";
+    else if (effectiveWarningLevel >= 3) letterTitle = "FINAL WARNING";
     else letterTitle = "LEAVE WARNING LETTER";
   }
 
@@ -1546,6 +1597,31 @@ function FormLetterContent() {
         <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm overflow-x-auto no-scrollbar">
           <div className="w-full px-4 md:px-8 py-3">
             <div className="flex items-center justify-end gap-3 md:gap-4 min-w-max md:min-w-0">
+              {effectiveType === "late" && !isReviewMode && (
+                <div className="flex items-center gap-2 bg-white/90 rounded-lg px-3 h-10 border border-white/60 shadow-sm">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-[#7B0F2B] whitespace-nowrap">
+                    Warning Level
+                  </span>
+                  <select
+                    value={selectedWarningLevel}
+                    onChange={(e) => setSelectedWarningLevel(Number(e.target.value))}
+                    className="h-7 rounded-md border border-rose-200 bg-white text-[#7B0F2B] text-xs font-bold px-2 focus:outline-none focus:ring-2 focus:ring-rose-200"
+                  >
+                    {lateWarningChoices.map((level) => (
+                      <option key={level} value={level}>
+                        {level === 1
+                          ? "1st Warning"
+                          : level === 2
+                            ? "2nd Warning"
+                            : level === 3
+                              ? "Final Warning"
+                              : `${level}th Warning`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               {isReviewMode && (
                 <Badge className="bg-amber-100 text-amber-700 border-amber-200 px-4 py-1.5 rounded-full font-black uppercase tracking-widest animate-pulse h-10 shadow-sm">
                   Reviewing Sent Letter
@@ -1827,7 +1903,7 @@ function FormLetterContent() {
             salutationPrefix={salutationPrefix}
             lastName={lastName}
             numberToText={numberToText}
-            type={type}
+            type={effectiveType}
             formatDateLong={formatDateLong}
             customTemplate={customSupervisorTemplate}
             isEditMode={isEditMode}
@@ -1852,14 +1928,14 @@ function FormLetterContent() {
             salutationPrefix={salutationPrefix}
             lastName={lastName}
             numberToText={numberToText}
-            type={type}
+            type={effectiveType}
             letterTitle={letterTitle}
             cutoffText={cutoffText}
             month={month}
             year={year}
             formatDateLong={formatDateLong}
             customTemplate={
-              type === "late"
+              effectiveType === "late"
                 ? customTardinessTemplate?.[
                     employee?.position?.toLowerCase().includes("driver") ||
                     employee?.position?.toLowerCase().includes("liaison")
