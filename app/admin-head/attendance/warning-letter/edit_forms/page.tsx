@@ -416,7 +416,11 @@ const StandardRichTextEditor = ({ value, onChange, isViewOnly }: any) => {
 
   // Sync internal innerHTML with external value only when not focused
   useEffect(() => {
-    if (editorRef.current && !isFocused && editorRef.current.innerHTML !== value) {
+    if (
+      editorRef.current &&
+      !isFocused &&
+      editorRef.current.innerHTML !== value
+    ) {
       editorRef.current.innerHTML = value || "";
     }
   }, [value, isFocused]);
@@ -448,16 +452,48 @@ const StandardRichTextEditor = ({ value, onChange, isViewOnly }: any) => {
       {!isViewOnly && (
         <div className="flex flex-wrap items-center gap-0.5 p-1.5 bg-slate-50/80 border-b border-rose-50 sticky top-0 z-10">
           <ToolbarButton command="bold" icon={Bold} title="Bold (Ctrl+B)" />
-          <ToolbarButton command="italic" icon={Italic} title="Italic (Ctrl+I)" />
-          <ToolbarButton command="underline" icon={Underline} title="Underline (Ctrl+U)" />
+          <ToolbarButton
+            command="italic"
+            icon={Italic}
+            title="Italic (Ctrl+I)"
+          />
+          <ToolbarButton
+            command="underline"
+            icon={Underline}
+            title="Underline (Ctrl+U)"
+          />
           <Separator orientation="vertical" className="h-6 mx-1 bg-rose-100" />
-          <ToolbarButton command="justifyLeft" icon={AlignLeft} title="Align Left" />
-          <ToolbarButton command="justifyCenter" icon={AlignCenter} title="Align Center" />
-          <ToolbarButton command="justifyRight" icon={AlignRight} title="Align Right" />
-          <ToolbarButton command="justifyFull" icon={AlignJustify} title="Justify" />
+          <ToolbarButton
+            command="justifyLeft"
+            icon={AlignLeft}
+            title="Align Left"
+          />
+          <ToolbarButton
+            command="justifyCenter"
+            icon={AlignCenter}
+            title="Align Center"
+          />
+          <ToolbarButton
+            command="justifyRight"
+            icon={AlignRight}
+            title="Align Right"
+          />
+          <ToolbarButton
+            command="justifyFull"
+            icon={AlignJustify}
+            title="Justify"
+          />
           <Separator orientation="vertical" className="h-6 mx-1 bg-rose-100" />
-          <ToolbarButton command="insertUnorderedList" icon={List} title="Bullet List" />
-          <ToolbarButton command="insertOrderedList" icon={ListOrdered} title="Numbered List" />
+          <ToolbarButton
+            command="insertUnorderedList"
+            icon={List}
+            title="Bullet List"
+          />
+          <ToolbarButton
+            command="insertOrderedList"
+            icon={ListOrdered}
+            title="Numbered List"
+          />
           <Separator orientation="vertical" className="h-6 mx-1 bg-rose-100" />
           <ToolbarButton command="indent" icon={Indent} title="Indent" />
           <ToolbarButton command="outdent" icon={Outdent} title="Outdent" />
@@ -480,7 +516,7 @@ const StandardRichTextEditor = ({ value, onChange, isViewOnly }: any) => {
         }}
         className={cn(
           "min-h-[500px] p-8 focus:outline-none font-serif text-[15px] leading-relaxed text-[#4A081A]",
-          isViewOnly && "cursor-not-allowed opacity-80"
+          isViewOnly && "cursor-not-allowed opacity-80",
         )}
         style={{ whiteSpace: "pre-wrap" }}
       />
@@ -691,6 +727,18 @@ export default function EditFormsPage() {
 
     fetchTemplates();
   }, []);
+
+  // Browser-level navigation guard for refreshing/closing
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasLocalOnlyChanges) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasLocalOnlyChanges]);
 
   const handleSave = async (silent = false) => {
     if (isViewOnly) {
@@ -1288,7 +1336,8 @@ export default function EditFormsPage() {
 
               // Salutation & Closing (usually small/no indent)
               const isSalutation =
-                trimmed.toLowerCase().startsWith("dear") || trimmed.endsWith(",");
+                trimmed.toLowerCase().startsWith("dear") ||
+                trimmed.endsWith(",");
               const isClosing =
                 trimmed.toLowerCase() === "thank you." ||
                 trimmed.toLowerCase() === "respectfully," ||
@@ -1315,9 +1364,9 @@ export default function EditFormsPage() {
               );
             })
           ) : (
-            <div 
-              className="rich-text-content" 
-              dangerouslySetInnerHTML={{ __html: content }} 
+            <div
+              className="rich-text-content"
+              dangerouslySetInnerHTML={{ __html: content }}
               style={{ whiteSpace: "pre-wrap" }}
             />
           )}
@@ -1328,7 +1377,7 @@ export default function EditFormsPage() {
           <div>
             <p>Respectfully,</p>
             <div className="mt-8">
-              <p className="font-black text-lg underline uppercase">
+              <p className="font-black text-sm underline uppercase">
                 {template.signatoryName || "AIZLE MARIE M. ATIENZA"}
               </p>
               <p className="font-medium text-slate-600">
@@ -1429,9 +1478,22 @@ export default function EditFormsPage() {
                 </Button>
 
                 <Button
-                  onClick={() =>
-                    router.push("/admin-head/attendance/warning-letter")
-                  }
+                  onClick={() => {
+                    if (hasLocalOnlyChanges) {
+                      confirm({
+                        title: "Unsaved Changes",
+                        description:
+                          "You have changes that are not synced to the database. Are you sure you want to leave?",
+                        confirmText: "Leave Anyway",
+                        cancelText: "Stay and Sync",
+                        variant: "warning",
+                        onConfirm: () =>
+                          router.push("/admin-head/attendance/warning-letter"),
+                      });
+                    } else {
+                      router.push("/admin-head/attendance/warning-letter");
+                    }
+                  }}
                   variant="outline"
                   className="bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all duration-200 text-sm font-bold uppercase tracking-wider h-10 px-6 rounded-lg flex items-center"
                 >
@@ -1689,7 +1751,7 @@ export default function EditFormsPage() {
 
                                   <div className="space-y-2">
                                     <Label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                                      Subtext
+                                      Address
                                     </Label>
                                     <SubtextInput
                                       officeId={String(office.id)}
@@ -2073,19 +2135,6 @@ export default function EditFormsPage() {
                           </div>
                         </div>
 
-                        <div className="space-y-2.5">
-                          <Label className="text-[#4A081A]/60 font-bold uppercase text-[10px] tracking-widest pl-1">
-                            Subject / Warning Level
-                          </Label>
-                          <Input
-                            value={(templates as any)[activeTab].subject}
-                            onChange={(e) =>
-                              updateTemplate("subject", e.target.value)
-                            }
-                            className="bg-white border-rose-100 shadow-sm rounded-xl font-semibold text-[#4A081A] focus:ring-2 focus:ring-[#A4163A]/20 focus:border-[#A4163A] transition-all h-11"
-                          />
-                        </div>
-
                         <div className="space-y-3">
                           <div className="flex justify-between items-center pl-1">
                             <Label className="text-[#4A081A] font-bold uppercase text-[10px] tracking-widest flex items-center gap-2">
@@ -2158,9 +2207,6 @@ export default function EditFormsPage() {
                         <Layout className="w-4 h-4 text-[#A4163A]" />
                         Available Placeholders
                       </CardTitle>
-                      <span className="text-[10px] font-medium text-slate-400 italic">
-                        Click to reference in body
-                      </span>
                     </div>
                   </CardHeader>
                   <CardContent className="p-6">

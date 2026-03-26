@@ -312,8 +312,8 @@ export default function WarningLetterPage() {
       }
 
       // Group and summarize leave entries for ALL months in the selected year to calculate warning levels
-      // For SL and VL, we deduct from credits first if eligible
-      const runningCredits = new Map<string, { vl: number; sl: number }>();
+      // Deduct from vacation credits first if eligible
+      const runningCredits = new Map<string, { vl: number }>();
 
       const allLeaveGroups = new Map<string, any>();
 
@@ -336,39 +336,21 @@ export default function WarningLetterPage() {
         const day = date.getDate();
         const cutoff = day <= 15 ? "cutoff1" : "cutoff2";
         const key = `${entry.employee_id}-${months[m]}-${cutoff}`;
+        // WARNING SYSTEM: Count ACTUAL days, not deducted days
+        // Credit deduction is for reporting, not for warning qualification
         let daysToCount = Number(entry.number_of_days);
         const remarks = String(entry.remarks || "").toLowerCase();
 
-        // Maternity Leave within 84-182 days (12-26 weeks) is not counted towards warnings
-        if (
-          remarks.includes("maternity") &&
-          daysToCount >= 84 &&
-          daysToCount <= 182
-        ) {
-          daysToCount = 0;
-        }
-
         const empId = String(entry.employee_id);
 
-        const creditInfo = creditsMap.get(empId);
-        const isEligible = creditInfo?.has_one_year_regular;
-
-        if (isEligible) {
-          if (!runningCredits.has(empId)) {
-            runningCredits.set(empId, { vl: 15, sl: 15 });
-          }
-          const running = runningCredits.get(empId)!;
-
-          if (remarks.includes("sick")) {
-            const deduct = Math.min(daysToCount, running.sl);
-            running.sl -= deduct;
-            daysToCount -= deduct;
-          } else if (remarks.includes("vacation")) {
-            const deduct = Math.min(daysToCount, running.vl);
-            running.vl -= deduct;
-            daysToCount -= deduct;
-          }
-        }
+        console.log(`[Warning Letter List] Processing leave:`, {
+          empId,
+          date: entry.start_date,
+          type: remarks,
+          actualDays: daysToCount,
+          monthStr: months[m],
+          cutoff,
+        });
 
         if (!allLeaveGroups.has(key)) {
           allLeaveGroups.set(key, {
@@ -376,7 +358,7 @@ export default function WarningLetterPage() {
             cutoff,
             month: months[m],
             total_days: daysToCount,
-            actual_total_days: Number(entry.number_of_days), // Keep track of actual days for display
+            actual_total_days: Number(entry.number_of_days),
             remarks_list: [entry.remarks],
             reasons_list: entry.cite_reason ? [entry.cite_reason] : [],
           });
@@ -400,6 +382,11 @@ export default function WarningLetterPage() {
           )
             existing.leave_end_date = entry.leave_end_date;
         }
+
+        console.log(`[Warning Letter List] Group info for key '${key}':`, {
+          totalDays: allLeaveGroups.get(key)?.total_days,
+          qualifies: (allLeaveGroups.get(key)?.total_days || 0) >= 3,
+        });
       });
 
       // Calculate warning levels per employee based on qualifying cutoffs (>= 3 days)

@@ -99,12 +99,10 @@ export default function LeaveSummaryPage() {
       stats[emp.id] = { employee: emp, months: Array(12).fill(0), total: 0 };
     });
 
-    const creditsMap = new Map<string, any>();
-    credits.forEach((c) => creditsMap.set(String(c.employee_id), c));
+    // YEARLY SUMMARY: Count ALL actual leave days taken, not deducted days
+    // Credit system is for record-keeping, not for changing actual leave counts
 
-    const runningCredits = new Map<string, { vl: number; sl: number }>();
-
-    // Sort leaves chronologically to deduct correctly
+    // Sort leaves chronologically for clarity
     const sortedLeaves = [...leaves].sort(
       (a, b) =>
         new Date(a.start_date).getTime() - new Date(b.start_date).getTime(),
@@ -130,28 +128,8 @@ export default function LeaveSummaryPage() {
         };
       }
 
-      const creditInfo = creditsMap.get(empId);
-      const isEligible = creditInfo?.has_one_year_regular;
-
-      let daysToCount = Number(leave.number_of_days) || 0;
-
-      if (isEligible) {
-        if (!runningCredits.has(empId)) {
-          runningCredits.set(empId, { vl: 15, sl: 15 });
-        }
-        const running = runningCredits.get(empId)!;
-        const remarks = String((leave as any).remarks || "").toLowerCase();
-
-        if (remarks.includes("sick")) {
-          const deduct = Math.min(daysToCount, running.sl);
-          running.sl -= deduct;
-          daysToCount -= deduct;
-        } else if (remarks.includes("vacation")) {
-          const deduct = Math.min(daysToCount, running.vl);
-          running.vl -= deduct;
-          daysToCount -= deduct;
-        }
-      }
+      // Count ACTUAL days - no credit deduction for summary purposes
+      const daysToCount = Number(leave.number_of_days) || 0;
 
       stats[empId].months[month] += daysToCount;
       stats[empId].total += daysToCount;
