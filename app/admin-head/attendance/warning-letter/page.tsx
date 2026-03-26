@@ -898,7 +898,7 @@ export default function WarningLetterPage() {
                             variant="ghost"
                             onClick={() => {
                               router.push(
-                                `/admin-head/attendance/warning-letter/forms-letter?employeeId=${entry.employee_id}&type=late&month=${selectedMonth}&year=${selectedYear}&cutoff=${(entry as any).cutoff}`,
+                                `/admin-head/attendance/warning-letter/forms-letter?employeeId=${entry.employee_id}&type=late&month=${selectedMonth}&year=${selectedYear}&cutoff=${(entry as any).cutoff}&warningLevel=${entry.warning_level || 1}`,
                               )
                             }}
                             className="text-[#800020] hover:text-[#800020] hover:bg-rose-50/50 rounded-xl font-bold gap-2 text-xs h-10 px-6 border border-transparent hover:border-rose-100 transition-all shadow-none hover:shadow-sm cursor-pointer"
@@ -1047,7 +1047,7 @@ export default function WarningLetterPage() {
                             variant="ghost"
                             onClick={() => {
                               router.push(
-                                `/admin-head/attendance/warning-letter/forms-letter?employeeId=${entry.employee_id}&type=leave&month=${selectedMonth}&year=${selectedYear}&cutoff=${(entry as any).cutoff}`,
+                                `/admin-head/attendance/warning-letter/forms-letter?employeeId=${entry.employee_id}&type=leave&month=${selectedMonth}&year=${selectedYear}&cutoff=${(entry as any).cutoff}&warningLevel=${entry.warning_level || 1}`,
                               )
                             }}
                             className="text-[#800020] hover:text-[#800020] hover:bg-rose-50/50 rounded-xl font-bold gap-2 text-xs h-10 px-6 border border-transparent hover:border-rose-100 transition-all shadow-none hover:shadow-sm cursor-pointer"
@@ -1259,7 +1259,7 @@ export default function WarningLetterPage() {
                         variant="outline"
                         onClick={() => {
                           router.push(
-                            `/admin-head/attendance/warning-letter/forms-letter?employeeId=${letter.employee_id}&type=${normalizeWarningType(letter.type)}&month=${letter.month}&year=${letter.year}&cutoff=${letter.cutoff}&mode=review&letterId=${letter.id}`,
+                            `/admin-head/attendance/warning-letter/forms-letter?employeeId=${letter.employee_id}&type=${normalizeWarningType(letter.type)}&month=${letter.month}&year=${letter.year}&cutoff=${letter.cutoff}&warningLevel=${letter.warning_level || 1}&mode=review&letterId=${letter.id}`,
                           )
                         }}
                         className="h-8 px-3 text-[10px] font-bold uppercase tracking-wider text-[#A4163A] border-rose-200 hover:bg-rose-50 hover:text-[#7B0F2B]"

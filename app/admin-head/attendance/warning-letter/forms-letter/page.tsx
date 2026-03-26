@@ -406,6 +406,28 @@ function parseTimeToMinutes(timeStr: string): number {
   return 0;
 }
 
+function resolveWarningTitle(
+  rawTitle: string | undefined,
+  fallbackTitle: string,
+  warningLevel: number,
+) {
+  const levelWord =
+    warningLevel === 1 ? "FIRST" : warningLevel === 2 ? "SECOND" : "FINAL";
+
+  if (!rawTitle) return fallbackTitle;
+
+  let title = rawTitle.replace(/{{\s*Warning level\s*}}/gi, levelWord);
+
+  if (!/{{\s*Warning level\s*}}/i.test(rawTitle)) {
+    title = title.replace(
+      /\b(FIRST|SECOND|FINAL)\s+WARNING(?:\s+LETTER)?\b/gi,
+      fallbackTitle,
+    );
+  }
+
+  return title;
+}
+
 function FormLetterContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -419,6 +441,10 @@ function FormLetterContent() {
   const month = searchParams.get("month");
   const year = searchParams.get("year");
   const cutoff = searchParams.get("cutoff");
+  const warningLevelFromQuery = Math.max(
+    0,
+    Number(searchParams.get("warningLevel")) || 0,
+  );
   const mode = searchParams.get("mode");
   const letterId = searchParams.get("letterId");
   const isReviewMode = mode === "review";
@@ -1117,28 +1143,25 @@ function FormLetterContent() {
                 employee_name: employee?.name ?? "",
                 letter_type: effectiveType,
                 pdf_base64: pdfBase64,
-                pdf_filename:
-                  effectiveType === "late"
-                    ? (() => {
-                        const firstName =
-                          employee?.first_name ||
-                          employee?.name?.trim()?.split(/\s+/)[0] ||
-                          "Employee";
-                        const lastName =
-                          employee?.last_name ||
-                          employee?.name?.trim()?.split(/\s+/).slice(-1)[0] ||
-                          "Unknown";
-                        const warningLabel =
-                          selectedWarningLevel === 1
-                            ? "1st_warning_letter"
-                            : selectedWarningLevel === 2
-                              ? "2nd_warning_letter"
-                              : selectedWarningLevel === 3
-                                ? "final_warning_letter"
-                                : `${selectedWarningLevel}th_warning_letter`;
-                        return `${warningLabel}_${lastName}, ${firstName}.pdf`;
-                      })()
-                    : undefined,
+                pdf_filename: (() => {
+                  const firstName =
+                    employee?.first_name ||
+                    employee?.name?.trim()?.split(/\s+/)[0] ||
+                    "Employee";
+                  const lastName =
+                    employee?.last_name ||
+                    employee?.name?.trim()?.split(/\s+/).slice(-1)[0] ||
+                    "Unknown";
+                  const warningLabel =
+                    selectedWarningLevel === 1
+                      ? "1st_warning_letter"
+                      : selectedWarningLevel === 2
+                        ? "2nd_warning_letter"
+                        : selectedWarningLevel === 3
+                          ? "final_warning_letter"
+                          : `${selectedWarningLevel}th_warning_letter`;
+                  return `${warningLabel}_${lastName}, ${firstName}.pdf`;
+                })(),
               }),
             },
           );
@@ -1159,10 +1182,7 @@ function FormLetterContent() {
 
           // Log history
           try {
-            const warningLevel =
-              effectiveType === "late"
-                ? selectedWarningLevel
-                : Math.max(1, Number(entries[0]?.warning_level) || 1);
+            const warningLevel = Math.max(1, selectedWarningLevel);
 
             const saveHistoryRes = await fetch(`${getApiUrl()}/api/sent-warning-letters`, {
               method: "POST",
@@ -1497,12 +1517,16 @@ function FormLetterContent() {
 
   useEffect(() => {
     if (isReviewMode) return;
+    if (warningLevelFromQuery > 0) {
+      setSelectedWarningLevel(Math.max(1, warningLevelFromQuery));
+      return;
+    }
     if (effectiveType === "late") {
       setSelectedWarningLevel(Math.max(1, lateWarningCap));
     } else {
       setSelectedWarningLevel(Math.max(1, Number(entries[0]?.warning_level) || 1));
     }
-  }, [effectiveType, lateWarningCap, entries, isReviewMode]);
+  }, [effectiveType, lateWarningCap, entries, isReviewMode, warningLevelFromQuery]);
 
   const handlePrint = () => {
     window.print();
@@ -1522,15 +1546,10 @@ function FormLetterContent() {
     ...entries.map((e: any) => e.warning_level || 0),
     0,
   );
-  const effectiveWarningLevel =
-    effectiveType === "late" ? selectedWarningLevel : maxWarning;
-
-  const warningLevelText =
-    effectiveWarningLevel === 1
-      ? "FIRST"
-      : effectiveWarningLevel === 2
-        ? "SECOND"
-        : "FINAL";
+  const effectiveWarningLevel = Math.max(
+    1,
+    warningLevelFromQuery || selectedWarningLevel || maxWarning,
+  );
 
   if (effectiveType === "late") {
     if (effectiveWarningLevel === 1) letterTitle = "FIRST WARNING LETTER";
@@ -1911,7 +1930,7 @@ function FormLetterContent() {
             body={f1Body}
             setBody={setF1Body}
             letterTitle={letterTitle}
-            warningLevelText={warningLevelText}
+            effectiveWarningLevel={effectiveWarningLevel}
             offices={offices}
             deptMap={deptMap}
             isViewOnly={isViewOnly}
@@ -1948,7 +1967,7 @@ function FormLetterContent() {
             isEditMode={isEditMode}
             body={f2Body}
             setBody={setF2Body}
-            warningLevelText={warningLevelText}
+            effectiveWarningLevel={effectiveWarningLevel}
             offices={offices}
             deptMap={deptMap}
             isViewOnly={isViewOnly}
@@ -2015,7 +2034,7 @@ function FormOneTemplate({
   body,
   setBody,
   letterTitle,
-  warningLevelText,
+  effectiveWarningLevel,
   offices,
   deptMap,
   isViewOnly,
@@ -2095,9 +2114,10 @@ function FormOneTemplate({
         {/* Title */}
         <div className="text-center mb-3">
           <h1 className="text-base font-black text-black tracking-wide uppercase">
-            {(customTemplate?.title || letterTitle).replace(
-              /{{Warning level}}/g,
-              warningLevelText,
+            {resolveWarningTitle(
+              customTemplate?.title,
+              letterTitle,
+              effectiveWarningLevel,
             )}
           </h1>
         </div>
@@ -2265,7 +2285,7 @@ function FormTwoTemplate({
   isEditMode,
   body,
   setBody,
-  warningLevelText,
+  effectiveWarningLevel,
   offices,
   deptMap,
   isViewOnly,
@@ -2338,12 +2358,13 @@ function FormTwoTemplate({
         {/* Title */}
         <div className="text-center mb-3">
           <h1 className="text-base font-black text-black tracking-wide">
-            {(
-              customTemplate?.title ||
-              (type === "late"
+            {resolveWarningTitle(
+              customTemplate?.title,
+              type === "late"
                 ? `TARDINESS WARNING LETTER - ${isProbee ? "PROBEE" : "REGULAR"}`
-                : letterTitle)
-            ).replace(/{{Warning level}}/g, warningLevelText)}
+                : letterTitle,
+              effectiveWarningLevel,
+            )}
           </h1>
         </div>
 

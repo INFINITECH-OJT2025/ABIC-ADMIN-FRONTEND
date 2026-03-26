@@ -317,6 +317,21 @@ const SERVER_TEMPLATE_KEYS = new Set([
   "branding-config",
 ]);
 
+const normalizeWarningTemplateTitle = (slug: string, title?: string) => {
+  const isLeaveTemplate = slug === "leave" || slug === "supervisor-leave";
+  if (!isLeaveTemplate) return title;
+  if (!title) return "{{Warning level}} WARNING LETTER";
+
+  const hasWarningPlaceholder = /{{\s*Warning level\s*}}/i.test(title);
+  const hardcodedWarningTitle = /\b(FIRST|SECOND|FINAL)\s+WARNING\b/i.test(title);
+
+  if (!hasWarningPlaceholder && hardcodedWarningTitle) {
+    return "{{Warning level}} WARNING LETTER";
+  }
+
+  return title;
+};
+
 // --- Skeleton Component ---
 const EditorSkeleton = () => (
   <div className="min-h-screen bg-[#FDF4F6] pb-20">
@@ -616,7 +631,7 @@ export default function EditFormsPage() {
               }
 
               mapped[slug] = {
-                title: template.title,
+                title: normalizeWarningTemplateTitle(slug, template.title),
                 headerLogoImage: template.header_logo_image,
                 headerDetails: template.header_details,
                 body: template.body,
