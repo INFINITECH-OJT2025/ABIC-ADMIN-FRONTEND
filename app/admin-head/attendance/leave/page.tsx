@@ -1390,143 +1390,66 @@ export default function LeavePage() {
     const emp = employees.find((e) => String(e.id) === String(empId));
     if (!emp) return [];
 
-    const empDeptId = emp.department_id;
-    const empPosName = String(emp.position || "")
-      .toLowerCase()
-      .trim();
-
-    // 1. Find hierarchy node for the employee's position
-    // Matches position name from hierarchy
-    const node = hierarchies.find((h) => {
-      const posName = String(h.name || "")
-        .toLowerCase()
+    const normalize = (value: unknown) => String(value || "").toLowerCase().trim();
+    const normalizeRole = (value: unknown) =>
+      normalize(value)
+        .replace(/[^a-z0-9]+/g, " ")
+        .replace(/\s+/g, " ")
         .trim();
-      return posName === empPosName;
+    const empPosName = normalizeRole(emp.position);
+
+    const hierarchyById = new Map(hierarchies.map((h) => [String(h.id), h]));
+
+    // Match employee position to hierarchy node
+    const node = hierarchies.find((h: any) => {
+      const name = h?.name ?? h?.position?.name;
+      return normalizeRole(name) === empPosName;
     });
 
     const ancestorPositionNames = new Set<string>();
+    const coreRoles = hierarchies
+      .filter((h: any) => h.department_id == null && (h?.position?.name || h?.name))
+      .map((h: any) => normalizeRole(h?.position?.name || h?.name));
 
-    // Broad defaults for company-wide authority figures
-    const globalAuthorityNames = [
-      "admin head",
-      "admin supervisor",
-      "executive officer",
-      "acting executive officer",
-      "hr head",
-      "president",
-      "v-p",
-      "vp",
-      "chief",
-    ];
-    globalAuthorityNames.forEach((name) => ancestorPositionNames.add(name));
-
-    if (node) {
+    if (!node) {
+      // Fallback to top/core roles when direct hierarchy node is missing
+      coreRoles.forEach((name) => ancestorPositionNames.add(name));
+      hierarchies
+        .filter((h: any) => !h.parent_id && (h?.position?.name || h?.name))
+        .forEach((h: any) =>
+          ancestorPositionNames.add(normalizeRole(h?.position?.name || h?.name)),
+        );
+    } else {
       let currentParentId = node.parent_id;
       let safety = 0;
       while (currentParentId && safety < 20) {
-        const parentNode = hierarchies.find(
-          (h) => String(h.id) === String(currentParentId),
-        );
-        if (parentNode) {
-          const pName = String(parentNode.name || "")
-            .toLowerCase()
-            .trim();
-          if (pName) ancestorPositionNames.add(pName);
-          currentParentId = parentNode.parent_id;
-        } else break;
+        const parentNode: any = hierarchyById.get(String(currentParentId));
+        if (!parentNode) break;
+
+        const parentName = parentNode?.name ?? parentNode?.position?.name;
+        if (parentName) ancestorPositionNames.add(normalizeRole(parentName));
+        currentParentId = parentNode.parent_id;
         safety++;
+      }
+
+      if (node.department_id != null) {
+        coreRoles.forEach((name) => ancestorPositionNames.add(name));
       }
     }
 
-    const highRoleKeywords = [
-      "head",
-      "manager",
-      "director",
-      "president",
-      "v-p",
-      "vp",
-      "chief",
-      "admin",
-      "supervisor",
-      "lead",
-      "hr",
-      "officer",
-    ];
-
-    // 3. Collect Match Results
-    const superiorEmployees = employees.filter((e) => {
-      if (String(e.id) === String(empId)) return false;
-
-      const ePosName = String(e.position || "")
-        .toLowerCase()
-        .trim();
-      const isSameDept =
-        (empDeptId && String(e.department_id) === String(empDeptId)) ||
-        (emp.department &&
-          e.department &&
-          emp.department.trim().toLowerCase() ===
-            e.department.trim().toLowerCase());
-
-      // Found via Hierarchy Tree or Global Authority
-      if (ancestorPositionNames.has(ePosName)) return true;
-
-      // Found via Same Dept + Role Keyword
-      if (isSameDept && highRoleKeywords.some((kw) => ePosName.includes(kw)))
-        return true;
-
-      // Found via Cross-Dept Executive Status
-      if (
-        [
-          "executive officer",
-          "admin head",
-          "president",
-          "v-p",
-          "vp",
-          "chief",
-        ].some((kw) => ePosName.includes(kw))
+    return employees
+      .filter(
+        (candidate) =>
+          String(candidate.id) !== String(empId) &&
+          ancestorPositionNames.has(normalizeRole(candidate.position)),
       )
-        return true;
-
-      return false;
-    });
-
-    // 4. Map and Sort
-    return superiorEmployees
-      .map((s) => {
-        const ePosName = String(s.position || "")
-          .toLowerCase()
-          .trim();
-        const isRecommended =
-          ancestorPositionNames.has(ePosName) ||
-          (highRoleKeywords.some((kw) => ePosName.includes(kw)) &&
-            empDeptId &&
-            String(s.department_id) === String(empDeptId));
-        const sameDept =
-          empDeptId && String(s.department_id) === String(empDeptId);
-
-        return {
-          label:
-            isRecommended && sameDept
-              ? `${s.name} (${s.position}) - Recommended`
-              : `${s.name} (${s.position})`,
-          value: s.name,
-          isSupervisor: isRecommended && sameDept,
-          isSameDept: sameDept,
-          color:
-            isRecommended && sameDept
-              ? "bg-[#E1F7E1] text-[#006400] border-2 border-[#10B981] font-bold shadow-md ring-2 ring-[#D1FAE5]"
-              : sameDept
-                ? "bg-[#F0FDF4] text-[#166534] border border-[#BBF7D0] font-semibold"
-                : "bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0] font-semibold", // Mint green for cross-dept superiors
-        };
-      })
-      .sort((a, b) => {
-        if (b.isSupervisor && !a.isSupervisor) return 1;
-        if (!b.isSupervisor && a.isSupervisor) return -1;
-        if (b.isSameDept && !a.isSameDept) return 1;
-        if (!b.isSameDept && a.isSameDept) return -1;
-        return a.label.localeCompare(b.label);
-      });
+      .map((candidate) => ({
+        label: `${candidate.name}${candidate.position ? ` (${candidate.position})` : ""}`,
+        value: candidate.name,
+        color:
+          "bg-[#E1F7E1] text-[#006400] border-2 border-[#10B981] font-bold shadow-md ring-2 ring-[#D1FAE5]",
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   };
 
   const inlineApprovalOptions = useMemo(() => {
