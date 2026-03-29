@@ -24,11 +24,11 @@ import {
   PanelLeft,
   Activity,
   GitBranch,
-  Boxes
-} from 'lucide-react'
-import Link from 'next/link'
-import { cn } from '@/lib/utils'
-import { useRouter } from 'next/navigation'
+  Boxes,
+} from "lucide-react";
+import Link from "next/link";
+import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 import {
   Dialog,
   DialogContent,
@@ -62,7 +62,10 @@ export default function AdminHeadSidebar() {
 
   const fetchUnreadCount = useCallback(async () => {
     try {
-      const response = await fetch('/api/laravel/api/activity-logs/unread-count', { cache: "no-store" });
+      const response = await fetch(
+        "/api/laravel/api/activity-logs/unread-count",
+        { cache: "no-store" },
+      );
       const result = await response.json();
       if (response.ok && result?.success) {
         setUnreadCount(Number(result?.data?.count ?? 0));
@@ -152,15 +155,21 @@ export default function AdminHeadSidebar() {
   useEffect(() => {
     const onUnreadChanged = (event: Event) => {
       const customEvent = event as CustomEvent<{ count: number }>;
-      if (typeof customEvent.detail?.count === 'number') {
+      if (typeof customEvent.detail?.count === "number") {
         setUnreadCount(customEvent.detail.count);
       }
     };
 
-    window.addEventListener('activity-log-unread-changed', onUnreadChanged as EventListener);
+    window.addEventListener(
+      "activity-log-unread-changed",
+      onUnreadChanged as EventListener,
+    );
 
     return () => {
-      window.removeEventListener('activity-log-unread-changed', onUnreadChanged as EventListener);
+      window.removeEventListener(
+        "activity-log-unread-changed",
+        onUnreadChanged as EventListener,
+      );
     };
   }, []);
 
@@ -282,7 +291,7 @@ export default function AdminHeadSidebar() {
         {/* ACTIVITY LOGS */}
         {/* <div className="group relative">
           <Link
-            href="/admin-head"
+            href="/admin
             className={cn(
               "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
               isCollapsed ? "justify-center" : "",
@@ -313,7 +322,7 @@ export default function AdminHeadSidebar() {
                 ACTIVITY LOGS
               </div>
               <Link
-                href="/admin-head"
+                href="/admin
                 className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
               >
                 <Activity size={18} />
@@ -337,7 +346,9 @@ export default function AdminHeadSidebar() {
               <Users size={22} className="shrink-0" />
               {!isCollapsed && (
                 <div className="flex items-center gap-2">
-                  <span className="font-medium whitespace-nowrap">EMPLOYEE</span>
+                  <span className="font-medium whitespace-nowrap">
+                    EMPLOYEE
+                  </span>
                   {pendingEmployeeCount > 0 && (
                     <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold leading-none text-[#7B0F2B]">
                       {pendingEmployeeCount > 99 ? "99+" : pendingEmployeeCount}
@@ -369,28 +380,28 @@ export default function AdminHeadSidebar() {
               </div>
             )}
             <Link
-              href="/admin-head/employee/masterfile"
+              href="/admin/employee/masterfile"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <BookOpen size={18} />
               <span>Masterfile</span>
             </Link>
             <Link
-              href="/admin-head/employee/onboard"
+              href="/admin/employee/onboard"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <UserPlus size={18} />
               <span>Onboard Employee</span>
             </Link>
             <Link
-              href="/admin-head/employee/terminate"
+              href="/admin/employee/terminate"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <UserMinus size={18} />
               <span>Terminate Employee</span>
             </Link>
             <Link
-              href="/admin-head/employee/evaluation"
+              href="/admin/employee/evaluation"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <CheckSquare size={18} />
@@ -433,14 +444,14 @@ export default function AdminHeadSidebar() {
               </div>
             )}
             <Link
-              href="/admin-head/forms/clearance-checklist"
+              href="/admin/forms/clearance-checklist"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <ClipboardCheck size={18} />
               <span>Clearance</span>
             </Link>
             <Link
-              href="/admin-head/forms/onboarding"
+              href="/admin/forms/onboarding"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <FilePlus size={18} />
@@ -497,21 +508,21 @@ export default function AdminHeadSidebar() {
               </div>
             )}
             <Link
-              href="/admin-head/attendance/leave"
+              href="/admin/attendance/leave"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <LogOut size={18} />
               <span>Leave</span>
             </Link>
             <Link
-              href="/admin-head/attendance/leave-credits"
+              href="/admin/attendance/leave-credits"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <CalendarDays size={18} />
               <span>Leave Credits</span>
             </Link>
             <Link
-              href="/admin-head/attendance/tardiness"
+              href="/admin/attendance/tardiness"
               className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <div className="flex items-center gap-2">
@@ -525,20 +536,19 @@ export default function AdminHeadSidebar() {
               )}
             </Link>
             <Link
-              href="/admin-head/attendance/warning-letter"
+              href="/admin/attendance/warning-letter"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <FileText size={18} />
               <span>Warning Letter</span>
             </Link>
             <Link
-              href="/admin-head/attendance/day-offs"
+              href="/admin/attendance/day-offs"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <Calendar size={18} />
               <span>Day-Offs</span>
             </Link>
-
           </div>
         </div>
 
@@ -576,14 +586,14 @@ export default function AdminHeadSidebar() {
               </div>
             )}
             <Link
-              href="/admin-head/hiring"
+              href="/admin/hiring"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <FileText size={18} />
               <span>Hiring Report</span>
             </Link>
             <Link
-              href="/admin-head/hiring/applicants"
+              href="/admin/hiring/applicants"
               className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
             >
               <Users size={18} />
@@ -595,7 +605,7 @@ export default function AdminHeadSidebar() {
         {/* FORM TEMPLATES */}
         <div className="group relative">
           <Link
-            href="/admin-head/attendance/warning-letter/edit_forms"
+            href="/admin/attendance/warning-letter/edit_forms"
             className={cn(
               "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
               isCollapsed ? "justify-center" : "",
@@ -603,7 +613,9 @@ export default function AdminHeadSidebar() {
           >
             <FilePlus size={22} className="shrink-0" />
             {!isCollapsed && (
-              <span className="font-medium whitespace-nowrap">FORM TEMPLATES</span>
+              <span className="font-medium whitespace-nowrap">
+                FORM TEMPLATES
+              </span>
             )}
           </Link>
           {isCollapsed && (
@@ -612,7 +624,7 @@ export default function AdminHeadSidebar() {
                 FORM TEMPLATES
               </div>
               <Link
-                href="/admin-head/attendance/warning-letter/edit_forms"
+                href="/adminndance/warning-letter/edit_forms"
                 className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
               >
                 <FilePlus size={18} />
@@ -625,7 +637,7 @@ export default function AdminHeadSidebar() {
         {/* HIERARCHY */}
         <div className="group relative">
           <Link
-            href="/admin-head/hierarchy"
+            href="/admin/heirarchy"
             className={cn(
               "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
               isCollapsed ? "justify-center" : "",
@@ -642,7 +654,7 @@ export default function AdminHeadSidebar() {
                 HEIRARCHY
               </div>
               <Link
-                href="/admin-head/hierarchy"
+                href="/admin/heirarchy"
                 className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
               >
                 <GitBranch size={18} />
@@ -655,20 +667,24 @@ export default function AdminHeadSidebar() {
         {/* INVENTORY */}
         <div className="group relative">
           <Link
-            href="/admin-head/inventory"
+            href="/admin/inventory"
             className={cn(
               "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : ""
+              isCollapsed ? "justify-center" : "",
             )}
           >
             <Boxes size={22} className="shrink-0" />
-            {!isCollapsed && <span className="font-medium whitespace-nowrap">INVENTORY</span>}
+            {!isCollapsed && (
+              <span className="font-medium whitespace-nowrap">INVENTORY</span>
+            )}
           </Link>
           {isCollapsed && (
             <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">INVENTORY</div>
+              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                INVENTORY
+              </div>
               <Link
-                href="/admin-head/inventory"
+                href="/admin/inventory"
                 className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
               >
                 <Boxes size={18} />
@@ -681,7 +697,7 @@ export default function AdminHeadSidebar() {
         {/* DIRECTORY */}
         <div className="group relative">
           <Link
-            href="/admin-head/directory"
+            href="/admin/directory"
             className={cn(
               "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
               isCollapsed ? "justify-center" : "",
@@ -698,7 +714,7 @@ export default function AdminHeadSidebar() {
                 DIRECTORY
               </div>
               <Link
-                href="/admin-head/directory"
+                href="/admin/directory"
                 className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
               >
                 <BookOpen size={18} />
@@ -707,7 +723,6 @@ export default function AdminHeadSidebar() {
             </div>
           )}
         </div>
-
       </nav>
 
       <div className="mx-6 mb-4 border-t border-white/10" />
