@@ -14,9 +14,7 @@ export default function Home() {
         const data = await res.json();
         if (res.ok && data.success) {
           const role = data.user?.role;
-          if (role === "super_admin") {
-            router.push("/super-admin");
-          } else if (role === "admin" || role === "super_admin_viewer") {
+          if (role === "super_admin" || role === "admin" || role === "super_admin_viewer") {
             router.push("/admin");
           } else {
             router.push("/login");

@@ -49,8 +49,7 @@ export default function ForgotPasswordPage() {
             return
           }
 
-          if (role === "super_admin") router.replace("/super-admin")
-          else if (role === "admin" || role === "super_admin_viewer") router.replace("/admin")
+          if (role === "super_admin" || role === "admin" || role === "super_admin_viewer") router.replace("/admin")
           else router.replace("/login")
 
           return

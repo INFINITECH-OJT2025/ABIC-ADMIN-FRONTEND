@@ -78,8 +78,7 @@ export default function LoginPage() {
             return
           }
 
-          if (role === "super_admin") router.replace("/super-admin")
-          else if (role === "admin" || role === "super_admin_viewer") router.replace("/admin")
+          if (role === "super_admin" || role === "admin" || role === "super_admin_viewer") router.replace("/admin")
           else router.replace("/login")
 
           return
@@ -169,8 +168,7 @@ export default function LoginPage() {
         showToast("Login Successful", "Redirecting to dashboard...", "success")
 
         setTimeout(() => {
-          if (role === 'super_admin') router.push('/super-admin')
-          else if (role === 'admin' || role === 'super_admin_viewer') router.push('/admin')
+          if (role === 'super_admin' || role === 'admin' || role === 'super_admin_viewer') router.push('/admin')
           else router.push('/login')
         }, 900)
 

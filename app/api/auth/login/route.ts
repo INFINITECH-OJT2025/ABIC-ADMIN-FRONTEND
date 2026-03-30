@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { fetchBackendWithFallback, getBackendUnavailableMessage, isBackendNetworkError } from '@/lib/backend-url'
 
 interface LoginRequest {
   email: string
@@ -41,6 +42,8 @@ function parseBackendMessage(raw: string, fallback: string): string {
 }
 
 export async function POST(req: Request) {
+  let pageUrl = ''
+
   try {
     const body: LoginRequest = await req.json()
 
@@ -58,11 +61,9 @@ export async function POST(req: Request) {
       )
     }
 
-    const backendUrl = process.env.BACKEND_URL ?? 'http://127.0.0.1:8000'
+    pageUrl = req.headers.get('X-Page-URL') || req.headers.get('Referer') || ''
 
-    const pageUrl = req.headers.get('X-Page-URL') || req.headers.get('Referer') || ''
-
-    const backendRes = await fetch(`${backendUrl}/api/login`, {
+    const backendRes = await fetchBackendWithFallback('/api/login', {
       method: 'POST',
       headers: { 
         'Content-Type': 'application/json',
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
         ...(pageUrl && { 'X-Page-URL': pageUrl })
       },
       body: JSON.stringify(body)
-    })
+    }, pageUrl)
 
     const raw = await backendRes.text()
     let data: BackendResponse
@@ -183,6 +184,17 @@ export async function POST(req: Request) {
     
     // Handle different types of errors
     if (err instanceof Error) {
+      if (isBackendNetworkError(err)) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: getBackendUnavailableMessage(pageUrl),
+            errors: null,
+          },
+          { status: 502 },
+        )
+      }
+
       if (err.name === 'AbortError') {
         return NextResponse.json(
           { 

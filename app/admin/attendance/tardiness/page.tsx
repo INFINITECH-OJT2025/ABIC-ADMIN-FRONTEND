@@ -434,7 +434,7 @@ async function initializeShiftSchedules() {
 }
 
 // Available years & months
-const availableYears = [2025, 2026, 2027];
+const availableYears = [2027, 2026, 2025];
 const months = [
   "January",
   "February",
@@ -1731,7 +1731,7 @@ export default function AttendanceDashboard() {
         if (data.success) {
           setYearsList((prev) => {
             const merged = Array.from(new Set([...prev, ...data.data]));
-            return merged.sort((a, b) => a - b);
+            return merged.sort((a, b) => b - a);
           });
         }
       } catch (error) {
@@ -1969,7 +1969,7 @@ export default function AttendanceDashboard() {
       );
       const data = await res.json();
       if (data.success) {
-        setYearsList((prev) => prev.filter((y) => y !== year).sort());
+        setYearsList((prev) => prev.filter((y) => y !== year).sort((a, b) => b - a));
         setSelectedYear(new Date().getFullYear()); // Fallback to current year
         toast.success(`Year ${year} has been removed.`);
       }
@@ -2013,7 +2013,7 @@ export default function AttendanceDashboard() {
 
     // Update locally first (Optimistic UI)
     // This allows the user to select the new year immediately and start adding records
-    setYearsList((prev) => [...prev, nextYear].sort((a, b) => a - b));
+    setYearsList((prev) => [...prev, nextYear].sort((a, b) => b - a));
     setSelectedYear(nextYear);
 
     try {
@@ -2180,6 +2180,30 @@ export default function AttendanceDashboard() {
   const [newEntryTime, setNewEntryTime] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isEntryFormOpen, setIsEntryFormOpen] = useState(false);
+
+  // Ref for the new entry form to enable auto-scroll
+  const entryFormRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll effect when the entry form is opened
+  useEffect(() => {
+    if (isEntryFormOpen && entryFormRef.current) {
+      setTimeout(() => {
+        const element = entryFormRef.current;
+        if (element) {
+          const headerOffset = 250; // Increased to account for full header + toolbar + reminder
+          const elementPosition = element.getBoundingClientRect().top;
+          const offsetPosition =
+            elementPosition + window.pageYOffset - headerOffset;
+
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: "smooth",
+          });
+        }
+      }, 100); // Small delay to allow the animation to start
+    }
+  }, [isEntryFormOpen]);
+
 
   // Reset new entry fields
   const resetAddEntryFields = () => {
@@ -2451,329 +2475,325 @@ export default function AttendanceDashboard() {
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-stone-50 via-white to-red-50 text-stone-900 font-sans pb-12">
-      <div className="relative w-full">
-        {/* ----- INTEGRATED HEADER & TOOLBAR ----- */}
-        <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-md mb-6 sticky top-0 z-50">
-          {/* Main Header Row */}
-          <div className="w-full px-4 md:px-8 py-6">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-              <div>
-                <h1 className="text-2xl md:text-3xl font-bold mb-2">
-                  Tardiness Monitoring
-                </h1>
-                <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
-                  <Calendar className="w-4 h-4" />
-                  ABIC REALTY & CONSULTANCY
+      {/* ----- INTEGRATED HEADER & TOOLBAR ----- */}
+      <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-lg mb-6 sticky top-0 z-50">
+        {/* Main Header Row */}
+        <div className="w-full px-4 md:px-8 py-6">
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold mb-2">
+                Tardiness Monitoring
+              </h1>
+              <p className="text-white/80 text-sm md:text-base flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                ABIC REALTY & CONSULTANCY
+              </p>
+              {isViewOnly && (
+                <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
+                  <Eye className="w-4 h-4" />
+                  VIEW ONLY MODE - Editing and modifications are disabled
                 </p>
-                {isViewOnly && (
-                  <p className="text-yellow-200 text-xs md:text-sm font-semibold mt-2 flex items-center gap-1">
-                    <Eye className="w-4 h-4" />
-                    VIEW ONLY MODE - Editing and modifications are disabled
-                  </p>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-3">
-                <Button
-                  onClick={handleAddNewYearConfirm}
-                  disabled={isViewOnly}
-                  variant="outline"
-                  className="bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-5 rounded-lg flex items-center gap-2"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>New Year</span>
-                </Button>
-                <Button
-                  onClick={() => setIsEntryFormOpen(!isEntryFormOpen)}
-                  disabled={isViewOnly}
-                  variant="outline"
-                  className={cn(
-                    "bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2",
-                    isEntryFormOpen &&
-                      "bg-rose-100 text-[#4A081A] border-rose-200",
-                  )}
-                >
-                  {isEntryFormOpen ? (
-                    <>
-                      <X className="w-3.5 h-3.5" />
-                      <span>CLOSE</span>
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>NEW RECORD</span>
-                    </>
-                  )}
-                </Button>
-
-                {/* TEMPORARY TEST BUTTON */}
-              </div>
+              )}
             </div>
 
-            {/* Visual Reminder Row */}
-            {showDailyReminder && (
-              <div className="mt-4 flex justify-end animate-in fade-in slide-in-from-right-8 duration-700 delay-300">
-                <div className="bg-gradient-to-r from-[#A4163A]/20 to-amber-500/10 backdrop-blur-xl border border-white/20 rounded-2xl px-6 py-3 flex items-center gap-6 shadow-2xl shadow-rose-900/10 ring-1 ring-white/5">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 flex items-center justify-center bg-rose-500/20 rounded-xl shadow-inner group/icon border border-rose-500/10">
-                      <Bell className="w-5 h-5 text-rose-200 animate-[pulse_2s_infinite]" />
-                    </div>
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-[11px] font-black uppercase tracking-widest text-white leading-tight">
-                          Daily Attendance Checklist
-                        </span>
-                        <div className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse shadow-[0_0_8px_rgba(251,113,133,0.6)]"></div>
-                      </div>
-                      <span className="text-[12px] font-bold text-white/50 mt-0.5 leading-none">
-                        Kindly acknowledge if you are done with today&apos;s records.
-                      </span>
-                    </div>
-                  </div>
-                  
-                  <div className="h-8 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent" />
-                  
-                  <label className="flex items-center gap-3.5 cursor-pointer group active:scale-95 transition-transform duration-150">
-                    <div className="relative flex items-center justify-center">
-                      <input
-                        type="checkbox"
-                        checked={false} // State managed via onChange hook invocation
-                        onChange={handleAcknowledgeReminder}
-                        className="peer h-6 w-6 appearance-none rounded-lg border-2 border-white/20 bg-white/5 group-hover:border-white/50 checked:bg-white checked:border-white transition-all duration-300 cursor-pointer shadow-sm group-hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
-                      />
-                      <Check className="absolute w-4 h-4 text-[#A4163A] stroke-[4px] opacity-0 peer-checked:opacity-100 transition-all duration-300 scale-50 peer-checked:scale-100" />
-                    </div>
-                    <div className="flex flex-col select-none">
-                      <span className="text-[12px] font-black uppercase text-white/90 tracking-tighter group-hover:text-white transition-colors leading-none">
-                        Done for today
-                      </span>
-                      <span className="text-[9px] font-bold text-rose-200/40 uppercase tracking-widest mt-1 group-hover:text-rose-200/70 transition-colors">
-                        Click to Hide
-                      </span>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            )}
+            {/* Actions */}
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={handleAddNewYearConfirm}
+                disabled={isViewOnly}
+                variant="outline"
+                className="bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-5 rounded-lg flex items-center gap-2"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>New Year</span>
+              </Button>
+              <Button
+                onClick={() => setIsEntryFormOpen(!isEntryFormOpen)}
+                disabled={isViewOnly}
+                variant="outline"
+                className={cn(
+                  "bg-white border-white/20 text-[#7B0F2B] hover:bg-rose-50 shadow-sm transition-all duration-200 text-[10px] font-black uppercase tracking-wider h-10 px-6 rounded-lg flex items-center gap-2",
+                  isEntryFormOpen &&
+                    "bg-rose-100 text-[#4A081A] border-rose-200",
+                )}
+              >
+                {isEntryFormOpen ? (
+                  <>
+                    <X className="w-3.5 h-3.5" />
+                    <span>CLOSE</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>NEW RECORD</span>
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
 
-          {/* Secondary Toolbar */}
-          <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm overflow-x-auto no-scrollbar">
-            <div className="w-full px-4 md:px-8 py-3">
-              <div className="flex items-center gap-3 md:gap-4 min-w-max md:min-w-0">
-                {/* Year Selection */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-white/70 uppercase tracking-wider">
-                    Year
-                  </span>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[120px] justify-between shadow-sm font-bold inline-flex items-center whitespace-nowrap rounded-lg cursor-pointer group border-2">
-                        {selectedYear}{" "}
-                        <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      className="w-32 bg-white border-stone-200 shadow-xl rounded-xl p-1.5"
-                      align="start"
-                    >
-                      {yearsList.map((year) => (
-                        <DropdownMenuItem
-                          key={year}
-                          onClick={() => setSelectedYear(year)}
-                          className={cn(
-                            "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
-                            selectedYear === year
-                              ? "bg-red-50 text-red-900 font-semibold"
-                              : "text-stone-600 hover:bg-stone-50",
-                          )}
-                        >
-                          {year}
-                          {selectedYear === year && (
-                            <Check className="w-4 h-4 text-red-600" />
-                          )}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                {/* Month Selection */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-white/70 uppercase tracking-wider">
-                    Month
-                  </span>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[140px] justify-between shadow-sm font-bold inline-flex items-center whitespace-nowrap rounded-lg cursor-pointer group border-2">
-                        {selectedMonth}{" "}
-                        <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </DropdownMenuTrigger>
-
-                    <DropdownMenuContent
-                      className="w-48 bg-white border-stone-200 shadow-xl rounded-xl p-1.5 max-h-[350px] overflow-y-auto"
-                      align="start"
-                    >
-                      {months.map((month) => (
-                        <DropdownMenuItem
-                          key={month}
-                          onClick={() => setSelectedMonth(month)}
-                          className={cn(
-                            "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
-                            selectedMonth === month
-                              ? "bg-red-50 text-red-900 font-semibold"
-                              : "text-stone-600 hover:bg-stone-50",
-                          )}
-                        >
-                          {month}
-                          {selectedMonth === month && (
-                            <Check className="w-4 h-4 text-red-600" />
-                          )}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                {/* Period Selection */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-white/70 uppercase tracking-wider">
-                    Period
-                  </span>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[180px] justify-between shadow-sm font-bold inline-flex items-center whitespace-nowrap rounded-lg cursor-pointer group border-2">
-                        {showCutoff === "first"
-                          ? "1st - 15th"
-                          : showCutoff === "second"
-                            ? selectedMonth === "February"
-                              ? "16th - 28/29th"
-                              : "16th - 30/31st"
-                            : "Show Both"}
-                        <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </DropdownMenuTrigger>
-
-                    <DropdownMenuContent
-                      className="w-56 bg-white border-stone-200 shadow-xl rounded-xl p-1.5"
-                      align="start"
-                    >
-                      <DropdownMenuItem
-                        onClick={() => setShowCutoff("first")}
-                        className={cn(
-                          "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
-                          showCutoff === "first"
-                            ? "bg-red-50 text-red-900 font-semibold"
-                            : "text-stone-600 hover:bg-stone-50",
-                        )}
-                      >
-                        1st - 15th
-                        {showCutoff === "first" && (
-                          <Check className="w-4 h-4 text-red-600" />
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setShowCutoff("second")}
-                        className={cn(
-                          "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
-                          showCutoff === "second"
-                            ? "bg-red-50 text-red-900 font-semibold"
-                            : "text-stone-600 hover:bg-stone-50",
-                        )}
-                      >
-                        {selectedMonth === "February"
-                          ? "16th - 28/29th"
-                          : "16th - 30/31st"}
-                        {showCutoff === "second" && (
-                          <Check className="w-4 h-4 text-red-600" />
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setShowCutoff("both")}
-                        className={cn(
-                          "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
-                          showCutoff === "both"
-                            ? "bg-red-50 text-red-900 font-semibold"
-                            : "text-stone-600 hover:bg-stone-50",
-                        )}
-                      >
-                        Show Both
-                        {showCutoff === "both" && (
-                          <Check className="w-4 h-4 text-red-600" />
-                        )}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                {/* Sort Order Selection */}
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-white/70 uppercase tracking-wider">
-                    Sort
-                  </span>
-
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[120px] justify-between shadow-sm font-bold inline-flex items-center whitespace-nowrap rounded-lg cursor-pointer group border-2">
-                        {sortOrder}{" "}
-                        <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
-                      </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent
-                      className="w-32 bg-white border-stone-200 shadow-xl rounded-xl p-1.5"
-                      align="start"
-                    >
-                      <DropdownMenuItem
-                        onClick={() => setSortOrder("Recent")}
-                        className={cn(
-                          "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
-                          sortOrder === "Recent"
-                            ? "bg-red-50 text-red-900 font-semibold"
-                            : "text-stone-600 hover:bg-stone-50",
-                        )}
-                      >
-                        Recent
-                        {sortOrder === "Recent" && (
-                          <Check className="w-4 h-4 text-red-600" />
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setSortOrder("Oldest")}
-                        className={cn(
-                          "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
-                          sortOrder === "Oldest"
-                            ? "bg-red-50 text-red-900 font-semibold"
-                            : "text-stone-600 hover:bg-stone-50",
-                        )}
-                      >
-                        Oldest
-                        {sortOrder === "Oldest" && (
-                          <Check className="w-4 h-4 text-red-600" />
-                        )}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-
-                {/* Global Search Input */}
-                <div className="flex items-center gap-3 flex-1 min-w-[200px] max-w-[400px]">
-                  <span className="text-sm font-bold text-white/70 uppercase tracking-wider hidden 2xl:block">
-                    Search
-                  </span>
-                  <div className="relative w-full">
-                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <Input
-                      placeholder="Search employee..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 h-10 w-full bg-white border-2 border-[#FFE5EC] text-[#800020] placeholder:text-slate-400 font-medium rounded-lg shadow-sm focus-visible:ring-rose-200 transition-all duration-200"
-                    />
+          {/* Visual Reminder Row */}
+          {showDailyReminder && (
+            <div className="mt-4 flex justify-end animate-in fade-in slide-in-from-right-8 duration-700 delay-300">
+              <div className="bg-gradient-to-r from-[#A4163A]/20 to-amber-500/10 backdrop-blur-xl border border-white/20 rounded-2xl px-6 py-3 flex items-center gap-6 shadow-2xl shadow-rose-900/10 ring-1 ring-white/5">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 flex items-center justify-center bg-rose-500/20 rounded-xl shadow-inner group/icon border border-rose-500/10">
+                    <Bell className="w-5 h-5 text-rose-200 animate-[pulse_2s_infinite]" />
                   </div>
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-[11px] font-black uppercase tracking-widest text-white leading-tight">
+                        Daily Attendance Checklist
+                      </span>
+                      <div className="h-1.5 w-1.5 rounded-full bg-rose-400 animate-pulse shadow-[0_0_8px_rgba(251,113,133,0.6)]"></div>
+                    </div>
+                    <span className="text-[12px] font-bold text-white/50 mt-0.5 leading-none">
+                      Kindly acknowledge if you are done with today&apos;s records.
+                    </span>
+                  </div>
+                </div>
+                
+                <div className="h-8 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent" />
+                
+                <label className="flex items-center gap-3.5 cursor-pointer group active:scale-95 transition-transform duration-150">
+                  <div className="relative flex items-center justify-center">
+                    <input
+                      type="checkbox"
+                      checked={false}
+                      onChange={handleAcknowledgeReminder}
+                      className="peer h-6 w-6 appearance-none rounded-lg border-2 border-white/20 bg-white/5 group-hover:border-white/50 checked:bg-white checked:border-white transition-all duration-300 cursor-pointer shadow-sm group-hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
+                    />
+                    <Check className="absolute w-4 h-4 text-[#A4163A] stroke-[4px] opacity-0 peer-checked:opacity-100 transition-all duration-300 scale-50 peer-checked:scale-100" />
+                  </div>
+                  <div className="flex flex-col select-none">
+                    <span className="text-[12px] font-black uppercase text-white/90 tracking-tighter group-hover:text-white transition-colors leading-none">
+                      Done for today
+                    </span>
+                    <span className="text-[9px] font-bold text-rose-200/40 uppercase tracking-widest mt-1 group-hover:text-rose-200/70 transition-colors">
+                      Click to Hide
+                    </span>
+                  </div>
+                </label>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Secondary Toolbar */}
+        <div className="border-t border-white/10 bg-white/5 backdrop-blur-sm overflow-x-auto no-scrollbar">
+          <div className="w-full px-4 md:px-8 py-3">
+            <div className="flex items-center gap-3 md:gap-4 min-w-max md:min-w-0">
+              {/* Year Selection */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-white/70 uppercase tracking-wider">
+                  Year
+                </span>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[120px] justify-between shadow-sm font-bold inline-flex items-center whitespace-nowrap rounded-lg cursor-pointer group border-2">
+                      {selectedYear}{" "}
+                      <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-32 bg-white border-stone-200 shadow-xl rounded-xl p-1.5"
+                    align="start"
+                  >
+                    {yearsList.map((year) => (
+                      <DropdownMenuItem
+                        key={year}
+                        onClick={() => setSelectedYear(year)}
+                        className={cn(
+                          "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
+                          selectedYear === year
+                            ? "bg-red-50 text-red-900 font-semibold"
+                            : "text-stone-600 hover:bg-stone-50",
+                        )}
+                      >
+                        {year}
+                        {selectedYear === year && (
+                          <Check className="w-4 h-4 text-red-600" />
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* Month Selection */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-white/70 uppercase tracking-wider">
+                  Month
+                </span>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[140px] justify-between shadow-sm font-bold inline-flex items-center whitespace-nowrap rounded-lg cursor-pointer group border-2">
+                      {selectedMonth}{" "}
+                      <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent
+                    className="w-48 bg-white border-stone-200 shadow-xl rounded-xl p-1.5 max-h-[350px] overflow-y-auto"
+                    align="start"
+                  >
+                    {months.map((month) => (
+                      <DropdownMenuItem
+                        key={month}
+                        onClick={() => setSelectedMonth(month)}
+                        className={cn(
+                          "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
+                          selectedMonth === month
+                            ? "bg-red-50 text-red-900 font-semibold"
+                            : "text-stone-600 hover:bg-stone-50",
+                        )}
+                      >
+                        {month}
+                        {selectedMonth === month && (
+                          <Check className="w-4 h-4 text-red-600" />
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* Period Selection */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-white/70 uppercase tracking-wider">
+                  Period
+                </span>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[180px] justify-between shadow-sm font-bold inline-flex items-center whitespace-nowrap rounded-lg cursor-pointer group border-2">
+                      {showCutoff === "first"
+                        ? "1st - 15th"
+                        : showCutoff === "second"
+                          ? selectedMonth === "February"
+                            ? "16th - 28/29th"
+                            : "16th - 30/31st"
+                          : "Show Both"}
+                      <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </DropdownMenuTrigger>
+
+                  <DropdownMenuContent
+                    className="w-56 bg-white border-stone-200 shadow-xl rounded-xl p-1.5"
+                    align="start"
+                  >
+                    <DropdownMenuItem
+                      onClick={() => setShowCutoff("first")}
+                      className={cn(
+                        "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
+                        showCutoff === "first"
+                          ? "bg-red-50 text-red-900 font-semibold"
+                          : "text-stone-600 hover:bg-stone-50",
+                      )}
+                    >
+                      1st - 15th
+                      {showCutoff === "first" && (
+                        <Check className="w-4 h-4 text-red-600" />
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setShowCutoff("second")}
+                      className={cn(
+                        "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
+                        showCutoff === "second"
+                          ? "bg-red-50 text-red-900 font-semibold"
+                          : "text-stone-600 hover:bg-stone-50",
+                      )}
+                    >
+                      {selectedMonth === "February"
+                        ? "16th - 28/29th"
+                        : "16th - 30/31st"}
+                      {showCutoff === "second" && (
+                        <Check className="w-4 h-4 text-red-600" />
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setShowCutoff("both")}
+                      className={cn(
+                        "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
+                        showCutoff === "both"
+                          ? "bg-red-50 text-red-900 font-semibold"
+                          : "text-stone-600 hover:bg-stone-50",
+                      )}
+                    >
+                      Show Both
+                      {showCutoff === "both" && (
+                        <Check className="w-4 h-4 text-red-600" />
+                      )}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* Sort Order Selection */}
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-bold text-white/70 uppercase tracking-wider">
+                  Sort
+                </span>
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <div className="bg-white border-[#FFE5EC] text-[#800020] hover:bg-[#FFE5EC] transition-all duration-200 text-sm h-10 px-4 min-w-[120px] justify-between shadow-sm font-bold inline-flex items-center whitespace-nowrap rounded-lg cursor-pointer group border-2">
+                      {sortOrder}{" "}
+                      <ChevronDown className="w-4 h-4 ml-2 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    </div>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    className="w-32 bg-white border-stone-200 shadow-xl rounded-xl p-1.5"
+                    align="start"
+                  >
+                    <DropdownMenuItem
+                      onClick={() => setSortOrder("Recent")}
+                      className={cn(
+                        "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
+                        sortOrder === "Recent"
+                          ? "bg-red-50 text-red-900 font-semibold"
+                          : "text-stone-600 hover:bg-stone-50",
+                      )}
+                    >
+                      Recent
+                      {sortOrder === "Recent" && (
+                        <Check className="w-4 h-4 text-red-600" />
+                      )}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => setSortOrder("Oldest")}
+                      className={cn(
+                        "flex items-center justify-between rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
+                        sortOrder === "Oldest"
+                          ? "bg-red-50 text-red-900 font-semibold"
+                          : "text-stone-600 hover:bg-stone-50",
+                      )}
+                    >
+                      Oldest
+                      {sortOrder === "Oldest" && (
+                        <Check className="w-4 h-4 text-red-600" />
+                      )}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              {/* Global Search Input */}
+              <div className="flex items-center gap-3 flex-1 min-w-[200px] max-w-[400px]">
+                <span className="text-sm font-bold text-white/70 uppercase tracking-wider hidden 2xl:block">
+                  Search
+                </span>
+                <div className="relative w-full">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    placeholder="Search employee..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 h-10 w-full bg-white border-2 border-[#FFE5EC] text-[#800020] placeholder:text-slate-400 font-medium rounded-lg shadow-sm focus-visible:ring-rose-200 transition-all duration-200"
+                  />
                 </div>
               </div>
             </div>
@@ -2781,12 +2801,14 @@ export default function AttendanceDashboard() {
         </div>
       </div>
 
+
       <div className="bg-white p-3 md:p-6 rounded-lg shadow-lg border-b-2 md:border-2 border-[#FFE5EC] space-y-6">
         <div
+          ref={entryFormRef}
           className={cn(
             "overflow-hidden transition-all duration-500 ease-in-out",
             isEntryFormOpen
-              ? "max-h-[500px] opacity-100 mb-6"
+              ? "max-h-[1000px] opacity-100 mb-6"
               : "max-h-0 opacity-0 pointer-events-none mb-0",
           )}
         >
