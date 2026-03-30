@@ -438,6 +438,8 @@ function OnboardPageContent() {
 
   const [onboardingTasks, setOnboardingTasks] = useState<string[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(false);
+  const [templateRefreshTick, setTemplateRefreshTick] = useState(0);
+  const latestTemplateFetchSeqRef = React.useRef(0);
 
   const completionPercentage = useMemo(() => {
     if (!onboardingTasks.length) return 0;
@@ -1006,38 +1008,125 @@ function OnboardPageContent() {
       checklistData?.department ||
       progressionFormData?.department ||
       onboardFormData?.department;
-    if (
-      !currentDepartment ||
-      view === "onboard" ||
-      checklistRecordId !== null
-    ) {
+    if (!currentDepartment || view === "onboard") {
       return;
     }
 
+    const normalizeDepartment = (value: unknown) =>
+      toPlainString(value).toLowerCase().replace(/\s+/g, " ").trim();
+
     const fetchTasks = async () => {
+      const fetchSeq = latestTemplateFetchSeqRef.current + 1;
+      latestTemplateFetchSeqRef.current = fetchSeq;
       setLoadingTasks(true);
       try {
-        const response = await apiFetch(
-          `/api/department-checklist-templates?checklist_type=ONBOARDING`,
+        const normalizedDepartment = normalizeDepartment(currentDepartment);
+        const matchedDepartment = departments.find(
+          (department) =>
+            normalizeDepartment(department?.name) === normalizedDepartment,
         );
+
+        const params = new URLSearchParams({
+          checklist_type: "ONBOARDING",
+          latest_only: "1",
+          _ts: String(Date.now()),
+        });
+        if (matchedDepartment?.id) {
+          params.set("department_id", String(matchedDepartment.id));
+        }
+
+        const response = await apiFetch(
+          `/api/department-checklist-templates?${params.toString()}`,
+          {
+            cache: "no-store",
+            headers: { Accept: "application/json" },
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch onboarding templates: ${response.status}`);
+        }
+
         const data = await response.json();
-        if (data && data.data) {
-          const template = data.data.find(
-            (t: any) => t.department_name === currentDepartment,
-          );
-          if (template && template.tasks && template.tasks.length > 0) {
-            setOnboardingTasks(template.tasks.map((t: any) => t.task));
-          } else {
-            setOnboardingTasks([]);
+
+        const templates = Array.isArray(data?.data) ? data.data : [];
+        const parseTemplateTime = (template: any) => {
+          const raw =
+            template?.updated_at ?? template?.updatedAt ?? template?.created_at;
+          const time = new Date(raw ?? 0).getTime();
+          return Number.isNaN(time) ? 0 : time;
+        };
+
+        const matchingTemplates = templates.filter((template: any) => {
+          if (
+            toPlainString(template?.checklist_type).toUpperCase() !== "ONBOARDING"
+          ) {
+            return false;
           }
-        } else {
+
+          const templateDepartmentId = String(
+            template?.department_id ?? template?.departmentId ?? "",
+          ).trim();
+          if (matchedDepartment?.id && templateDepartmentId) {
+            return templateDepartmentId === String(matchedDepartment.id);
+          }
+
+          return (
+            normalizeDepartment(template?.department_name) ===
+            normalizedDepartment
+          );
+        });
+
+        const latestTemplate = [...matchingTemplates].sort(
+          (a, b) => parseTemplateTime(b) - parseTemplateTime(a),
+        )[0];
+
+        const taskLabels = Array.isArray(latestTemplate?.tasks)
+          ? latestTemplate.tasks
+              .map((task: any) =>
+                toPlainString(task?.task ?? task?.name ?? task)
+                  .replace(/\s+/g, " ")
+                  .trim(),
+              )
+              .filter(Boolean)
+          : [];
+
+        if (latestTemplateFetchSeqRef.current !== fetchSeq) {
+          return;
+        }
+
+        if (taskLabels.length === 0) {
           setOnboardingTasks([]);
+          setCompletedTasks({});
+          setSavedTasks(new Set());
+          return;
+        }
+
+        if (taskLabels.length > 0) {
+          setOnboardingTasks(taskLabels);
+          setCompletedTasks((prev) => {
+            const allowed = new Set(taskLabels);
+            return Object.fromEntries(
+              Object.entries(prev).filter(([task]) => allowed.has(task)),
+            );
+          });
+          setSavedTasks(
+            (prev) =>
+              new Set(Array.from(prev).filter((task) => taskLabels.includes(task))),
+          );
         }
       } catch (error) {
         console.error("Error fetching onboarding tasks:", error);
-        setOnboardingTasks([]);
+        if (
+          latestTemplateFetchSeqRef.current === fetchSeq &&
+          checklistRecordId === null
+        ) {
+          setOnboardingTasks([]);
+        }
       } finally {
-        setLoadingTasks(false);
+        if (latestTemplateFetchSeqRef.current === fetchSeq) {
+          setLoadingTasks(false);
+        }
       }
     };
     fetchTasks();
@@ -1046,8 +1135,64 @@ function OnboardPageContent() {
     checklistData?.department,
     progressionFormData?.department,
     onboardFormData?.department,
+    departments,
     checklistRecordId,
+    templateRefreshTick,
   ]);
+
+  // Realtime sync: keep onboarding tasks fresh while checklist is open.
+  useEffect(() => {
+    if (view !== "checklist") return;
+
+    const intervalId = window.setInterval(() => {
+      setTemplateRefreshTick((prev) => prev + 1);
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [
+    view,
+    checklistData?.department,
+    progressionFormData?.department,
+    onboardFormData?.department,
+  ]);
+
+  // Cross-tab realtime sync: when onboarding templates are saved in Forms,
+  // refresh tasks immediately in Continue Onboarding.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key !== "onboarding_template_sync" || !event.newValue) return;
+
+      try {
+        const payload = JSON.parse(event.newValue) as {
+          checklistType?: string;
+        };
+        if (String(payload?.checklistType || "").toUpperCase() !== "ONBOARDING") {
+          return;
+        }
+      } catch {
+        // Ignore malformed payloads and still refresh once.
+      }
+
+      setTemplateRefreshTick((prev) => prev + 1);
+    };
+
+    const onFocus = () => setTemplateRefreshTick((prev) => prev + 1);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        setTemplateRefreshTick((prev) => prev + 1);
+      }
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
 
   const fetchChecklistProgress = async (params: {
     employeeName: string;
@@ -1161,7 +1306,7 @@ function OnboardPageContent() {
         position:
           toPlainString(matched?.position) || toPlainString(prev?.position),
         department:
-          toPlainString(matched?.department) || toPlainString(prev?.department),
+          toPlainString(prev?.department) || toPlainString(matched?.department),
         date: matchedStartDateFormatted ?? prev?.date ?? "",
         raw_date: matchedStartDateRaw || prev?.raw_date || "",
       }));
@@ -1179,9 +1324,9 @@ function OnboardPageContent() {
         : "Completed";
 
       const tasks = Array.isArray(matched?.tasks) ? matched.tasks : [];
-      if (tasks.length > 0) {
-        setOnboardingTasks(tasks.map((t: any) => t?.task ?? t?.name ?? t));
-      }
+      // Do not overwrite onboarding task list from old checklist records.
+      // The list should come from the latest department template so updates/new
+      // tasks are always reflected in Continue Onboarding.
 
       const restoredTasks = tasks.reduce(
         (acc: { [key: string]: string }, task: any) => {

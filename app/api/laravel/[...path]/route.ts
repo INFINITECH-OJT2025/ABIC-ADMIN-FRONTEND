@@ -61,6 +61,7 @@ async function handler(request: NextRequest, { params }: { params: Promise<{ pat
                 method: request.method,
                 headers,
                 body,
+                cache: 'no-store',
             })
 
             const responseBuffer = await response.arrayBuffer()
@@ -70,7 +71,13 @@ async function handler(request: NextRequest, { params }: { params: Promise<{ pat
             const contentDisposition = response.headers.get('Content-Disposition')
             if (contentDisposition) outHeaders.set('Content-Disposition', contentDisposition)
             const cacheControl = response.headers.get('Cache-Control')
-            if (cacheControl) outHeaders.set('Cache-Control', cacheControl)
+            if (cacheControl) {
+                outHeaders.set('Cache-Control', cacheControl)
+            } else {
+                outHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            }
+            outHeaders.set('Pragma', 'no-cache')
+            outHeaders.set('Expires', '0')
             outHeaders.set('Access-Control-Allow-Origin', '*')
 
             return new NextResponse(responseBuffer, {

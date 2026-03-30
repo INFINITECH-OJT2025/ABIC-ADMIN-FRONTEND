@@ -839,6 +839,20 @@ function OnboardingChecklistPageContent() {
         toast.success(successMessage, { position: successPosition })
       }
 
+      try {
+        const updatedDepartmentIds = successful.map((result) => result.departmentId)
+        localStorage.setItem(
+          'onboarding_template_sync',
+          JSON.stringify({
+            ts: Date.now(),
+            checklistType: 'ONBOARDING',
+            departmentIds: updatedDepartmentIds,
+          })
+        )
+      } catch (syncError) {
+        console.error('Failed to broadcast onboarding template sync event:', syncError)
+      }
+
       return failed.length === 0
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to save updates'
