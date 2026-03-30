@@ -89,6 +89,9 @@ const toPlainString = (value: unknown): string => {
   return String(value).trim();
 };
 
+const isCeoPosition = (value: unknown): boolean =>
+  toPlainString(value).toLowerCase() === "ceo";
+
 const toIsoDate = (value: unknown): string => {
   if (typeof value === "string") {
     const trimmed = value.trim();
@@ -1533,9 +1536,11 @@ function OnboardPageContent() {
       }
 
       setPositions(
-        [...rows].sort((a, b) =>
+        rows
+          .filter((row) => !isCeoPosition(row?.name))
+          .sort((a, b) =>
           String(a?.name ?? "").localeCompare(String(b?.name ?? "")),
-        ),
+          ),
       );
     } catch (error) {
       console.error("Error fetching positions:", error);
