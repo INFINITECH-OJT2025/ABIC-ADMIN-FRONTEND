@@ -45,6 +45,7 @@ export default function AdminDashboard() {
   ])
   const [submitting, setSubmitting] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [showDeleteAccountantConfirm, setShowDeleteAccountantConfirm] = useState(false)
   const [showDeleteOwnerConfirm, setShowDeleteOwnerConfirm] = useState(false)
   const [showDeleteBankConfirm, setShowDeleteBankConfirm] = useState(false)
@@ -183,15 +184,21 @@ export default function AdminDashboard() {
   }
 
   const handleLogout = async () => {
+    if (isLoggingOut) return
+    setIsLoggingOut(true)
+
     try {
-      const res = await fetch('/api/auth/logout', { method: 'POST' })
-      if (res.ok) {
-        router.push('/login')
-      } else {
-        setError('Logout failed')
-      }
-    } catch (err) {
-      setError('Network error')
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      })
+    } catch {
+      // Redirect anyway - frontend route clears cookies even if backend request fails.
+    } finally {
+      setShowLogoutConfirm(false)
+      router.replace('/login')
+      router.refresh()
+      setIsLoggingOut(false)
     }
   }
 
@@ -2177,6 +2184,7 @@ export default function AdminDashboard() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowLogoutConfirm(false)}
+                  disabled={isLoggingOut}
                   className={`cursor-pointer flex-1 px-4 py-2 border rounded-lg font-semibold transition-all ${
                     darkMode
                       ? 'bg-[#0F172A]/80 border-[#FF6B6B]/20 text-gray-300 hover:border-[#FF6B6B]/50 hover:text-white'
@@ -2187,6 +2195,7 @@ export default function AdminDashboard() {
                 </button>
                 <button
                   onClick={handleLogout}
+                  disabled={isLoggingOut}
                   className={`cursor-pointer flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
                     darkMode
                       ? 'bg-gradient-to-r from-[#FF6B6B] to-[#FF8A80] text-white hover:opacity-90'
@@ -2194,7 +2203,7 @@ export default function AdminDashboard() {
                   }`}
                 >
                   <LogOut className="w-4 h-4" />
-                  Logout
+                  {isLoggingOut ? 'Logging out...' : 'Logout'}
                 </button>
               </div>
             </div>

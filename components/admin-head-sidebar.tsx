@@ -48,6 +48,7 @@ export default function AdminHeadSidebar() {
   const [isHiringOpen, setIsHiringOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingEmployeeCount, setPendingEmployeeCount] = useState(0);
   const [showTardinessReminder, setShowTardinessReminder] = useState(false);
@@ -55,9 +56,23 @@ export default function AdminHeadSidebar() {
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
 
-  const handleLogout = () => {
-    // Perform any logout logic here (e.g., clearing tokens)
-    router.push("/logout");
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Redirect anyway - server route clears cookies even on backend errors.
+    } finally {
+      setShowLogoutConfirm(false);
+      router.replace("/login");
+      router.refresh();
+      setIsLoggingOut(false);
+    }
   };
 
   const fetchUnreadCount = useCallback(async () => {
@@ -767,16 +782,18 @@ export default function AdminHeadSidebar() {
           <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
             <Button
               variant="outline"
+              disabled={isLoggingOut}
               onClick={() => setShowLogoutConfirm(false)}
               className="flex-1 border-2 border-stone-100 text-stone-600 hover:bg-stone-50 font-bold h-12 rounded-xl"
             >
               Cancel
             </Button>
             <Button
+              disabled={isLoggingOut}
               onClick={handleLogout}
               className="flex-1 bg-gradient-to-r from-[#4A081A] to-[#800020] hover:from-[#630C22] hover:to-[#A0153E] text-white font-bold h-12 rounded-xl shadow-md transition-all active:scale-95"
             >
-              Logout
+              {isLoggingOut ? "Logging out..." : "Logout"}
             </Button>
           </DialogFooter>
         </DialogContent>
