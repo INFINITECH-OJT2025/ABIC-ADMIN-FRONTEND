@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { fetchBackendWithFallback, getBackendUnavailableMessage, isBackendNetworkError } from '@/lib/backend-url'
 
 interface BackendResponse {
   success: boolean
@@ -9,6 +10,8 @@ interface BackendResponse {
 }
 
 export async function POST() {
+  const pageUrl = ''
+
   try {
     const cookieStore = await cookies()
     const token = cookieStore.get('token')?.value
@@ -45,9 +48,7 @@ export async function POST() {
       return res
     }
 
-    const backendUrl = process.env.BACKEND_URL ?? 'http://127.0.0.1:8000'
-
-    const backendRes = await fetch(`${backendUrl}/api/logout`, {
+    const backendRes = await fetchBackendWithFallback('/api/logout', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -55,7 +56,7 @@ export async function POST() {
         'Accept': 'application/json',
         'User-Agent': 'ABIC-Frontend/1.0'
       }
-    })
+    }, pageUrl)
 
     let data: BackendResponse
     try {
@@ -99,7 +100,10 @@ export async function POST() {
     let statusCode = 500
     
     if (err instanceof Error) {
-      if (err.name === 'AbortError') {
+      if (isBackendNetworkError(err)) {
+        errorMessage = getBackendUnavailableMessage(pageUrl)
+        statusCode = 502
+      } else if (err.name === 'AbortError') {
         errorMessage = 'Request timeout. Please try again.'
         statusCode = 408
       }
