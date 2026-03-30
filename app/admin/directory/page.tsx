@@ -240,6 +240,8 @@ const normalizeDuplicateValue = (value: string): string =>
   String(value || "")
     .trim()
     .toLowerCase();
+const normalizeContactDigits = (value: string): string =>
+  String(value || "").replace(/\D/g, "");
 
 const getAgencyIcon = (code: string) => {
   switch (normalizeCode(code)) {
@@ -390,6 +392,7 @@ export default function GovernmentDirectoryPage() {
   const [showValidation, setShowValidation] = useState(false);
   const filteredGeneralContacts = useMemo(() => {
     const term = generalContactsSearch.trim().toLowerCase();
+    const termDigits = normalizeContactDigits(term);
     const filtered = !term
       ? generalContacts
       : generalContacts.filter((row) => {
@@ -398,10 +401,14 @@ export default function GovernmentDirectoryPage() {
           ).toLowerCase();
           const services = String(row.services || "").toLowerCase();
           const contactPerson = String(row.contact_person || "").toLowerCase();
+          const contactValue = String(row.value || "").toLowerCase();
+          const contactDigits = normalizeContactDigits(contactValue);
           return (
             establishment.includes(term) ||
             services.includes(term) ||
-            contactPerson.includes(term)
+            contactPerson.includes(term) ||
+            contactValue.includes(term) ||
+            (termDigits.length > 0 && contactDigits.includes(termDigits))
           );
         });
     return [...filtered].sort((a, b) => {
@@ -413,6 +420,7 @@ export default function GovernmentDirectoryPage() {
 
   const filteredGeneralContactsDraft = useMemo(() => {
     const term = generalContactsSearch.trim().toLowerCase();
+    const termDigits = normalizeContactDigits(term);
     const indexed = generalContactsDraft.map((row, index) => ({ row, index }));
     const filtered = !term
       ? indexed
@@ -422,10 +430,14 @@ export default function GovernmentDirectoryPage() {
           ).toLowerCase();
           const services = String(row.services || "").toLowerCase();
           const contactPerson = String(row.contact_person || "").toLowerCase();
+          const contactValue = String(row.value || "").toLowerCase();
+          const contactDigits = normalizeContactDigits(contactValue);
           return (
             establishment.includes(term) ||
             services.includes(term) ||
-            contactPerson.includes(term)
+            contactPerson.includes(term) ||
+            contactValue.includes(term) ||
+            (termDigits.length > 0 && contactDigits.includes(termDigits))
           );
         });
 
@@ -1737,7 +1749,7 @@ export default function GovernmentDirectoryPage() {
                   <Input
                     value={generalContactsSearch}
                     onChange={(e) => setGeneralContactsSearch(e.target.value)}
-                    placeholder="Search establishment, services, contact person..."
+                    placeholder="Search establishment, services, contact person, or contact number..."
                     className="w-[360px] max-w-full h-10 rounded-sm"
                   />
                   <Button

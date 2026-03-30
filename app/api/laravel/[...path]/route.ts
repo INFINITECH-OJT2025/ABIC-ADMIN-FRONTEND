@@ -41,8 +41,17 @@ async function handler(request: NextRequest, { params }: { params: Promise<{ pat
     if (reqContentType) {
         headers['Content-Type'] = reqContentType
     }
+
+    // Prefer explicit Authorization header, fallback to auth token cookie.
     const auth = request.headers.get('Authorization')
-    if (auth) headers['Authorization'] = auth
+    if (auth) {
+        headers['Authorization'] = auth
+    } else {
+        const tokenFromCookie = request.cookies.get('token')?.value
+        if (tokenFromCookie) {
+            headers['Authorization'] = `Bearer ${tokenFromCookie}`
+        }
+    }
 
     // Read body for methods that support it
     let body: BodyInit | undefined
