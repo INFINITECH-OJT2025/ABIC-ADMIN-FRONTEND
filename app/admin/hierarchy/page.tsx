@@ -10,6 +10,7 @@ import { Building2, GitBranch, Plus, ShieldCheck, Users, Clock, X, Save, Edit2, 
 import { getApiUrl } from "@/lib/api"
 import { toast } from "sonner"
 import { useUserRole } from "@/lib/hooks/useUserRole"
+import { useConfirmation } from "@/components/providers/confirmation-provider"
 
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -188,6 +189,7 @@ const HierarchySkeleton = () => (
 )
 
 export default function AdminHeadHierarchyPage() {
+  const { confirm } = useConfirmation()
   const { isViewOnly } = useUserRole()
   const viewOnlyDescription = "Create, update, and delete actions are disabled in view only mode."
   const notifyViewOnly = () => {
@@ -697,29 +699,36 @@ export default function AdminHeadHierarchyPage() {
       return
     }
 
-    if (!window.confirm(`Delete office \"${office.name}\"?`)) return
+    confirm({
+      title: 'Delete Office?',
+      description: `Delete office "${office.name}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+      onConfirm: async () => {
+        setLoading(true)
+        try {
+          const res = await fetch(`${getApiUrl()}/api/offices/${office.id}`, {
+            method: 'DELETE',
+            headers: { Accept: 'application/json' },
+          })
 
-    setLoading(true)
-    try {
-      const res = await fetch(`${getApiUrl()}/api/offices/${office.id}`, {
-        method: 'DELETE',
-        headers: { Accept: 'application/json' },
-      })
+          const payload = await res.json().catch(() => null)
+          if (!res.ok || payload?.success === false) {
+            throw new Error(payload?.message || 'Failed to delete office')
+          }
 
-      const payload = await res.json().catch(() => null)
-      if (!res.ok || payload?.success === false) {
-        throw new Error(payload?.message || 'Failed to delete office')
+          setOffices((prev) => prev.filter((o) => o.id !== office.id))
+          if (selectedOffice === office.id) setSelectedOffice("")
+          toast.success('Office deleted successfully')
+        } catch (err) {
+          console.error(err)
+          toast.error(err instanceof Error ? err.message : 'Failed to delete office')
+        } finally {
+          setLoading(false)
+        }
       }
-
-      setOffices((prev) => prev.filter((o) => o.id !== office.id))
-      if (selectedOffice === office.id) setSelectedOffice("")
-      toast.success('Office deleted successfully')
-    } catch (err) {
-      console.error(err)
-      toast.error(err instanceof Error ? err.message : 'Failed to delete office')
-    } finally {
-      setLoading(false)
-    }
+    })
   }
 
   const handleDeleteDepartment = async (department: Department) => {
@@ -734,29 +743,36 @@ export default function AdminHeadHierarchyPage() {
       return
     }
 
-    if (!window.confirm(`Delete department \"${department.name}\"?`)) return
+    confirm({
+      title: 'Delete Department?',
+      description: `Delete department "${department.name}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+      onConfirm: async () => {
+        setLoading(true)
+        try {
+          const res = await fetch(`${getApiUrl()}/api/departments/${department.id}`, {
+            method: 'DELETE',
+            headers: { Accept: 'application/json' },
+          })
 
-    setLoading(true)
-    try {
-      const res = await fetch(`${getApiUrl()}/api/departments/${department.id}`, {
-        method: 'DELETE',
-        headers: { Accept: 'application/json' },
-      })
+          const payload = await res.json().catch(() => null)
+          if (!res.ok || payload?.success === false) {
+            throw new Error(payload?.message || 'Failed to delete department')
+          }
 
-      const payload = await res.json().catch(() => null)
-      if (!res.ok || payload?.success === false) {
-        throw new Error(payload?.message || 'Failed to delete department')
+          setDepartments((prev) => prev.filter((d) => d.id !== department.id))
+          if (selectedDepartment === department.id) setSelectedDepartment("")
+          toast.success('Department deleted successfully')
+        } catch (err) {
+          console.error(err)
+          toast.error(err instanceof Error ? err.message : 'Failed to delete department')
+        } finally {
+          setLoading(false)
+        }
       }
-
-      setDepartments((prev) => prev.filter((d) => d.id !== department.id))
-      if (selectedDepartment === department.id) setSelectedDepartment("")
-      toast.success('Department deleted successfully')
-    } catch (err) {
-      console.error(err)
-      toast.error(err instanceof Error ? err.message : 'Failed to delete department')
-    } finally {
-      setLoading(false)
-    }
+    })
   }
 
   const handleAddOffice = async () => {

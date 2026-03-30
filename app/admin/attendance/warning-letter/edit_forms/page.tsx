@@ -745,18 +745,6 @@ export default function EditFormsPage() {
     fetchTemplates();
   }, []);
 
-  // Browser-level navigation guard for refreshing/closing
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasLocalOnlyChanges) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasLocalOnlyChanges]);
-
   const handleSave = async (silent = false) => {
     if (isViewOnly) {
       if (!silent) notifyViewOnly();

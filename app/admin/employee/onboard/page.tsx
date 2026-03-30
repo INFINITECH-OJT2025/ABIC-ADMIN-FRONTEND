@@ -2704,10 +2704,19 @@ function OnboardPageContent() {
     }
 
     if (hasUnsavedProgress) {
-      const shouldLeave = window.confirm(
-        "You have unsaved onboarding progress. Leave this page without saving?",
-      );
-      if (!shouldLeave) return;
+      setConfirmModal({
+        isOpen: true,
+        title: "Leave Onboarding?",
+        description:
+          "You have unsaved onboarding progress. Leave this page without saving?",
+        variant: "warning",
+        onConfirm: () => {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          clearStorage();
+          router.push("/admin/employee/masterfile");
+        },
+      });
+      return;
     }
 
     clearStorage();
@@ -2742,11 +2751,6 @@ function OnboardPageContent() {
   useEffect(() => {
     const warningMessage =
       "You have unsaved onboarding progress. Leave this page without saving?";
-
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      // Disabled: No browser "Leave site?" dialog
-      return;
-    };
 
     const handleLinkNavigation = (event: MouseEvent) => {
       const target = event.target as HTMLElement | null;
@@ -2811,11 +2815,17 @@ function OnboardPageContent() {
 
       event.preventDefault();
       event.stopPropagation();
-
-      if (window.confirm(warningMessage)) {
-        clearStorage();
-        router.push(href);
-      }
+      setConfirmModal({
+        isOpen: true,
+        title: "Leave Onboarding?",
+        description: warningMessage,
+        variant: "warning",
+        onConfirm: () => {
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          clearStorage();
+          router.push(href);
+        },
+      });
     };
 
     const handlePopState = (event: PopStateEvent) => {
@@ -2854,7 +2864,6 @@ function OnboardPageContent() {
       }
     };
 
-    window.addEventListener("beforeunload", handleBeforeUnload);
     document.addEventListener("click", handleLinkNavigation, true);
     window.addEventListener("popstate", handlePopState);
 
@@ -2871,7 +2880,6 @@ function OnboardPageContent() {
     }
 
     return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
       document.removeEventListener("click", handleLinkNavigation, true);
       window.removeEventListener("popstate", handlePopState);
     };

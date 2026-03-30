@@ -22,6 +22,7 @@ import {
   LayoutGrid,
   Filter,
 } from "lucide-react";
+import { useConfirmation } from "@/components/providers/confirmation-provider";
 
 type ActivityLogRow = {
   id: number;
@@ -99,6 +100,7 @@ const MODULE_ICONS: Record<string, any> = {
 };
 
 export default function AdminHeadActivityLogsPage() {
+  const { confirm } = useConfirmation();
   const [logs, setLogs] = useState<ActivityLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -234,35 +236,41 @@ export default function AdminHeadActivityLogsPage() {
   );
 
   const deleteAllLogs = useCallback(async () => {
-    const ok = window.confirm("Delete all activity logs?");
-    if (!ok) return;
+    confirm({
+      title: "Delete All Activity Logs?",
+      description: "This action cannot be undone.",
+      confirmText: "Delete All",
+      cancelText: "Cancel",
+      variant: "danger",
+      onConfirm: async () => {
+        setWorkingAction("delete");
+        setError(null);
 
-    setWorkingAction("delete");
-    setError(null);
+        try {
+          const response = await fetch(
+            "/api/laravel/api/activity-logs/delete-all",
+            {
+              method: "DELETE",
+            },
+          );
+          const result = await response.json();
 
-    try {
-      const response = await fetch(
-        "/api/laravel/api/activity-logs/delete-all",
-        {
-          method: "DELETE",
-        },
-      );
-      const result = await response.json();
+          if (!response.ok || !result?.success) {
+            throw new Error(result?.message || "Failed to delete all logs");
+          }
 
-      if (!response.ok || !result?.success) {
-        throw new Error(result?.message || "Failed to delete all logs");
-      }
-
-      setLogs([]);
-      emitUnreadCount([]);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to delete all logs",
-      );
-    } finally {
-      setWorkingAction(null);
-    }
-  }, [emitUnreadCount]);
+          setLogs([]);
+          emitUnreadCount([]);
+        } catch (err) {
+          setError(
+            err instanceof Error ? err.message : "Failed to delete all logs",
+          );
+        } finally {
+          setWorkingAction(null);
+        }
+      },
+    });
+  }, [confirm, emitUnreadCount]);
 
   useEffect(() => {
     void fetchLogs();

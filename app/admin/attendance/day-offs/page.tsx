@@ -670,20 +670,10 @@ export default function DayOffsPage() {
       }
     };
 
-    // 2. External Navigation (Browser Back, Refresh, Close Tab)
-    const handleExternalNavigation = (e: BeforeUnloadEvent) => {
-      if (hasActiveDraft) {
-        e.preventDefault();
-        e.returnValue = "Changes you made may not be saved.";
-      }
-    };
-
     document.addEventListener("click", handleInternalNavigation, true);
-    window.addEventListener("beforeunload", handleExternalNavigation);
 
     return () => {
       document.removeEventListener("click", handleInternalNavigation, true);
-      window.removeEventListener("beforeunload", handleExternalNavigation);
     };
   }, [isFormOpen, currentSchedule, isLoading, confirm]);
 

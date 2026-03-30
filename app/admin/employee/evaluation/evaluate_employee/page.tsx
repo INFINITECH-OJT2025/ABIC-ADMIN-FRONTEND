@@ -27,6 +27,7 @@ import { getApiUrl } from "@/lib/api";
 import { toast } from "sonner";
 import { format, addMonths } from "date-fns";
 import { useUserRole } from "@/lib/hooks/useUserRole";
+import { useConfirmation } from "@/components/providers/confirmation-provider";
 
 interface Employee {
   id: string;
@@ -260,6 +261,7 @@ const EvaluationFormSkeleton = () => (
 
 function EvaluateEmployeeForm() {
   const { isViewOnly } = useUserRole();
+  const { confirm } = useConfirmation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const viewOnlyDescription =
@@ -556,17 +558,6 @@ function EvaluateEmployeeForm() {
   ]);
 
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty]);
-
-  useEffect(() => {
     if (!selectedEmployee) {
       setEvaluationView("first");
       return;
@@ -616,27 +607,46 @@ function EvaluateEmployeeForm() {
 
   const handleBackWindow = () => {
     if (isDirty) {
-      if (
-        window.confirm(
+      confirm({
+        title: "Leave Evaluation?",
+        description:
           "You have unsaved evaluation progress. Are you sure you want to leave?",
-        )
-      ) {
-        router.back();
-      }
-    } else {
-      router.back();
+        confirmText: "Leave",
+        cancelText: "Stay",
+        variant: "warning",
+        onConfirm: () => {
+          router.back();
+        },
+      });
+      return;
     }
+
+    router.back();
   };
 
   const handleEmployeeChange = (employeeId: string) => {
-    if (
-      isDirty &&
-      !window.confirm(
-        "You have unsaved progress. Are you sure you want to change candidate? Unsaved changes will be lost.",
-      )
-    ) {
+    if (isDirty) {
+      confirm({
+        title: "Change Candidate?",
+        description:
+          "You have unsaved progress. Are you sure you want to change candidate? Unsaved changes will be lost.",
+        confirmText: "Change",
+        cancelText: "Stay",
+        variant: "warning",
+        onConfirm: () => {
+          setSelectedEmployeeId(employeeId);
+          setScores({ ...EMPTY_SCORES });
+          setRemarks("");
+          setAgreement(null);
+          setRecommendation(null);
+          setRatedBy("");
+          setReviewedBy("");
+          setApprovedBy("");
+        },
+      });
       return;
     }
+
     setSelectedEmployeeId(employeeId);
     setScores({ ...EMPTY_SCORES });
     setRemarks("");
