@@ -19,44 +19,31 @@ export function proxy(request: NextRequest) {
 
   // Root route role landing
   if (pathname === '/') {
-    if (role === 'super_admin') {
-      return NextResponse.redirect(new URL('/super-admin', request.url))
-    }
-
-    if (role === 'admin' || role === 'super_admin_viewer') {
+    if (role === 'super_admin' || role === 'admin' || role === 'super_admin_viewer') {
       return NextResponse.redirect(new URL('/admin', request.url))
     }
 
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // Super admin routes
+  // Removed super-admin routes: always redirect to /admin for allowed roles.
   if (pathname.startsWith('/super-admin')) {
-    if (role !== 'super_admin') {
-      if (role === 'admin' || role === 'super_admin_viewer') {
-        return NextResponse.redirect(new URL('/admin', request.url))
-      }
-      return NextResponse.redirect(new URL('/login', request.url))
+    if (role === 'super_admin' || role === 'admin' || role === 'super_admin_viewer') {
+      return NextResponse.redirect(new URL('/admin', request.url))
     }
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   // Admin routes
   if (pathname.startsWith('/admin')) {
-    if (role === 'super_admin') {
-      return NextResponse.redirect(new URL('/super-admin', request.url))
-    }
-
-    if (role !== 'admin' && role !== 'super_admin_viewer') {
+    if (role !== 'super_admin' && role !== 'admin' && role !== 'super_admin_viewer') {
       return NextResponse.redirect(new URL('/login', request.url))
     }
   }
 
   // Legacy accountant routes should no longer be accessible
   if (pathname.startsWith('/accountant') || pathname.startsWith('/owners')) {
-    if (role === 'super_admin') {
-      return NextResponse.redirect(new URL('/super-admin', request.url))
-    }
-    if (role === 'admin' || role === 'super_admin_viewer') {
+    if (role === 'super_admin' || role === 'admin' || role === 'super_admin_viewer') {
       return NextResponse.redirect(new URL('/admin', request.url))
     }
     return NextResponse.redirect(new URL('/login', request.url))
