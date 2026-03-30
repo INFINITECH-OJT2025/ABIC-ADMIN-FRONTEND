@@ -210,6 +210,7 @@ export default function ClearanceChecklistPage() {
   const [dragTaskId, setDragTaskId] = useState<number | null>(null)
   const [dragOverTaskId, setDragOverTaskId] = useState<number | null>(null)
   const [recentlyMovedTaskId, setRecentlyMovedTaskId] = useState<number | null>(null)
+  const [highlightedTaskId, setHighlightedTaskId] = useState<number | null>(null)
   const [open, setOpen] = useState(false)
   const [recordStatusFilter, setRecordStatusFilter] = useState<RecordStatusFilter>('ALL')
   const [recordSort, setRecordSort] = useState<RecordSort>('UPDATED_DESC')
@@ -560,13 +561,45 @@ export default function ClearanceChecklistPage() {
     }
   }
 
+  const scrollToTaskRow = (taskId: number, focusInput = false) => {
+    setHighlightedTaskId(taskId)
+    const alignRow = () => {
+      const row = document.querySelector<HTMLElement>(`[data-task-row-id="${taskId}"]`)
+      if (!row) return
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      if (focusInput) {
+        const input = row.querySelector<HTMLInputElement>('input')
+        input?.focus()
+      }
+    }
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(alignRow)
+    })
+  }
+
 
   const addTask = () => {
     if (isViewOnly) {
       notifyViewOnly()
       return
     }
-    setTasks([...tasks, createChecklistTask('', Date.now() + Math.floor(Math.random() * 1000))])
+    const lastTask = tasks[tasks.length - 1]
+    if (lastTask && String(lastTask.task || '').trim().length === 0) {
+      toast.warning('Finish the latest row first.', {
+        description: 'Please enter a task in the last added row before adding another.',
+      })
+      scrollToTaskRow(lastTask.id, true)
+      return
+    }
+
+    const existingIds = new Set(tasks.map((row) => row.id))
+    let nextId = Date.now() + Math.floor(Math.random() * 1000)
+    while (existingIds.has(nextId)) {
+      nextId += 1
+    }
+
+    setTasks([...tasks, createChecklistTask('', nextId)])
+    scrollToTaskRow(nextId, true)
   }
 
   const startChecklistWithoutDefaultTasks = () => {
@@ -640,6 +673,12 @@ export default function ClearanceChecklistPage() {
     const timer = setTimeout(() => setRecentlyMovedTaskId(null), 220)
     return () => clearTimeout(timer)
   }, [recentlyMovedTaskId])
+
+  useEffect(() => {
+    if (highlightedTaskId === null) return
+    const timer = window.setTimeout(() => setHighlightedTaskId(null), 3000)
+    return () => window.clearTimeout(timer)
+  }, [highlightedTaskId])
 
   const buildPayloadTasks = (taskRows: ChecklistTask[]) =>
     taskRows
@@ -1144,6 +1183,7 @@ export default function ClearanceChecklistPage() {
               {tasks.map((item) => (
                 <TableRow
                   key={item.id}
+                  data-task-row-id={item.id}
                   onDragOver={(event) => {
                     if (!editMode || tasks.length <= 1) return
                     event.preventDefault()
@@ -1176,7 +1216,8 @@ export default function ClearanceChecklistPage() {
                     !duplicateTaskIds.has(item.id) && editedTaskLabels.has(item.id) ? "bg-amber-50/50 ring-1 ring-amber-200/80" : "",
                     dragTaskId === item.id ? "opacity-45" : "",
                     dragOverTaskId === item.id && dragTaskId !== item.id ? "bg-rose-50/60 ring-1 ring-rose-200" : "",
-                    recentlyMovedTaskId === item.id ? "bg-rose-50/40" : ""
+                    recentlyMovedTaskId === item.id ? "bg-rose-50/40" : "",
+                    highlightedTaskId === item.id ? "checklist-row-spotlight" : ""
                   )}
                 >
                   <TableCell className="py-2.5 text-center">
