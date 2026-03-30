@@ -96,6 +96,28 @@ interface TerminationRecord {
   created_at?: string;
 }
 
+const statusBadgeColors: Record<string, string> = {
+  pending: "border-amber-200 bg-amber-50 text-amber-700",
+  employed: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  terminated: "border-rose-200 bg-rose-50 text-rose-700",
+  resigned: "border-amber-200 bg-amber-50 text-amber-700",
+  rehire_pending: "border-orange-200 bg-orange-50 text-orange-700",
+  rehired_employee: "border-blue-200 bg-blue-50 text-blue-700",
+  termination_pending: "border-rose-200 bg-rose-50 text-rose-700",
+  resignation_pending: "border-amber-200 bg-amber-50 text-amber-700",
+};
+
+const statusLabels: Record<string, string> = {
+  pending: "Pending",
+  employed: "Employed",
+  terminated: "Terminated",
+  resigned: "Resigned",
+  rehire_pending: "Rehire Pending",
+  rehired_employee: "Rehired Employee",
+  termination_pending: "Pending Termination",
+  resignation_pending: "Pending Resignation",
+};
+
 interface TerminationFormData {
   termination_date: string;
   rehire_date: string;
@@ -186,6 +208,7 @@ function TerminatePageContent() {
   };
 
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [allEmployees, setAllEmployees] = useState<Employee[]>([]);
   const [terminations, setTerminations] = useState<TerminationRecord[]>([]);
   const [resigned, setResigned] = useState<TerminationRecord[]>([]);
   const [hierarchies, setHierarchies] = useState<any[]>([]);
@@ -544,44 +567,35 @@ function TerminatePageContent() {
   };
 
   const isRehiredRecord = (record: TerminationRecord) => {
-    if (record.rehired_at) return true;
-    const normalizedStatuses = [record.status, record.employee?.status]
-      .map((value) =>
-        String(value ?? "")
-          .toLowerCase()
-          .trim(),
-      )
-      .filter(Boolean);
+    const status = String(record.employee?.status ?? record.status ?? "")
+      .toLowerCase()
+      .trim();
+    return status === "rehired_employee";
+  };
+  const getRecordStatusValue = (record: TerminationRecord) =>
+    String(record.employee?.status ?? record.status ?? "")
+      .toLowerCase()
+      .trim();
+  const getRecordStatusLabel = (record: TerminationRecord) => {
+    const status = getRecordStatusValue(record);
     return (
-      normalizedStatuses.includes("rehired_employee") ||
-      normalizedStatuses.includes("rehired")
+      statusLabels[status] ??
+      (record.exit_type === "resigned" ? "Resigned" : "Terminated")
     );
   };
-  const getRecordStatusLabel = (record: TerminationRecord) => {
-    if (isRehiredRecord(record)) return "Rehired";
-    return record.exit_type === "resigned" ? "Resigned" : "Terminated";
-  };
   const getStatusBadgeClass = (record: TerminationRecord) => {
-    const label = getRecordStatusLabel(record);
-    if (label === "Rehired")
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
-    if (label === "Resigned")
-      return "border-amber-200 bg-amber-50 text-amber-700";
-    return "border-rose-200 bg-rose-50 text-rose-700";
+    const status = getRecordStatusValue(record);
+    return statusBadgeColors[status] ?? "border-rose-200 bg-rose-50 text-rose-700";
   };
   const canShowRehireAction = (record: TerminationRecord) => {
-    if (record.rehired_at) return false;
-    const normalizedStatuses = [record.status, record.employee?.status]
-      .map((value) =>
-        String(value ?? "")
-          .toLowerCase()
-          .trim(),
-      )
-      .filter(Boolean);
-    if (normalizedStatuses.includes("rehire_pending")) return false;
+    const status = getRecordStatusValue(record);
+    if (status === "rehired_employee" || status === "rehire_pending")
+      return false;
     return (
-      normalizedStatuses.includes("terminated") ||
-      normalizedStatuses.includes("resigned")
+      status === "terminated" ||
+      status === "resigned" ||
+      status === "termination_pending" ||
+      status === "resignation_pending"
     );
   };
 
@@ -624,44 +638,103 @@ function TerminatePageContent() {
         }
       });
 
+  const mergedRecords = [...terminations, ...resigned];
+  const statusBackedRecords: TerminationRecord[] = allEmployees
+    .filter((emp) => {
+      const status = String(emp.status ?? "")
+        .toLowerCase()
+        .trim();
+      return [
+        "terminated",
+        "termination_pending",
+        "resigned",
+        "resignation_pending",
+        "rehired_employee",
+      ].includes(status);
+    })
+    .filter((emp) => {
+      const empId = String(emp.id ?? "").trim();
+      const empEmail = String(emp.email ?? "")
+        .toLowerCase()
+        .trim();
+      return !mergedRecords.some((record) => {
+        const recordId = String(record.employee_id ?? "").trim();
+        const recordEmail = String(record.employee?.email ?? "")
+          .toLowerCase()
+          .trim();
+        return (
+          (empId && recordId && empId === recordId) ||
+          (empEmail && recordEmail && empEmail === recordEmail)
+        );
+      });
+    })
+    .map((emp, index) => {
+      const status = String(emp.status ?? "")
+        .toLowerCase()
+        .trim();
+      const anyEmp = emp as any;
+      return {
+        id: -(index + 1),
+        employee_id: String(emp.id ?? ""),
+        termination_date:
+          anyEmp.resignation_date ||
+          anyEmp.termination_date ||
+          anyEmp.updated_at ||
+          anyEmp.created_at ||
+          "",
+        rehired_at: anyEmp.rehired_at || null,
+        reason:
+          anyEmp.resignation_reason ||
+          anyEmp.termination_reason ||
+          anyEmp.reason ||
+          "No recorded reason",
+        notes: anyEmp.notes || "",
+        status,
+        exit_type:
+          status === "resigned" || status === "resignation_pending"
+            ? "resigned"
+            : "terminate",
+        employee: emp,
+        created_at: anyEmp.created_at,
+      } as TerminationRecord;
+    });
+  const recordsWithStatusFallback = [...mergedRecords, ...statusBackedRecords];
   const baseTerminations = isHistoryView
-    ? terminations
-    : getLatestPerEmployee(terminations);
-  const baseResigned = isHistoryView
-    ? resigned
-    : getLatestPerEmployee(resigned);
-  const realtimeTerminations = getLatestPerEmployee(terminations);
-  const realtimeResigned = getLatestPerEmployee(resigned);
+    ? recordsWithStatusFallback
+    : getLatestPerEmployee(recordsWithStatusFallback);
+  const baseResigned = baseTerminations;
+  const realtimeTerminations = getLatestPerEmployee(recordsWithStatusFallback);
+  const realtimeResigned = realtimeTerminations;
 
   const tabFilteredTerminations = applyRecordFilters(baseTerminations).filter(
     (record) => {
+      const status = getRecordStatusValue(record);
       if (isHistoryView) return true;
       if (activeTab === "all") return true;
-      if (activeTab === "terminated") return !isRehiredRecord(record);
+      if (activeTab === "terminated") {
+        return status === "terminated" || status === "termination_pending";
+      }
       if (activeTab === "rehired") return isRehiredRecord(record);
+      if (activeTab === "resigned") {
+        return status === "resigned" || status === "resignation_pending";
+      }
       return false;
     },
   );
-  const tabFilteredResigned = applyRecordFilters(baseResigned).filter(
-    (record) => {
-      if (isHistoryView) return true;
-      if (activeTab === "all") return true;
-      if (activeTab === "resigned") return !isRehiredRecord(record);
-      return false;
-    },
-  );
+  const tabFilteredResigned = tabFilteredTerminations;
   const filteredTerminations = tabFilteredTerminations.filter((record) => {
+    const status = getRecordStatusValue(record);
     if (!isHistoryView || historyFilter === "all") return true;
-    if (historyFilter === "terminated") return !isRehiredRecord(record);
+    if (historyFilter === "terminated") {
+      return status === "terminated" || status === "termination_pending";
+    }
+    if (historyFilter === "resigned") {
+      return status === "resigned" || status === "resignation_pending";
+    }
     if (historyFilter === "rehired") return isRehiredRecord(record);
     return false;
   });
-  const filteredResigned = tabFilteredResigned.filter((record) => {
-    if (!isHistoryView || historyFilter === "all") return true;
-    if (historyFilter === "resigned") return !isRehiredRecord(record);
-    if (historyFilter === "rehired") return isRehiredRecord(record);
-    return false;
-  });
+  const filteredResigned = filteredTerminations;
   const sortRecords = (records: TerminationRecord[]) =>
     [...records].sort((a, b) => {
       switch (sortOrder) {
@@ -687,31 +760,25 @@ function TerminatePageContent() {
           return 0;
       }
     });
-  const isAllCombinedView = !isHistoryView && activeTab === "all";
-  const isCombinedHistoryView = isHistoryView;
-  const primaryRecords =
-    isAllCombinedView || isCombinedHistoryView
-      ? sortRecords([...filteredTerminations, ...filteredResigned])
-      : filteredTerminations;
-  const primaryBaseCount =
-    isAllCombinedView || isCombinedHistoryView
-      ? baseTerminations.length + baseResigned.length
-      : baseTerminations.length;
+  const primaryRecords = sortRecords(filteredTerminations);
+  const primaryBaseCount = baseTerminations.length;
   const isRehireFocusedView =
     (!isHistoryView && activeTab === "rehired") ||
     (isHistoryView && historyFilter === "rehired");
+  const isResignedFocusedView =
+    (!isHistoryView && activeTab === "resigned") ||
+    (isHistoryView && historyFilter === "resigned");
   const primaryHistoryTitle =
-    isAllCombinedView || isCombinedHistoryView
+    activeTab === "all" || isHistoryView
       ? "All Exit History"
       : isRehireFocusedView
         ? "Rehire History"
-        : "Terminated History";
-  const primaryDateLabel =
-    isAllCombinedView || isCombinedHistoryView
-      ? "Exit Date"
-      : "Termination Date";
-  const showTerminatedTable = isHistoryView ? true : activeTab !== "resigned";
-  const showResignedTable = !isHistoryView ? activeTab === "resigned" : false;
+        : isResignedFocusedView
+          ? "Resigned History"
+          : "Terminated History";
+  const primaryDateLabel = "Exit Date";
+  const showTerminatedTable = true;
+  const showResignedTable = false;
   const selectedRecordIsResigned =
     selectedTermination?.exit_type === "resigned";
   const superiors = React.useMemo(() => {
@@ -789,14 +856,29 @@ function TerminatePageContent() {
     }));
   }, [selectedEmployeeId, superiors]);
 
-  const allCount = realtimeTerminations.length;
+  const allCount = realtimeTerminations.filter((r) => {
+    const status = getRecordStatusValue(r);
+    return [
+      "terminated",
+      "termination_pending",
+      "resigned",
+      "resignation_pending",
+      "rehired_employee",
+    ].includes(status);
+  }).length;
   const terminatedCount = realtimeTerminations.filter(
-    (r) => !isRehiredRecord(r),
+    (r) => {
+      const status = getRecordStatusValue(r);
+      return status === "terminated" || status === "termination_pending";
+    },
   ).length;
   const rehiredCount = realtimeTerminations.filter((r) =>
     isRehiredRecord(r),
   ).length;
-  const resignedCount = realtimeResigned.length;
+  const resignedCount = realtimeResigned.filter((r) => {
+    const status = getRecordStatusValue(r);
+    return status === "resigned" || status === "resignation_pending";
+  }).length;
   const completedClearanceCount = Object.keys(completedClearanceTasks).length;
   const clearanceCompletionPercentage =
     clearanceTasks.length > 0
@@ -848,6 +930,44 @@ function TerminatePageContent() {
           ? hierData
           : [];
       setHierarchies(parsedHierarchies);
+
+      const employeeStatusById = new Map<string, string>();
+      const employeeStatusByEmail = new Map<string, string>();
+      if (empData.success && Array.isArray(empData.data)) {
+        for (const emp of empData.data) {
+          const status = String(emp?.status ?? "")
+            .toLowerCase()
+            .trim();
+          if (!status) continue;
+
+          const idKey = String(emp?.id ?? "").trim();
+          if (idKey && !employeeStatusById.has(idKey)) {
+            employeeStatusById.set(idKey, status);
+          }
+
+          const emailKey = String(emp?.email ?? "")
+            .trim()
+            .toLowerCase();
+          if (emailKey && !employeeStatusByEmail.has(emailKey)) {
+            employeeStatusByEmail.set(emailKey, status);
+          }
+        }
+      }
+
+      const resolveCurrentEmployeeStatus = (record: any): string => {
+        const employeeId = String(record?.employee_id ?? "").trim();
+        const employeeEmail = String(record?.employee?.email ?? "")
+          .trim()
+          .toLowerCase();
+
+        return (
+          employeeStatusById.get(employeeId) ??
+          employeeStatusByEmail.get(employeeEmail) ??
+          String(record?.employee?.status ?? record?.status ?? "")
+            .toLowerCase()
+            .trim()
+        );
+      };
 
       const resolveRehiredAt = (record: any): string | null => {
         const candidates = [
@@ -924,6 +1044,8 @@ function TerminatePageContent() {
       }
 
       if (empData.success && Array.isArray(empData.data)) {
+        setAllEmployees(empData.data);
+
         // Only show currently employed or rehired employees in dropdown
         const active = empData.data
           .filter((emp: Employee) =>
@@ -940,6 +1062,10 @@ function TerminatePageContent() {
       if (termData.success && Array.isArray(termData.data)) {
         const normalizedTerminations = termData.data.map((record: any) => ({
           ...record,
+          employee: {
+            ...(record?.employee ?? {}),
+            status: resolveCurrentEmployeeStatus(record),
+          },
           rehired_at:
             resolveRehiredAt(record) ??
             rehiredByEmployeeId.get(String(record?.employee_id ?? "").trim()) ??
@@ -959,6 +1085,10 @@ function TerminatePageContent() {
         const normalizedResigned = resignedData.data.map((record: any) => ({
           ...record,
           termination_date: record.resignation_date,
+          employee: {
+            ...(record?.employee ?? {}),
+            status: resolveCurrentEmployeeStatus(record),
+          },
           rehired_at:
             resolveRehiredAt(record) ??
             rehiredByEmployeeId.get(String(record?.employee_id ?? "").trim()) ??
@@ -2665,14 +2795,10 @@ function TerminatePageContent() {
                                           <span
                                             className={cn(
                                               "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide border",
-                                              isRehiredRecord(record)
-                                                ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                                                : "border-amber-200 bg-amber-50 text-amber-700",
+                                              getStatusBadgeClass(record),
                                             )}
                                           >
-                                            {isRehiredRecord(record)
-                                              ? "Rehired"
-                                              : "Resigned"}
+                                            {getRecordStatusLabel(record)}
                                           </span>
                                         </TableCell>
                                         <TableCell className="text-slate-600 text-[11px] font-medium border-r border-rose-50/50">
