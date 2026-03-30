@@ -7,7 +7,7 @@ function Get-LocalIP {
         $ip = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet*' -ErrorAction SilentlyContinue | Select-Object -First 1).IPAddress
     }
     if (-not $ip) {
-        $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch "127.0.0.1" } | Select-Object -First 1).IPAddress
+        $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch '127.0.0.1' } | Select-Object -First 1).IPAddress
     }
     return $ip
 }
@@ -15,33 +15,45 @@ function Get-LocalIP {
 $currentIP = Get-LocalIP
 
 if ($currentIP) {
-    Write-Host "`n🚀 Detected Local IP: $currentIP" -ForegroundColor Cyan
-    Write-Host "--------------------------------------" -ForegroundColor Gray
-    
-    # Update .env if it exists and has an old IP
-    if (Test-Path ".env") {
-        $envFile = Get-Content ".env" -Raw
-        # Look for existing IP-like strings in LARAVEL_API_URL or NEXT_PUBLIC_API_URL
-        $oldIPRegex = "\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b"
-        if ($envFile -match $oldIPRegex) {
-            $updatedEnv = $envFile -replace $oldIPRegex, $currentIP
-            if ($envFile -ne $updatedEnv) {
-                $updatedEnv | Out-File -FilePath ".env" -Encoding utf8 -NoNewline
-                Write-Host "✅ Updated .env with current IP: $currentIP" -ForegroundColor Green
-            }
+    Write-Host "`nDetected Local IP: $currentIP" -ForegroundColor Cyan
+    Write-Host '--------------------------------------' -ForegroundColor Gray
+
+    # Update .env with key-specific replacements.
+    # Keep BACKEND_URL loopback for server-side calls,
+    # and update client-facing URLs for LAN testing.
+    if (Test-Path '.env') {
+        $envFile = Get-Content '.env' -Raw
+        $updatedEnv = $envFile
+
+        if ($updatedEnv -match '(?m)^BACKEND_URL=') {
+            $updatedEnv = [regex]::Replace($updatedEnv, '(?m)^BACKEND_URL=.*$', 'BACKEND_URL=http://127.0.0.1:8000')
+        } else {
+            $updatedEnv = "BACKEND_URL=http://127.0.0.1:8000`r`n$updatedEnv"
+        }
+
+        if ($updatedEnv -match '(?m)^NEXT_PUBLIC_API_URL=') {
+            $updatedEnv = [regex]::Replace($updatedEnv, '(?m)^NEXT_PUBLIC_API_URL=.*$', "NEXT_PUBLIC_API_URL=http://$currentIP:8000")
+        } else {
+            $updatedEnv = "$updatedEnv`r`nNEXT_PUBLIC_API_URL=http://$currentIP:8000"
+        }
+
+        if ($updatedEnv -match '(?m)^LARAVEL_API_URL=') {
+            $updatedEnv = [regex]::Replace($updatedEnv, '(?m)^LARAVEL_API_URL=.*$', "LARAVEL_API_URL=http://$currentIP:8000/api")
+        }
+
+        if ($envFile -ne $updatedEnv) {
+            $updatedEnv | Out-File -FilePath '.env' -Encoding utf8 -NoNewline
+            Write-Host "Updated .env safely for local backend + LAN client access: $currentIP" -ForegroundColor Green
         }
     }
 
-    # Run Next.js dev server on 0.0.0.0 so localhost AND dynamic IP both work
-    # We use a small trick to replace the 0.0.0.0 display in the console with the real IP
-    Write-Host "Starting Next.js..." -ForegroundColor Gray
-    
-    # We run next dev on 0.0.0.0 (all interfaces)
-    # This ensures both http://localhost:3000 and http://192.168.x.x:3000 work
-    npx next dev --hostname 0.0.0.0 --port 3000 | ForEach-Object { 
-        $_ -replace "0.0.0.0", $currentIP 
+    # Run Next.js dev server on 0.0.0.0 so localhost and LAN IP both work
+    Write-Host 'Starting Next.js...' -ForegroundColor Gray
+
+    npx next dev --hostname 0.0.0.0 --port 3000 | ForEach-Object {
+        $_ -replace '0.0.0.0', $currentIP
     }
 } else {
-    Write-Error "Could not detect a local IP address. Please check your network connection."
+    Write-Error 'Could not detect a local IP address. Please check your network connection.'
     exit 1
 }
