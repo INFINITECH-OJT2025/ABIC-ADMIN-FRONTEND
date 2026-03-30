@@ -49,12 +49,20 @@ export default function AdminHeadSidebar() {
   const [logoError, setLogoError] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{
+    name: string;
+    role: string;
+  } | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
   const [pendingEmployeeCount, setPendingEmployeeCount] = useState(0);
   const [showTardinessReminder, setShowTardinessReminder] = useState(false);
   const router = useRouter();
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
+  const currentUserName = currentUser?.name?.trim() || "User";
+  const currentUserRole = (currentUser?.role || "user")
+    .replace(/_/g, " ")
+    .toUpperCase();
 
   const handleLogout = async () => {
     if (isLoggingOut) return;
@@ -89,6 +97,47 @@ export default function AdminHeadSidebar() {
       // Ignore sidebar counter failures.
     }
   }, []);
+
+  const fetchCurrentUser = useCallback(async () => {
+    try {
+      const response = await fetch("/api/auth/me", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const result = await response.json();
+
+      if (response.ok && result?.success && result?.user) {
+        setCurrentUser({
+          name: String(result.user.name || "User"),
+          role: String(result.user.role || "user"),
+        });
+        return;
+      }
+    } catch {
+      // Fallback to cookie below.
+    }
+
+    try {
+      const cookieValue = document.cookie
+        .split("; ")
+        .find((entry) => entry.startsWith("user_info="))
+        ?.split("=")[1];
+
+      if (!cookieValue) return;
+
+      const parsed = JSON.parse(decodeURIComponent(cookieValue));
+      setCurrentUser({
+        name: String(parsed?.name || "User"),
+        role: String(parsed?.role || "user"),
+      });
+    } catch {
+      // Keep defaults when cookies are missing or malformed.
+    }
+  }, []);
+
+  useEffect(() => {
+    void fetchCurrentUser();
+  }, [fetchCurrentUser]);
 
   useEffect(() => {
     void fetchUnreadCount();
@@ -285,10 +334,10 @@ export default function AdminHeadSidebar() {
             </div>
             <div className="flex flex-col justify-center overflow-hidden">
               <span className="text-[9px] font-medium text-white/40 uppercase tracking-widest leading-none mb-0.5">
-                Admin Head
+                {currentUserRole}
               </span>
               <h2 className="text-sm font-semibold text-white/90 truncate leading-tight">
-                Sachi
+                {currentUserName}
               </h2>
             </div>
           </div>
