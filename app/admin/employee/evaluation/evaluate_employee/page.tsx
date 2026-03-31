@@ -37,6 +37,9 @@ interface Employee {
   position: string;
   department: string;
   status: string;
+  office_id?: string | number | null;
+  office_name?: string | null;
+  office?: { id?: string | number | null; name?: string | null } | string | null;
 }
 
 interface Evaluation {
@@ -65,7 +68,7 @@ interface Evaluation {
 interface Department {
   id: string;
   name: string;
-  office_id: string;
+  office_id?: string | number | null;
 }
 
 interface Office {
@@ -73,6 +76,8 @@ interface Office {
   name: string;
   header_logo_image?: string | null;
   header_details?: string | null;
+  headerLogoImage?: string | null;
+  headerDetails?: string | null;
 }
 
 type EvaluationTemplate = {
@@ -665,13 +670,38 @@ function EvaluateEmployeeForm() {
   };
   const employeeDetails = useMemo(() => {
     if (!selectedEmployee) return null;
+    const normalizedDepartment = String(selectedEmployee.department || "")
+      .trim()
+      .toLowerCase();
     const deptObj = departments.find(
       (d) =>
         String(d.id) === String(selectedEmployee.department) ||
-        d.name === selectedEmployee.department,
+        String(d.name || "").trim().toLowerCase() === normalizedDepartment,
     );
-    const officeId = deptObj?.office_id ?? (selectedEmployee as any)?.office_id;
-    const officeObj = offices.find((o) => String(o.id) === String(officeId));
+    const officeId =
+      deptObj?.office_id ??
+      selectedEmployee?.office_id ??
+      (typeof selectedEmployee?.office === "object"
+        ? selectedEmployee.office?.id
+        : null);
+    let officeObj = offices.find((o) => String(o.id) === String(officeId));
+    if (!officeObj) {
+      const candidateOfficeName = [
+        selectedEmployee?.office_name,
+        typeof selectedEmployee?.office === "string"
+          ? selectedEmployee.office
+          : selectedEmployee?.office?.name,
+      ]
+        .map((value) => String(value || "").trim())
+        .find(Boolean);
+      if (candidateOfficeName) {
+        officeObj = offices.find(
+          (o) =>
+            String(o.name || "").trim().toLowerCase() ===
+            candidateOfficeName.toLowerCase(),
+        );
+      }
+    }
     return {
       name: `${selectedEmployee.first_name} ${selectedEmployee.last_name}`,
       position: selectedEmployee.position,
@@ -679,8 +709,10 @@ function EvaluateEmployeeForm() {
         deptObj?.name || selectedEmployee.department || "Not Assigned",
       office: officeObj?.name || "",
       officeId: officeObj?.id ? String(officeObj.id) : "",
-      officeHeaderLogo: officeObj?.header_logo_image || null,
-      officeHeaderDetails: officeObj?.header_details || "",
+      officeHeaderLogo:
+        officeObj?.header_logo_image || officeObj?.headerLogoImage || null,
+      officeHeaderDetails:
+        officeObj?.header_details || officeObj?.headerDetails || "",
     };
   }, [selectedEmployee, departments, offices]);
 
@@ -696,9 +728,15 @@ function EvaluateEmployeeForm() {
   }, [employeeDetails?.office]);
 
   const selectedLetterheadAddress = useMemo(() => {
-    const raw = employeeDetails?.officeHeaderDetails || "";
-    return String(raw).trim();
-  }, [employeeDetails?.officeHeaderDetails]);
+    const officeAddress = String(employeeDetails?.officeHeaderDetails || "").trim();
+    if (officeAddress) return officeAddress;
+    const templateAddress = String(
+      (evaluationTemplate as any)?.headerDetails ||
+        (evaluationTemplate as any)?.header_details ||
+        "",
+    ).trim();
+    return templateAddress;
+  }, [employeeDetails?.officeHeaderDetails, evaluationTemplate]);
 
   const totalScore = useMemo(() => {
     return Object.values(scores).reduce(
@@ -819,6 +857,7 @@ function EvaluateEmployeeForm() {
         companyName: selectedLetterheadOfficeName,
         evaluationLogoImage: selectedLetterheadLogo,
         headerDetails: selectedLetterheadAddress,
+        header_details: selectedLetterheadAddress,
       };
       const response = await fetch(
         `${getApiUrl()}/api/evaluations/${selectedEmployeeId}/pdf`,
@@ -882,6 +921,7 @@ function EvaluateEmployeeForm() {
         companyName: selectedLetterheadOfficeName,
         evaluationLogoImage: selectedLetterheadLogo,
         headerDetails: selectedLetterheadAddress,
+        header_details: selectedLetterheadAddress,
       };
       const response = await fetch(
         `${getApiUrl()}/api/evaluations/${selectedEmployeeId}/email-pdf`,
