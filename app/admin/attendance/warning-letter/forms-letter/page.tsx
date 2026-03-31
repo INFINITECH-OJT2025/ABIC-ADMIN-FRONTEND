@@ -991,13 +991,33 @@ function FormLetterContent() {
             );
           }
 
-          const runningCredits = { vl: 15, sl: 15 };
+          const toIsoDate = (d: Date) => {
+            const yr = d.getFullYear();
+            const mo = `${d.getMonth() + 1}`.padStart(2, "0");
+            const da = `${d.getDate()}`.padStart(2, "0");
+            return `${yr}-${mo}-${da}`;
+          };
+          const addDays = (dateStr: string, days: number) => {
+            const d = new Date(dateStr);
+            d.setDate(d.getDate() + days);
+            return toIsoDate(d);
+          };
+          const isVacationLeave = (remarksValue: unknown) => {
+            const normalized = String(remarksValue || "").trim().toLowerCase();
+            return (
+              normalized === "vl" ||
+              normalized.includes("vacation leave") ||
+              normalized.includes("vacation")
+            );
+          };
+
+          const runningCredits = { vl: 0 };
           const creditInfo = creditsMap.get(String(employeeId));
           const isEligible = creditInfo?.has_one_year_regular;
+          runningCredits.vl = isEligible ? 5 : 0;
 
-          // Group by month and cutoff to identify qualifying incidents (>= 3 days)
-          // WARNING SYSTEM: Count ACTUAL days, not deducted days
-          // Credit deduction is for reporting, not for warning qualification
+          // Group by month/cutoff using chargeable days:
+          // eligible employees consume first 5 VL days before warning counting.
           const yearLeavesSorted = [...empLeaves].sort(
             (a, b) =>
               new Date(a.start_date).getTime() -
@@ -1016,36 +1036,63 @@ function FormLetterContent() {
 
           const leaveGroups = new Map<string, any>();
           yearLeavesSorted.forEach((e: any) => {
-            const date = new Date(e.start_date);
-            const m = date.getMonth();
-            const day = date.getDate();
-            const co = day <= 15 ? "cutoff1" : "cutoff2";
-            const key = `${MONTHS[m]}-${co}`;
+            const totalDays = Number(e.number_of_days) || 0;
+            if (totalDays <= 0) return;
 
-            // Count ACTUAL days - no credit deduction for warning purposes
-            let daysToCharge = Number(e.number_of_days);
             const remarks = String(e.remarks || "").toLowerCase();
+            const isVl = isVacationLeave(remarks);
+            let coveredVlDays = 0;
+            let daysToCharge = totalDays;
+            if (isEligible && isVl && runningCredits.vl > 0) {
+              coveredVlDays = Math.min(runningCredits.vl, totalDays);
+              runningCredits.vl -= coveredVlDays;
+              daysToCharge = totalDays - coveredVlDays;
+            }
+
+            if (daysToCharge <= 0) return;
+
+            const chargedStartDate = addDays(e.start_date, coveredVlDays);
+            const chargedEndDate = addDays(chargedStartDate, daysToCharge - 1);
+            const chargedDate = new Date(chargedStartDate);
+            const monthIndex = chargedDate.getMonth();
+            const day = chargedDate.getDate();
+            const co = day <= 15 ? "cutoff1" : "cutoff2";
+            const monthLabel = MONTHS[monthIndex];
+            const key = `${monthLabel}-${co}`;
+            const warningEntry = {
+              ...e,
+              number_of_days: daysToCharge,
+              start_date: chargedStartDate,
+              leave_end_date: chargedEndDate,
+            };
 
             console.log(`[Leave Letter] Leave entry:`, {
               key,
               type: remarks,
-              actualDays: daysToCharge,
+              actualDays: totalDays,
+              coveredVlDays,
+              chargedDays: daysToCharge,
             });
 
             if (!leaveGroups.has(key)) {
               leaveGroups.set(key, {
-                ...e,
-                month: MONTHS[m],
+                ...warningEntry,
+                month: monthLabel,
                 cutoff: co,
                 total_days: daysToCharge,
-                actual_total_days: Number(e.number_of_days),
+                actual_total_days: totalDays,
+                leave_entries: [warningEntry],
               });
             } else {
               const existing = leaveGroups.get(key);
               existing.total_days += daysToCharge;
-              existing.actual_total_days += Number(e.number_of_days);
-              if (new Date(e.start_date) < new Date(existing.start_date)) {
-                existing.start_date = e.start_date;
+              existing.actual_total_days += totalDays;
+              existing.leave_entries.push(warningEntry);
+              if (
+                new Date(chargedStartDate).getTime() <
+                new Date(existing.start_date).getTime()
+              ) {
+                existing.start_date = chargedStartDate;
               }
             }
           });
@@ -1442,30 +1489,38 @@ function FormLetterContent() {
             ? (() => {
                 const expanded: any[] = [];
                 entries.forEach((entry: any) => {
-                  const isPersonalLeave =
-                    entry.remarks?.toUpperCase() === "PERSONAL LEAVE";
-                  const reasonDetail = isPersonalLeave
-                    ? `Personal Leave (${entry.cite_reason || "no stated reason"})`
-                    : entry.remarks || entry.cite_reason || "No stated reason";
+                  const sourceLeaveEntries = Array.isArray(entry.leave_entries)
+                    ? entry.leave_entries
+                    : [entry];
 
-                  if (entry.start_date && entry.number_of_days) {
-                    const count = Number(entry.number_of_days);
-                    const startDate = new Date(entry.start_date);
-                    for (let i = 0; i < count; i++) {
-                      const currentDate = new Date(startDate);
-                      currentDate.setDate(startDate.getDate() + i);
+                  sourceLeaveEntries.forEach((leaveEntry: any) => {
+                    const isPersonalLeave =
+                      leaveEntry.remarks?.toUpperCase() === "PERSONAL LEAVE";
+                    const reasonDetail = isPersonalLeave
+                      ? `Personal Leave (${leaveEntry.cite_reason || "no stated reason"})`
+                      : leaveEntry.remarks ||
+                        leaveEntry.cite_reason ||
+                        "No stated reason";
+
+                    if (leaveEntry.start_date && leaveEntry.number_of_days) {
+                      const count = Number(leaveEntry.number_of_days);
+                      const startDate = new Date(leaveEntry.start_date);
+                      for (let i = 0; i < count; i++) {
+                        const currentDate = new Date(startDate);
+                        currentDate.setDate(startDate.getDate() + i);
+                        expanded.push({
+                          ...leaveEntry,
+                          date: currentDate.toISOString().split("T")[0],
+                          displayRemarks: reasonDetail,
+                        });
+                      }
+                    } else {
                       expanded.push({
-                        ...entry,
-                        date: currentDate.toISOString().split("T")[0],
+                        ...leaveEntry,
                         displayRemarks: reasonDetail,
                       });
                     }
-                  } else {
-                    expanded.push({
-                      ...entry,
-                      displayRemarks: reasonDetail,
-                    });
-                  }
+                  });
                 });
                 return expanded.sort(
                   (a, b) =>

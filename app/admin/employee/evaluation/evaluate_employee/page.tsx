@@ -306,6 +306,12 @@ function EvaluateEmployeeForm() {
   const [reviewedBy, setReviewedBy] = useState("");
   const [approvedBy, setApprovedBy] = useState("");
 
+  const toValidDate = (value: unknown): Date | null => {
+    if (!value) return null;
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
   useEffect(() => {
     fetchInitialData();
   }, []);
@@ -401,7 +407,7 @@ function EvaluateEmployeeForm() {
       if (evalData.success) {
         const evalMap: Record<string, Evaluation> = {};
         evalData.data.forEach((ev: Evaluation) => {
-          evalMap[ev.employee_id] = ev;
+          evalMap[String(ev.employee_id)] = ev;
         });
         setEvaluations(evalMap);
       }
@@ -418,7 +424,7 @@ function EvaluateEmployeeForm() {
   const probeeEmployees = useMemo(() => {
     return employees
       .filter((emp) => {
-        const evalRecord = evaluations[emp.id];
+        const evalRecord = evaluations[String(emp.id)];
         return (
           (emp.status === "employed" || emp.status === "rehired_employee") &&
           (!evalRecord ||
@@ -436,22 +442,23 @@ function EvaluateEmployeeForm() {
   const selectableEmployees = useMemo(() => {
     if (!selectedEmployeeId) return probeeEmployees;
     const currentSelected = employees.find(
-      (emp) => emp.id === selectedEmployeeId,
+      (emp) => String(emp.id) === String(selectedEmployeeId),
     );
     if (!currentSelected) return probeeEmployees;
     const existsInProbee = probeeEmployees.some(
-      (emp) => emp.id === currentSelected.id,
+      (emp) => String(emp.id) === String(currentSelected.id),
     );
     if (existsInProbee) return probeeEmployees;
     return [currentSelected, ...probeeEmployees];
   }, [selectedEmployeeId, employees, probeeEmployees]);
 
   const selectedEmployee = useMemo(
-    () => employees.find((e) => e.id === selectedEmployeeId),
+    () => employees.find((e) => String(e.id) === String(selectedEmployeeId)),
     [selectedEmployeeId, employees],
   );
   const selectedEvaluation = useMemo(
-    () => (selectedEmployee ? evaluations[selectedEmployee.id] : undefined),
+    () =>
+      selectedEmployee ? evaluations[String(selectedEmployee.id)] : undefined,
     [selectedEmployee, evaluations],
   );
   const firstBreakdown = selectedEvaluation?.score_1_breakdown ?? null;
@@ -665,9 +672,6 @@ function EvaluateEmployeeForm() {
     );
     const officeId = deptObj?.office_id ?? (selectedEmployee as any)?.office_id;
     const officeObj = offices.find((o) => String(o.id) === String(officeId));
-    const hiredDate = selectedEmployee.date_hired
-      ? new Date(selectedEmployee.date_hired)
-      : null;
     return {
       name: `${selectedEmployee.first_name} ${selectedEmployee.last_name}`,
       position: selectedEmployee.position,
@@ -752,22 +756,22 @@ function EvaluateEmployeeForm() {
         targetSignature: "signature_1" as const,
       };
     }
-    const prevEval = evaluations[selectedEmployee.id];
+    const prevEval = evaluations[String(selectedEmployee.id)];
 
-    const hiredDate = new Date(selectedEmployee.date_hired);
-    const firstEvalDate = addMonths(hiredDate, 3);
-    const secondEvalDate = addMonths(hiredDate, 5);
+    const hiredDate = toValidDate(selectedEmployee.date_hired);
+    const firstEvalDate = hiredDate ? addMonths(hiredDate, 3) : null;
+    const secondEvalDate = hiredDate ? addMonths(hiredDate, 5) : null;
 
     // Check if 1st eval failed (<= 30)
     const failedFirst =
       prevEval && prevEval.score_1 !== null && prevEval.score_1 <= 30;
+    const targetDate = failedFirst ? secondEvalDate : firstEvalDate;
 
     return {
       isSecond: !!failedFirst,
-      ratingPeriod: format(
-        failedFirst ? secondEvalDate : firstEvalDate,
-        "MMMM dd, yyyy (EEEE)",
-      ),
+      ratingPeriod: targetDate
+        ? format(targetDate, "MMMM dd, yyyy (EEEE)")
+        : "N/A",
       targetScore: failedFirst ? "score_2" : "score_1",
       targetRemarks: failedFirst ? "remarks_2" : "remarks_1",
       targetBreakdown: failedFirst ? "score_2_breakdown" : "score_1_breakdown",
@@ -989,10 +993,11 @@ function EvaluateEmployeeForm() {
   }
 
   const firstEvaluationDate = selectedEmployee
-    ? format(
-        addMonths(new Date(selectedEmployee.date_hired), 3),
-        "MMMM dd, yyyy (EEEE)",
-      )
+    ? (() => {
+        const hiredDate = toValidDate(selectedEmployee.date_hired);
+        if (!hiredDate) return "N/A";
+        return format(addMonths(hiredDate, 3), "MMMM dd, yyyy (EEEE)");
+      })()
     : "";
   const firstEvaluationRemark = selectedEvaluation?.remarks_1 ?? "N/A";
   const firstEvaluationScore = selectedEvaluation?.score_1 ?? "N/A";

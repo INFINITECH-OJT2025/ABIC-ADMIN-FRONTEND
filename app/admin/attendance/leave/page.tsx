@@ -1131,61 +1131,90 @@ export default function LeavePage() {
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
+      const fetchJsonSafe = async (url: string, label: string) => {
+        try {
+          const response = await fetch(url, {
+            headers: { Accept: "application/json" },
+          });
+
+          if (!response.ok) {
+            console.error(
+              `[LeavePage] ${label} request failed with status ${response.status}`,
+            );
+            return null;
+          }
+
+          return await response.json();
+        } catch (error) {
+          console.error(`[LeavePage] ${label} request failed:`, error);
+          return null;
+        }
+      };
+
       try {
-        await Promise.all([
+        await Promise.allSettled([
           fetchEntries(),
-          fetch(`${getApiUrl()}/api/departments`)
-            .then((r) => r.json())
-            .then((d) => {
-              if (d.success) setDepartments(d.data);
-            }),
-          fetch(`${getApiUrl()}/api/employees?status=employed,rehired_employee`)
-            .then((r) => r.json())
-            .then((empJson) => {
-              if (empJson.success) {
-                const fetchedEmployees = empJson.data.map((e: any) => ({
-                  id: e.id,
-                  name: `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim(),
-                  department: e.department ?? undefined,
-                  department_id: e.department_id,
-                  position: e.position ?? undefined,
-                  gender: e.gender ?? undefined,
-                }));
-                setEmployees(fetchedEmployees);
-              }
-            }),
-          fetch(`${getApiUrl()}/api/leaves/approvers`)
-            .then((r) => r.json())
-            .then((approverJson) => {
-              if (approverJson.success && Array.isArray(approverJson.data)) {
-                const names = approverJson.data
-                  .map((a: LeaveApprover) => String(a?.name || "").trim())
-                  .filter(Boolean);
-                setSuperAdminApprovers(names);
-              }
-            }),
-          fetch(`${getApiUrl()}/api/hierarchies`)
-            .then((r) => r.json())
-            .then((hierJson) => {
-              if (typeof hierJson === "object" && hierJson !== null) {
-                const fetchedHierarchies = Array.isArray(hierJson.data)
-                  ? hierJson.data
-                  : Array.isArray(hierJson)
-                    ? hierJson
-                    : [];
-                setHierarchies(fetchedHierarchies);
-              }
-            }),
-          fetch(`${getApiUrl()}/api/offices`)
-            .then((r) => r.json())
-            .then((d) => {
-              if (d.success) setOffices(d.data);
-            }),
-          fetch(`${getApiUrl()}/api/office-shift-schedules`)
-            .then((r) => r.json())
-            .then((json) => {
-              if (json.success) setShiftSchedules(json.data);
-            }),
+          (async () => {
+            const d = await fetchJsonSafe(
+              `${getApiUrl()}/api/departments`,
+              "departments",
+            );
+            if (d?.success) setDepartments(d.data);
+          })(),
+          (async () => {
+            const empJson = await fetchJsonSafe(
+              `${getApiUrl()}/api/employees?status=employed,rehired_employee`,
+              "employees",
+            );
+            if (empJson?.success) {
+              const fetchedEmployees = empJson.data.map((e: any) => ({
+                id: e.id,
+                name: `${e.first_name ?? ""} ${e.last_name ?? ""}`.trim(),
+                department: e.department ?? undefined,
+                department_id: e.department_id,
+                position: e.position ?? undefined,
+                gender: e.gender ?? undefined,
+              }));
+              setEmployees(fetchedEmployees);
+            }
+          })(),
+          (async () => {
+            const approverJson = await fetchJsonSafe(
+              `${getApiUrl()}/api/leaves/approvers`,
+              "leave approvers",
+            );
+            if (approverJson?.success && Array.isArray(approverJson.data)) {
+              const names = approverJson.data
+                .map((a: LeaveApprover) => String(a?.name || "").trim())
+                .filter(Boolean);
+              setSuperAdminApprovers(names);
+            }
+          })(),
+          (async () => {
+            const hierJson = await fetchJsonSafe(
+              `${getApiUrl()}/api/hierarchies`,
+              "hierarchies",
+            );
+            if (typeof hierJson === "object" && hierJson !== null) {
+              const fetchedHierarchies = Array.isArray(hierJson.data)
+                ? hierJson.data
+                : Array.isArray(hierJson)
+                  ? hierJson
+                  : [];
+              setHierarchies(fetchedHierarchies);
+            }
+          })(),
+          (async () => {
+            const d = await fetchJsonSafe(`${getApiUrl()}/api/offices`, "offices");
+            if (d?.success) setOffices(d.data);
+          })(),
+          (async () => {
+            const json = await fetchJsonSafe(
+              `${getApiUrl()}/api/office-shift-schedules`,
+              "office shift schedules",
+            );
+            if (json?.success) setShiftSchedules(json.data);
+          })(),
         ]);
       } catch (err) {
         console.error("Error loading data:", err);
