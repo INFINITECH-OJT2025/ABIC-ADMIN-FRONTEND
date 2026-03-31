@@ -500,8 +500,8 @@ function FormLetterContent() {
   const type = searchParams.get("type"); // 'late' or 'leave'
   const normalizedType = type === "tardiness" ? "late" : type;
   const effectiveType = normalizedType === "leave" ? "leave" : "late";
-  const month = searchParams.get("month");
-  const year = searchParams.get("year");
+  const month = searchParams.get("month") ?? MONTHS[new Date().getMonth()];
+  const year = searchParams.get("year") ?? String(new Date().getFullYear());
   const cutoff = searchParams.get("cutoff");
   const warningLevelFromQuery = Math.max(
     0,
