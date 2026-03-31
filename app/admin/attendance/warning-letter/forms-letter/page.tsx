@@ -1241,6 +1241,9 @@ function FormLetterContent() {
           });
           const pageW = pdf.internal.pageSize.getWidth();
           const pageH = pdf.internal.pageSize.getHeight();
+          const margin = 18; // ~0.25in
+          const contentW = pageW - margin * 2;
+          const contentH = pageH - margin * 2;
 
           for (let i = 0; i < formIds.length; i++) {
             const { id } = formIds[i];
@@ -1261,15 +1264,14 @@ function FormLetterContent() {
             const imgData = canvas.toDataURL("image/jpeg", 0.95);
             const imgW = canvas.width;
             const imgH = canvas.height;
-            const ratio = pageW / imgW;
-            const finalW = pageW;
-            const scaledH = imgH * ratio;
-            const totalSlices = Math.max(1, Math.ceil((scaledH - 20) / pageH));
+            const scale = Math.min(contentW / imgW, contentH / imgH);
+            const finalW = imgW * scale;
+            const finalH = imgH * scale;
+            const offsetX = margin + (contentW - finalW) / 2;
+            const offsetY = margin + (contentH - finalH) / 2;
 
-            for (let p = 0; p < totalSlices; p++) {
-              if (i > 0 || p > 0) pdf.addPage();
-              pdf.addImage(imgData, "JPEG", 0, -(p * pageH), finalW, scaledH);
-            }
+            if (i > 0) pdf.addPage();
+            pdf.addImage(imgData, "JPEG", offsetX, offsetY, finalW, finalH);
           }
 
           const pdfBase64 = pdf.output("datauristring").split(",")[1];
