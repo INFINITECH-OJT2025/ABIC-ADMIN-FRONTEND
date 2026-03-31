@@ -142,7 +142,6 @@ export default function AdminHeadSidebar() {
 
   useEffect(() => {
     void fetchUnreadCount();
-    const intervalId = setInterval(fetchUnreadCount, 1000);
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
@@ -158,7 +157,6 @@ export default function AdminHeadSidebar() {
     window.addEventListener("focus", handleFocus);
 
     return () => {
-      clearInterval(intervalId);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", handleFocus);
     };
@@ -195,7 +193,6 @@ export default function AdminHeadSidebar() {
 
   useEffect(() => {
     void fetchPendingEmployeeCount();
-    const intervalId = setInterval(fetchPendingEmployeeCount, 10000);
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
@@ -211,7 +208,6 @@ export default function AdminHeadSidebar() {
     window.addEventListener("focus", handleFocus);
 
     return () => {
-      clearInterval(intervalId);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", handleFocus);
     };
@@ -260,13 +256,10 @@ export default function AdminHeadSidebar() {
 
   useEffect(() => {
     fetchTardinessReminder();
-    const intervalId = setInterval(fetchTardinessReminder, 60000);
-
     const handleReminderSync = () => fetchTardinessReminder();
     window.addEventListener("tardiness-reminder-sync", handleReminderSync);
 
     return () => {
-      clearInterval(intervalId);
       window.removeEventListener("tardiness-reminder-sync", handleReminderSync);
     };
   }, [fetchTardinessReminder]);
