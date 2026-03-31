@@ -80,6 +80,12 @@ interface Employee {
   position?: string | null;
   gender?: string | null;
 }
+interface LeaveApprover {
+  id: number;
+  name: string;
+  email?: string | null;
+  role?: string;
+}
 
 interface LeaveEntry {
   id: number;
@@ -1005,6 +1011,7 @@ export default function LeavePage() {
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [superAdminApprovers, setSuperAdminApprovers] = useState<string[]>([]);
   const { confirm } = useConfirmation();
   const [entries, setEntries] = useState<LeaveEntry[]>([]);
 
@@ -1145,6 +1152,16 @@ export default function LeavePage() {
                   gender: e.gender ?? undefined,
                 }));
                 setEmployees(fetchedEmployees);
+              }
+            }),
+          fetch(`${getApiUrl()}/api/leaves/approvers`)
+            .then((r) => r.json())
+            .then((approverJson) => {
+              if (approverJson.success && Array.isArray(approverJson.data)) {
+                const names = approverJson.data
+                  .map((a: LeaveApprover) => String(a?.name || "").trim())
+                  .filter(Boolean);
+                setSuperAdminApprovers(names);
               }
             }),
           fetch(`${getApiUrl()}/api/hierarchies`)
@@ -1460,11 +1477,31 @@ export default function LeavePage() {
   };
 
   const inlineApprovalOptions = useMemo(() => {
-    return [
+    const superAdminOptions = superAdminApprovers
+      .map((name) => ({
+        label: `${name} (Super Admin)`,
+        value: name,
+        color:
+          "bg-[#E1F7E1] text-[#006400] border-2 border-[#10B981] font-bold shadow-md ring-2 ring-[#D1FAE5]",
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    const merged = [
       ...APPROVAL_OPTIONS,
       ...getSuperiorsForEmployee(inlineForm.employee_id),
+      ...superAdminOptions,
     ];
-  }, [employees, hierarchies, inlineForm.employee_id]);
+
+    const seen = new Set<string>();
+    return merged.filter((option) => {
+      const key = String(option.value || "")
+        .trim()
+        .toLowerCase();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [employees, hierarchies, inlineForm.employee_id, superAdminApprovers]);
 
   const inlineRemarkOptions = useMemo(() => {
     const selectedEmp = employees.find(

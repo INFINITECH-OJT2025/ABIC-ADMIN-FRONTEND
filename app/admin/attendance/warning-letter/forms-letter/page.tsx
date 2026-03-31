@@ -152,6 +152,32 @@ const numberToText = (n: number) => {
   return texts[n] || n.toString();
 };
 
+const formatEntriesListForTemplate = (
+  templateBody: string,
+  entriesList: string,
+) => {
+  const withIndent = (indent: string) =>
+    entriesList
+      .split(/\r?\n/)
+      .map((line) => (line ? `${indent}${line}` : ""))
+      .join("\n");
+
+  let out = templateBody.replace(
+    /(^|[\r\n])([ \t]*)\{\{\s*(entries_list|etr(?:i|ie)s_list)\s*\}\}[ \t]*$/gim,
+    (_match, prefix: string, indent: string) => `${prefix}${withIndent(indent)}`,
+  );
+
+  out = out.replace(
+    /([ \t]+)\{\{\s*(entries_list|etr(?:i|ie)s_list)\s*\}\}/gim,
+    (_match, indent: string) => withIndent(indent),
+  );
+
+  return out.replace(
+    /\{\{\s*(entries_list|etr(?:i|ie)s_list)\s*\}\}/gim,
+    entriesList,
+  );
+};
+
 // --- Dynamic Schedule Types & Helpers ---
 interface ShiftInfo {
   startTimeMinutes: number;
@@ -1464,7 +1490,10 @@ function FormLetterContent() {
         // Form 1 body (Supervisor)
         let initialF1 = "";
         if (customSupervisorTemplate) {
-          initialF1 = customSupervisorTemplate.body
+          initialF1 = formatEntriesListForTemplate(
+            customSupervisorTemplate.body,
+            entryListStr,
+          )
             .replace(/{{employee_name}}/g, employee.name)
             .replace(/{{last_name}}/g, lastName)
             .replace(
@@ -1495,7 +1524,6 @@ function FormLetterContent() {
                     ? "3rd"
                     : `${totalCount}th`,
             )
-            .replace(/{{entries_list}}/g, entryListStr)
             .replace(
               /{{(supervisor first name|supervisor(_|\s)?name)}}/g,
               supervisorSalutation && supervisorFirstName
@@ -1535,7 +1563,10 @@ function FormLetterContent() {
             : customLeaveTemplate;
 
         if (targetTemplate) {
-          initialF2 = targetTemplate.body
+          initialF2 = formatEntriesListForTemplate(
+            targetTemplate.body,
+            entryListStr,
+          )
             .replace(/{{salutation}}/g, salutationPrefix)
             .replace(/{{last_name}}/g, lastName)
             .replace(/{{shift_time}}/g, shiftTime)
@@ -1545,7 +1576,6 @@ function FormLetterContent() {
             .replace(/{{cutoff_text}}/g, cutoffText)
             .replace(/{{month}}/g, month)
             .replace(/{{year}}/g, year)
-            .replace(/{{entries_list}}/g, entryListStr)
             .replace(/Employee Acknowledgment:[\s\S]*$/, ""); // Remove if present in stored template
         } else {
           if (effectiveType === "late") {
@@ -2305,8 +2335,8 @@ function FormOneTemplate({
                     );
                   }
 
-                  // Paragraph with first-line indent (only if line starts with 4 spaces)
-                  const hasIndent = line.startsWith("    ");
+                  // Paragraph with first-line indent (any leading spaces/tabs)
+                  const hasIndent = /^[ \t]+/.test(line);
                   return (
                     <div
                       key={idx}
@@ -2576,8 +2606,8 @@ function FormTwoTemplate({
                     );
                   }
 
-                  // Paragraph with first-line indent (only if line starts with 4 spaces)
-                  const hasIndent = line.startsWith("    ");
+                  // Paragraph with first-line indent (any leading spaces/tabs)
+                  const hasIndent = /^[ \t]+/.test(line);
                   return (
                     <div
                       key={idx}
