@@ -19,12 +19,20 @@ export async function POST(request: NextRequest) {
     const uploadForm = new FormData()
     uploadForm.set('file', file, file.name || `directory-image-${Date.now()}`)
     uploadForm.set('section_code', sectionCodeRaw)
+    const authHeader = request.headers.get('Authorization')
+    const token = request.cookies.get('token')?.value
+    const authHeaders = authHeader
+      ? { Authorization: authHeader }
+      : token
+        ? { Authorization: `Bearer ${token}` }
+        : {}
 
     const uploadResponse = await fetch(`${LARAVEL_BASE}/api/directory/images/upload`, {
       method: 'POST',
       body: uploadForm,
       headers: {
         Accept: 'application/json',
+        ...authHeaders,
       },
     })
 
