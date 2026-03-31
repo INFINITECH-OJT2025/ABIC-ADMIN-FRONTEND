@@ -25,6 +25,7 @@ import {
   Activity,
   GitBranch,
   Boxes,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -352,6 +353,38 @@ export default function AdminHeadSidebar() {
 
       {/* Navigation Menu */}
       <nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar py-2">
+        {/* ADMINS */}
+        {(currentUser?.role === "super_admin" ||
+          currentUser?.role === "super_admin_viewer") && (
+          <div className="group relative">
+            <Link
+              href="/admin/admins"
+              className={cn(
+                "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
+                isCollapsed ? "justify-center" : "",
+              )}
+            >
+              <ShieldCheck size={22} className="shrink-0" />
+              {!isCollapsed && (
+                <span className="font-medium whitespace-nowrap">ADMINS</span>
+              )}
+            </Link>
+            {isCollapsed && (
+              <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
+                <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                  ADMINS
+                </div>
+                <Link
+                  href="/admin/admins"
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+                >
+                  <ShieldCheck size={18} />
+                  <span>Admins</span>
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
         {/* ACTIVITY LOGS */}
         {/* <div className="group relative">
           <Link
@@ -697,6 +730,7 @@ export default function AdminHeadSidebar() {
             </div>
           )}
         </div>
+
 
         {/* HIERARCHY */}
         <div className="group relative">

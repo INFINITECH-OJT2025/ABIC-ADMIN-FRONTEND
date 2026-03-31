@@ -78,9 +78,18 @@ export default function LoginPage() {
             return
           }
 
-          if (role === "super_admin" || role === "admin" || role === "super_admin_viewer") router.replace("/admin")
-          else router.replace("/login")
+          if (role === "super_admin" || role === "admin" || role === "super_admin_viewer") {
+            router.replace("/admin")
+            return
+          }
+          
+          if (role === "accountant") {
+            showToast("Access Denied", "Please use the dedicated link for Accountant role.", "error")
+            setAuthChecking(false)
+            return
+          }
 
+          router.replace("/login")
           return
         }
       } catch {
@@ -161,6 +170,12 @@ export default function LoginPage() {
 
         if (account_status === 'suspended') {
           showToast("Account Suspended", "Please contact administrator.", "error")
+          setLoading(false)
+          return
+        }
+
+        if (role === 'accountant') {
+          showToast("Access Denied", "Please use the dedicated link for Accountant role.", "error")
           setLoading(false)
           return
         }
