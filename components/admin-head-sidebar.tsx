@@ -22,7 +22,6 @@ import {
   AlertCircle,
   X,
   PanelLeft,
-  Activity,
   GitBranch,
   Boxes,
   ShieldCheck,
@@ -54,7 +53,6 @@ export default function AdminHeadSidebar() {
     name: string;
     role: string;
   } | null>(null);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [pendingEmployeeCount, setPendingEmployeeCount] = useState(0);
   const [showTardinessReminder, setShowTardinessReminder] = useState(false);
   const router = useRouter();
@@ -83,21 +81,6 @@ export default function AdminHeadSidebar() {
       setIsLoggingOut(false);
     }
   };
-
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const response = await fetch(
-        "/api/laravel/api/activity-logs/unread-count",
-        { cache: "no-store" },
-      );
-      const result = await response.json();
-      if (response.ok && result?.success) {
-        setUnreadCount(Number(result?.data?.count ?? 0));
-      }
-    } catch {
-      // Ignore sidebar counter failures.
-    }
-  }, []);
 
   const fetchCurrentUser = useCallback(async () => {
     try {
@@ -139,28 +122,6 @@ export default function AdminHeadSidebar() {
   useEffect(() => {
     void fetchCurrentUser();
   }, [fetchCurrentUser]);
-
-  useEffect(() => {
-    void fetchUnreadCount();
-
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        void fetchUnreadCount();
-      }
-    };
-
-    const handleFocus = () => {
-      void fetchUnreadCount();
-    };
-
-    document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, [fetchUnreadCount]);
 
   const fetchPendingEmployeeCount = useCallback(async () => {
     try {
@@ -212,27 +173,6 @@ export default function AdminHeadSidebar() {
       window.removeEventListener("focus", handleFocus);
     };
   }, [fetchPendingEmployeeCount]);
-
-  useEffect(() => {
-    const onUnreadChanged = (event: Event) => {
-      const customEvent = event as CustomEvent<{ count: number }>;
-      if (typeof customEvent.detail?.count === "number") {
-        setUnreadCount(customEvent.detail.count);
-      }
-    };
-
-    window.addEventListener(
-      "activity-log-unread-changed",
-      onUnreadChanged as EventListener,
-    );
-
-    return () => {
-      window.removeEventListener(
-        "activity-log-unread-changed",
-        onUnreadChanged as EventListener,
-      );
-    };
-  }, []);
 
   const fetchTardinessReminder = useCallback(async () => {
     const now = new Date();
@@ -378,50 +318,6 @@ export default function AdminHeadSidebar() {
             )}
           </div>
         )}
-        {/* ACTIVITY LOGS */}
-        {/* <div className="group relative">
-          <Link
-            href="/admin
-            className={cn(
-              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : "",
-            )}
-          >
-            <Activity size={22} className="shrink-0" />
-            {!isCollapsed && (
-              <div className="flex items-center gap-2">
-                <span className="font-medium whitespace-nowrap">
-                  ACTIVITY LOGS
-                </span>
-                {unreadCount > 0 && (
-                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold leading-none text-[#7B0F2B]">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
-              </div>
-            )}
-            {isCollapsed && unreadCount > 0 && (
-              <span className="absolute right-4 top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1 py-0.5 text-[10px] font-bold leading-none text-[#7B0F2B]">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
-          </Link>
-          {isCollapsed && (
-            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
-                ACTIVITY LOGS
-              </div>
-              <Link
-                href="/admin
-                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-              >
-                <Activity size={18} />
-                <span>Activity Logs</span>
-              </Link>
-            </div>
-          )}
-        </div> */}
-
         {/* EMPLOYEE with Dropdown */}
         <div className="group relative">
           <button

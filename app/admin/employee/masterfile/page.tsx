@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getApiUrl } from "@/lib/api";
 import { Input } from "@/components/ui/input";
@@ -392,10 +392,6 @@ export default function MasterfilePage() {
   // Position & Department Dropdown State
   const [positions, setPositions] = useState<Hierarchy[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
-  const employeeLoadAbortRef = useRef<AbortController | null>(null);
-  const employeeLoadBlockedUntilRef = useRef<number>(0);
-  const employeeLoadLastToastAtRef = useRef<number>(0);
-  const employeeLoadRetryTimeoutRef = useRef<number | null>(null);
   const MAX_ONBOARDING_BATCH = 8;
 
   const normalizeBatchId = (value: unknown): number => {
@@ -502,13 +498,6 @@ export default function MasterfilePage() {
     fetchRegions();
     fetchPositionsAndDepartments();
     loadRehireBatchProgress();
-
-    return () => {
-      employeeLoadAbortRef.current?.abort();
-      if (employeeLoadRetryTimeoutRef.current !== null) {
-        window.clearTimeout(employeeLoadRetryTimeoutRef.current);
-      }
-    };
   }, []);
 
   const fetchPositionsAndDepartments = async () => {
@@ -1104,26 +1093,8 @@ export default function MasterfilePage() {
     }
   };
 
-  const fetchEmployees = async (options?: { force?: boolean }) => {
-    const force = options?.force ?? false;
+  const fetchEmployees = async () => {
     loadRehireBatchProgress();
-
-    const now = Date.now();
-    if (!force && employeeLoadBlockedUntilRef.current > now) {
-      const retryInSeconds = Math.max(
-        1,
-        Math.ceil((employeeLoadBlockedUntilRef.current - now) / 1000),
-      );
-      setFetchError(
-        `Too many requests right now. Retrying in about ${retryInSeconds}s...`,
-      );
-      return;
-    }
-
-    employeeLoadAbortRef.current?.abort();
-    const controller = new AbortController();
-    employeeLoadAbortRef.current = controller;
-
     setFetchError(null);
     try {
       const apiUrl = getApiUrl();
@@ -1132,72 +1103,16 @@ export default function MasterfilePage() {
       const terminationsUrl = `${apiUrl}/api/terminations`;
 
       const [empRes, checkRes, termRes] = await Promise.all([
-        fetch(employeesUrl, {
-          headers: { Accept: "application/json" },
-          signal: controller.signal,
-        }),
-        fetch(checklistsUrl, {
-          headers: { Accept: "application/json" },
-          signal: controller.signal,
-        }),
-        fetch(terminationsUrl, {
-          headers: { Accept: "application/json" },
-          signal: controller.signal,
-        }),
+        fetch(employeesUrl, { headers: { Accept: "application/json" } }),
+        fetch(checklistsUrl, { headers: { Accept: "application/json" } }),
+        fetch(terminationsUrl, { headers: { Accept: "application/json" } }),
       ]);
 
       if (!empRes.ok || !checkRes.ok || !termRes.ok) {
-        const responses = [empRes, checkRes, termRes];
-        const hasRateLimit = responses.some((res) => res.status === 429);
-
-        if (hasRateLimit) {
-          const retryAfterValuesFromHeaders = responses
-            .filter((res) => res.status === 429)
-            .map((res) => Number(res.headers.get("Retry-After") || "0"))
-            .filter((seconds) => Number.isFinite(seconds) && seconds > 0);
-
-          const retryAfterValuesFromBody = await Promise.all(
-            responses
-              .filter((res) => res.status === 429)
-              .map(async (res) => {
-                try {
-                  const body = await res.clone().json();
-                  return Number(body?.retry_after ?? 0);
-                } catch {
-                  return 0;
-                }
-              }),
-          );
-
-          const retryCandidates = [
-            ...retryAfterValuesFromHeaders,
-            ...retryAfterValuesFromBody,
-          ].filter((seconds) => Number.isFinite(seconds) && seconds > 0);
-
-          const retryAfterSeconds = retryCandidates.length
-            ? Math.max(...retryCandidates)
-            : 60;
-          employeeLoadBlockedUntilRef.current =
-            Date.now() + retryAfterSeconds * 1000;
-
-          if (employeeLoadRetryTimeoutRef.current !== null) {
-            window.clearTimeout(employeeLoadRetryTimeoutRef.current);
-          }
-          employeeLoadRetryTimeoutRef.current = window.setTimeout(() => {
-            void fetchEmployees({ force: true });
-          }, retryAfterSeconds * 1000);
-
-          throw new Error(
-            `Too many requests. Waiting ${retryAfterSeconds}s before retrying.`,
-          );
-        }
-
         throw new Error(
           `HTTP Error: employees=${empRes.status}, checklists=${checkRes.status}, terminations=${termRes.status}`,
         );
       }
-
-      employeeLoadBlockedUntilRef.current = 0;
 
       const empData = await empRes.json();
       const checkData = await checkRes.json();
@@ -1217,7 +1132,8 @@ export default function MasterfilePage() {
 
         setChecklists(checklistsList);
 
-        const enhancedEmployees = empData.data.map((emp: Employee) => {
+        const enhancedEmployees = await Promise.all(
+          empData.data.map(async (emp: Employee) => {
             const fullName = normalizeName(
               `${emp.first_name} ${emp.last_name}`,
             );
@@ -1304,6 +1220,29 @@ export default function MasterfilePage() {
               status: normalizeExitStatus(emp.status),
             };
 
+            // For pending/rehire cards, pull full profile so batch detection is accurate.
+            if (["pending", "rehire_pending"].includes(String(emp.status))) {
+              try {
+                const detailsResponse = await fetch(
+                  `${apiUrl}/api/employees/${emp.id}`,
+                  {
+                    headers: { Accept: "application/json" },
+                  },
+                );
+                if (detailsResponse.ok) {
+                  const detailsData = await detailsResponse.json();
+                  if (detailsData?.success && detailsData?.data) {
+                    enhancedEmp = { ...enhancedEmp, ...detailsData.data };
+                  }
+                }
+              } catch (detailsError) {
+                console.error(
+                  `Failed to fetch detailed profile for ${emp.id}:`,
+                  detailsError,
+                );
+              }
+            }
+
             if (termination) {
               enhancedEmp.termination_date = termination.termination_date;
               enhancedEmp.termination_reason = termination.reason;
@@ -1351,32 +1290,17 @@ export default function MasterfilePage() {
               };
             }
             return enhancedEmp;
-          });
+          }),
+        );
         setEmployees(enhancedEmployees || []);
       } else {
         toast.error(empData.message || "Failed to fetch employees");
       }
     } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        return;
-      }
-
       console.error("Error fetching employees:", error);
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Network Error: Could not connect to the server.";
-      setFetchError(message);
-
-      const shouldToast = Date.now() - employeeLoadLastToastAtRef.current > 3000;
-      if (shouldToast) {
-        toast.error(message);
-        employeeLoadLastToastAtRef.current = Date.now();
-      }
+      setFetchError("Network Error: Could not connect to the server.");
+      toast.error("Network Error: Could not connect to the server.");
     } finally {
-      if (employeeLoadAbortRef.current === controller) {
-        employeeLoadAbortRef.current = null;
-      }
       setLoading(false);
     }
   };
@@ -1512,17 +1436,8 @@ export default function MasterfilePage() {
             },
           );
 
-          let data: any = null;
-          try {
-            data = await response.json();
-          } catch {
-            data = null;
-          }
-
-          const isSuccessResponse =
-            response.ok && (data === null || data.success !== false);
-
-          if (isSuccessResponse) {
+          const data = await response.json();
+          if (data.success) {
             toast.success(
               `${selectedEmployee.first_name} ${isRehire ? "re-hired" : "set as employed"} successfully`,
             );
@@ -1531,11 +1446,11 @@ export default function MasterfilePage() {
             setSelectedEmployee(null);
           } else {
             // Parse validation errors if present
-            if (data?.errors) {
+            if (data.errors) {
               const errorMessages = Object.values(data.errors).flat().join(" ");
-              toast.error(errorMessages || data?.message || "Failed to update status");
+              toast.error(errorMessages || data.message);
             } else {
-              toast.error(data?.message || `Failed to update status (HTTP ${response.status})`);
+              toast.error(data.message || "Failed to update status");
             }
           }
         } catch (error) {
@@ -1947,7 +1862,7 @@ export default function MasterfilePage() {
                   try again.
                 </p>
                 <Button
-                  onClick={() => void fetchEmployees({ force: true })}
+                  onClick={fetchEmployees}
                   className="bg-[#A4163A] hover:bg-[#80122D] text-white px-8 h-12 rounded-xl font-bold shadow-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
                 >
                   Retry Connection
