@@ -1182,9 +1182,18 @@ export default function AdminHeadHierarchyPage() {
                             size="icon"
                             className="h-7 w-7 text-slate-400 hover:text-[#A4163A] hover:bg-white transition-colors"
                             onClick={() => handleOpenShiftModal(office)}
-                            disabled={isViewOnly}
+                            disabled={isViewOnly || loading}
                           >
                             <Clock className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-white transition-colors"
+                            onClick={() => handleDeleteOffice(office)}
+                            disabled={isViewOnly || loading}
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                         <div className="h-[2px] flex-1 bg-slate-200" />
@@ -1207,6 +1216,15 @@ export default function AdminHeadHierarchyPage() {
                                 <span className="font-bold text-black/80 tracking-wide relative z-10 flex-1">
                                   {department.name}
                                 </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-black/60 hover:text-red-700 hover:bg-white/70 relative z-10"
+                                  onClick={() => handleDeleteDepartment(department)}
+                                  disabled={isViewOnly || loading}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               </div>
 
                               <div className="p-5 md:p-6 flex-1 bg-slate-50/40 overflow-x-hidden">
