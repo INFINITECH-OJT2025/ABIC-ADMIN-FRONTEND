@@ -398,7 +398,14 @@ export default function AdminHeadHierarchyPage() {
       }
 
       const hierArray = (Array.isArray(hierData?.data) ? hierData.data : (Array.isArray(hierData) ? hierData : []))
-      setAvailablePositions(hierArray.map((p: any) => p.name))
+      const dedupedPositionNames: string[] = Array.from(
+        new Set(
+          hierArray
+            .map((p: any) => (typeof p?.name === 'string' ? p.name.trim() : ''))
+            .filter((name: string) => name.length > 0)
+        )
+      )
+      setAvailablePositions(dedupedPositionNames)
 
       // 1. Map explicit hierarchy records from database
       const mappedPos = hierArray.map((h: any) => ({
