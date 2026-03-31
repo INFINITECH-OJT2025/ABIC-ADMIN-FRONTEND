@@ -129,11 +129,42 @@ const splitFullName = (
   };
 };
 
+const isAdminSupervisorHrPosition = (value: unknown): boolean => {
+  const normalized = toPlainString(value).toLowerCase().replace(/\s+/g, " ").trim();
+  return normalized === "admin supervisor/hr";
+};
+
+const resolveAdminDepartmentName = (departments: Department[]): string => {
+  if (!departments.length) return "";
+
+  const normalized = departments.map((department) => ({
+    name: toPlainString(department?.name),
+    normalizedName: toPlainString(department?.name)
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim(),
+  }));
+
+  const exact = normalized.find(
+    (entry) =>
+      entry.normalizedName === "admin department" ||
+      entry.normalizedName === "admin",
+  );
+  if (exact?.name) return exact.name;
+
+  return normalized.find((entry) => entry.normalizedName.includes("admin"))?.name || "";
+};
+
 const resolveDepartmentFromHierarchy = (
   positionName: string,
   positions: Hierarchy[],
   departments: Department[],
 ): string => {
+  if (isAdminSupervisorHrPosition(positionName)) {
+    const adminDepartment = resolveAdminDepartmentName(departments);
+    if (adminDepartment) return adminDepartment;
+  }
+
   const normalizedPosition = toPlainString(positionName).toLowerCase();
   if (!normalizedPosition) return "";
 
