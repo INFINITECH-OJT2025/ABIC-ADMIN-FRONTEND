@@ -1512,8 +1512,17 @@ export default function MasterfilePage() {
             },
           );
 
-          const data = await response.json();
-          if (data.success) {
+          let data: any = null;
+          try {
+            data = await response.json();
+          } catch {
+            data = null;
+          }
+
+          const isSuccessResponse =
+            response.ok && (data === null || data.success !== false);
+
+          if (isSuccessResponse) {
             toast.success(
               `${selectedEmployee.first_name} ${isRehire ? "re-hired" : "set as employed"} successfully`,
             );
@@ -1522,11 +1531,11 @@ export default function MasterfilePage() {
             setSelectedEmployee(null);
           } else {
             // Parse validation errors if present
-            if (data.errors) {
+            if (data?.errors) {
               const errorMessages = Object.values(data.errors).flat().join(" ");
-              toast.error(errorMessages || data.message);
+              toast.error(errorMessages || data?.message || "Failed to update status");
             } else {
-              toast.error(data.message || "Failed to update status");
+              toast.error(data?.message || `Failed to update status (HTTP ${response.status})`);
             }
           }
         } catch (error) {
