@@ -1423,10 +1423,44 @@ export default function MasterfilePage() {
       hideCancel: false,
       onConfirm: async () => {
         setIsUpdating(true);
-        try {
-          const apiUrl = getApiUrl();
-          const finalStatus = isRehire ? "rehired_employee" : "employed";
+        const apiUrl = getApiUrl();
+        const finalStatus = isRehire ? "rehired_employee" : "employed";
+        const verifyStatusApplied = async () => {
+          try {
+            const verifyResponse = await fetch(
+              `${apiUrl}/api/employees/${selectedEmployee.id}`,
+              {
+                method: "GET",
+                headers: {
+                  "Content-Type": "application/json",
+                  Accept: "application/json",
+                },
+              },
+            );
 
+            if (!verifyResponse.ok) return false;
+
+            let verifyData: any = null;
+            const verifyContentType =
+              verifyResponse.headers.get("content-type") || "";
+            if (verifyContentType.includes("application/json")) {
+              try {
+                verifyData = await verifyResponse.json();
+              } catch {
+                verifyData = null;
+              }
+            }
+
+            const verifiedStatus = normalizeExitStatus(
+              verifyData?.data?.status ?? verifyData?.status,
+            );
+            return verifiedStatus === finalStatus;
+          } catch (verifyError) {
+            console.error("Status verification failed:", verifyError);
+            return false;
+          }
+        };
+        try {
           const response = await fetch(
             `${apiUrl}/api/employees/${selectedEmployee.id}`,
             {
@@ -1436,8 +1470,17 @@ export default function MasterfilePage() {
             },
           );
 
-          const data = await response.json();
-          if (data.success) {
+          let data: any = null;
+          const responseContentType = response.headers.get("content-type") || "";
+          if (responseContentType.includes("application/json")) {
+            try {
+              data = await response.json();
+            } catch {
+              data = null;
+            }
+          }
+
+          if (response.ok && data?.success !== false) {
             toast.success(
               `${selectedEmployee.first_name} ${isRehire ? "re-hired" : "set as employed"} successfully`,
             );
@@ -1445,16 +1488,39 @@ export default function MasterfilePage() {
             setViewMode("list");
             setSelectedEmployee(null);
           } else {
+            if (await verifyStatusApplied()) {
+              toast.success(
+                `${selectedEmployee.first_name} ${isRehire ? "re-hired" : "set as employed"} successfully`,
+              );
+              await fetchEmployees();
+              setViewMode("list");
+              setSelectedEmployee(null);
+              return;
+            }
+
             // Parse validation errors if present
-            if (data.errors) {
+            if (data?.errors) {
               const errorMessages = Object.values(data.errors).flat().join(" ");
               toast.error(errorMessages || data.message);
             } else {
-              toast.error(data.message || "Failed to update status");
+              toast.error(
+                data?.message ||
+                  `Failed to update status${response.status ? ` (HTTP ${response.status})` : ""}`,
+              );
             }
           }
         } catch (error) {
           console.error("Error updating status:", error);
+          if (await verifyStatusApplied()) {
+            toast.success(
+              `${selectedEmployee.first_name} ${isRehire ? "re-hired" : "set as employed"} successfully`,
+            );
+            await fetchEmployees();
+            setViewMode("list");
+            setSelectedEmployee(null);
+            return;
+          }
+
           if (
             error instanceof TypeError &&
             error.message === "Failed to fetch"
