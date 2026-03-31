@@ -152,17 +152,6 @@ const statusLabels = {
   resignation_pending: "Pending Resignation",
 };
 
-const normalizeExitStatus = (value: unknown): Employee["status"] => {
-  const status = String(value ?? "")
-    .toLowerCase()
-    .trim();
-
-  if (status === "termination_pending") return "terminated";
-  if (status === "resignation_pending") return "resigned";
-
-  return (status as Employee["status"]) || "pending";
-};
-
 const nameFields = new Set([
   "first_name",
   "last_name",
@@ -1100,27 +1089,35 @@ export default function MasterfilePage() {
       const apiUrl = getApiUrl();
       const employeesUrl = `${apiUrl}/api/employees`;
       const checklistsUrl = `${apiUrl}/api/onboarding-checklist`;
+      const clearanceChecklistsUrl = `${apiUrl}/api/clearance-checklist`;
       const terminationsUrl = `${apiUrl}/api/terminations`;
 
-      const [empRes, checkRes, termRes] = await Promise.all([
+      const [empRes, checkRes, clearanceRes, termRes] = await Promise.all([
         fetch(employeesUrl, { headers: { Accept: "application/json" } }),
         fetch(checklistsUrl, { headers: { Accept: "application/json" } }),
+        fetch(clearanceChecklistsUrl, {
+          headers: { Accept: "application/json" },
+        }),
         fetch(terminationsUrl, { headers: { Accept: "application/json" } }),
       ]);
 
-      if (!empRes.ok || !checkRes.ok || !termRes.ok) {
+      if (!empRes.ok || !checkRes.ok || !clearanceRes.ok || !termRes.ok) {
         throw new Error(
-          `HTTP Error: employees=${empRes.status}, checklists=${checkRes.status}, terminations=${termRes.status}`,
+          `HTTP Error: employees=${empRes.status}, checklists=${checkRes.status}, clearance=${clearanceRes.status}, terminations=${termRes.status}`,
         );
       }
 
       const empData = await empRes.json();
       const checkData = await checkRes.json();
+      const clearanceData = await clearanceRes.json();
       const termData = await termRes.json();
 
       if (empData.success) {
         const checklistsList = Array.isArray(checkData.data)
           ? checkData.data
+          : [];
+        const clearanceList = Array.isArray(clearanceData.data)
+          ? clearanceData.data
           : [];
         const terminationsList =
           termData.success && Array.isArray(termData.data) ? termData.data : [];
@@ -1215,10 +1212,7 @@ export default function MasterfilePage() {
                 return bTs - aTs;
               })[0];
 
-            let enhancedEmp: any = {
-              ...emp,
-              status: normalizeExitStatus(emp.status),
-            };
+            let enhancedEmp: any = { ...emp };
 
             // For pending/rehire cards, pull full profile so batch detection is accurate.
             if (["pending", "rehire_pending"].includes(String(emp.status))) {
@@ -1248,8 +1242,6 @@ export default function MasterfilePage() {
               enhancedEmp.termination_reason = termination.reason;
               enhancedEmp.rehire_started_at = termination.rehired_at ?? null;
             }
-
-            enhancedEmp.status = normalizeExitStatus(enhancedEmp.status);
 
             if (checklist) {
               const tasks = Array.isArray(checklist.tasks)
@@ -1289,6 +1281,56 @@ export default function MasterfilePage() {
                 },
               };
             }
+
+            // Clearance Checklist Logic
+            const clearanceMatches = clearanceList.filter((c: any) => {
+              const checklistEmployeeId = String(
+                c?.employeeId ?? c?.employee_id ?? "",
+              )
+                .trim()
+                .toLowerCase();
+              if (
+                empId &&
+                checklistEmployeeId &&
+                checklistEmployeeId === empId
+              ) {
+                return true;
+              }
+              const candidate = normalizeName(c?.name);
+              if (!candidate) return false;
+              if (candidate === fullName) return true;
+              if (firstName && lastName) {
+                return (
+                  candidate.includes(firstName) && candidate.includes(lastName)
+                );
+              }
+              return false;
+            });
+
+            if (clearanceMatches.length > 0) {
+              const clearance = clearanceMatches.sort((a: any, b: any) => {
+                const aTime = new Date(
+                  a?.updated_at ?? a?.created_at ?? 0,
+                ).getTime();
+                const bTime = new Date(
+                  b?.updated_at ?? b?.created_at ?? 0,
+                ).getTime();
+                return bTime - aTime;
+              })[0];
+
+              const tasks = Array.isArray(clearance.tasks)
+                ? clearance.tasks
+                : [];
+              const doneCount = tasks.filter(
+                (t: any) => String(t?.status ?? "").toUpperCase() === "DONE",
+              ).length;
+
+              enhancedEmp.clearance_progress = {
+                done: doneCount,
+                total: tasks.length,
+              };
+            }
+
             return enhancedEmp;
           }),
         );
@@ -1423,44 +1465,10 @@ export default function MasterfilePage() {
       hideCancel: false,
       onConfirm: async () => {
         setIsUpdating(true);
-        const apiUrl = getApiUrl();
-        const finalStatus = isRehire ? "rehired_employee" : "employed";
-        const verifyStatusApplied = async () => {
-          try {
-            const verifyResponse = await fetch(
-              `${apiUrl}/api/employees/${selectedEmployee.id}`,
-              {
-                method: "GET",
-                headers: {
-                  "Content-Type": "application/json",
-                  Accept: "application/json",
-                },
-              },
-            );
-
-            if (!verifyResponse.ok) return false;
-
-            let verifyData: any = null;
-            const verifyContentType =
-              verifyResponse.headers.get("content-type") || "";
-            if (verifyContentType.includes("application/json")) {
-              try {
-                verifyData = await verifyResponse.json();
-              } catch {
-                verifyData = null;
-              }
-            }
-
-            const verifiedStatus = normalizeExitStatus(
-              verifyData?.data?.status ?? verifyData?.status,
-            );
-            return verifiedStatus === finalStatus;
-          } catch (verifyError) {
-            console.error("Status verification failed:", verifyError);
-            return false;
-          }
-        };
         try {
+          const apiUrl = getApiUrl();
+          const finalStatus = isRehire ? "rehired_employee" : "employed";
+
           const response = await fetch(
             `${apiUrl}/api/employees/${selectedEmployee.id}`,
             {
@@ -1470,17 +1478,8 @@ export default function MasterfilePage() {
             },
           );
 
-          let data: any = null;
-          const responseContentType = response.headers.get("content-type") || "";
-          if (responseContentType.includes("application/json")) {
-            try {
-              data = await response.json();
-            } catch {
-              data = null;
-            }
-          }
-
-          if (response.ok && data?.success !== false) {
+          const data = await response.json();
+          if (data.success) {
             toast.success(
               `${selectedEmployee.first_name} ${isRehire ? "re-hired" : "set as employed"} successfully`,
             );
@@ -1488,39 +1487,16 @@ export default function MasterfilePage() {
             setViewMode("list");
             setSelectedEmployee(null);
           } else {
-            if (await verifyStatusApplied()) {
-              toast.success(
-                `${selectedEmployee.first_name} ${isRehire ? "re-hired" : "set as employed"} successfully`,
-              );
-              await fetchEmployees();
-              setViewMode("list");
-              setSelectedEmployee(null);
-              return;
-            }
-
             // Parse validation errors if present
-            if (data?.errors) {
+            if (data.errors) {
               const errorMessages = Object.values(data.errors).flat().join(" ");
               toast.error(errorMessages || data.message);
             } else {
-              toast.error(
-                data?.message ||
-                  `Failed to update status${response.status ? ` (HTTP ${response.status})` : ""}`,
-              );
+              toast.error(data.message || "Failed to update status");
             }
           }
         } catch (error) {
           console.error("Error updating status:", error);
-          if (await verifyStatusApplied()) {
-            toast.success(
-              `${selectedEmployee.first_name} ${isRehire ? "re-hired" : "set as employed"} successfully`,
-            );
-            await fetchEmployees();
-            setViewMode("list");
-            setSelectedEmployee(null);
-            return;
-          }
-
           if (
             error instanceof TypeError &&
             error.message === "Failed to fetch"
@@ -1593,7 +1569,12 @@ export default function MasterfilePage() {
   );
   const pendingList = filterEmployees(
     employees.filter((e) =>
-      ["pending", "rehire_pending"].includes(e.status),
+      [
+        "pending",
+        "rehire_pending",
+        "termination_pending",
+        "resignation_pending",
+      ].includes(e.status),
     ),
   );
   const allList = filterEmployees(employees);
@@ -1952,6 +1933,9 @@ export default function MasterfilePage() {
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
                       {pendingList.map((employee) => {
+                        const isTerminationPending =
+                          employee.status === "termination_pending" ||
+                          employee.status === "resignation_pending";
                         const isRehirePending =
                           employee.status === "rehire_pending";
                         const checklistTasksComplete =
@@ -1975,12 +1959,20 @@ export default function MasterfilePage() {
                         const isPendingDataEntry =
                           checklistTasksComplete && !isComplete;
 
+                        // For termination, it's not complete until status changes to 'terminated' or 'resigned' in the db
+                        const displayStatus =
+                          employee.status === "resignation_pending"
+                            ? "PENDING RESIGNATION"
+                            : "PENDING TERMINATION";
+
                         return (
                           <div
                             key={employee.id}
                             onClick={() => fetchEmployeeDetails(employee.id)}
                             className={`group relative bg-white border rounded-lg p-4 md:p-5 shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 cursor-pointer overflow-hidden ${
-                              isFullyComplete
+                              isTerminationPending
+                                ? "border-rose-200 hover:border-rose-300"
+                                : isFullyComplete
                                   ? "border-emerald-200 hover:border-emerald-400 ring-1 ring-emerald-50"
                                   : isRehirePending
                                     ? "border-blue-200 hover:border-blue-300"
@@ -1988,10 +1980,13 @@ export default function MasterfilePage() {
                             }`}
                           >
                             {/* Ready Indicator Strip */}
-                            {isFullyComplete && (
+                            {isTerminationPending && (
+                              <div className="absolute top-0 left-0 w-full h-1.5 bg-rose-500"></div>
+                            )}
+                            {!isTerminationPending && isFullyComplete && (
                               <div className="absolute top-0 left-0 w-full h-1.5 bg-emerald-500"></div>
                             )}
-                            {!isFullyComplete && (
+                            {!isTerminationPending && !isFullyComplete && (
                               <div
                                 className={`absolute top-0 left-0 w-full h-1.5 ${isRehirePending ? "bg-blue-500" : "bg-orange-400"}`}
                               ></div>
@@ -2020,7 +2015,9 @@ export default function MasterfilePage() {
                                 ) : (
                                   <div
                                     className={`w-14 h-14 md:w-16 md:h-16 min-w-[3.5rem] md:min-w-[4rem] rounded-xl flex items-center justify-center text-xl md:text-2xl font-bold transition-colors duration-200 shadow-sm ${
-                                      isFullyComplete
+                                      isTerminationPending
+                                        ? "bg-rose-100 text-rose-700 group-hover:bg-rose-500 group-hover:text-white"
+                                        : isFullyComplete
                                           ? "bg-emerald-100 text-emerald-700 group-hover:bg-emerald-500 group-hover:text-white"
                                           : isRehirePending
                                             ? "bg-blue-100 text-blue-700 group-hover:bg-blue-500 group-hover:text-white"
@@ -2055,7 +2052,8 @@ export default function MasterfilePage() {
                             </div>
 
                             {/* Action Buttons Row */}
-                            {(isRehirePending ||
+                            {(isTerminationPending ||
+                              isRehirePending ||
                               (employee.status === "pending" &&
                                 (!isComplete ||
                                   !employee.onboarding_tasks?.isComplete))) && (
@@ -2063,6 +2061,21 @@ export default function MasterfilePage() {
                                 className="mb-3 flex items-center gap-2"
                                 onClick={(e) => e.stopPropagation()}
                               >
+                                {isTerminationPending && (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={isViewOnly}
+                                    onClick={() =>
+                                      router.push(
+                                        `/admin/employee/terminate?view=history&action=checklist&employeeId=${employee.id}`,
+                                      )
+                                    }
+                                    className="h-8 px-3 text-[11px] font-bold border rounded-lg transition-all text-rose-600 bg-rose-50 hover:bg-rose-100 border-rose-100 animate-pulse hover:animate-none whitespace-nowrap disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-rose-50 disabled:hover:animate-pulse"
+                                  >
+                                    Continue Clearance
+                                  </Button>
+                                )}
                                 {isRehirePending && !isFullyComplete && (
                                   <Button
                                     variant="ghost"
@@ -2120,7 +2133,32 @@ export default function MasterfilePage() {
 
                             {/* Bottom Row: Status Badges */}
                             <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-100">
-                              {isFullyComplete ? (
+                              {isTerminationPending ? (
+                                <>
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] font-bold text-rose-600 bg-rose-50 border-rose-200 shadow-none uppercase tracking-wider rounded-md"
+                                  >
+                                    {displayStatus}
+                                  </Badge>
+                                  {(employee as any).clearance_progress &&
+                                    (employee as any).clearance_progress.total >
+                                      0 && (
+                                      <span className="text-[9px] font-bold text-rose-500 whitespace-nowrap">
+                                        Tasks:{" "}
+                                        {
+                                          (employee as any).clearance_progress
+                                            .done
+                                        }
+                                        /
+                                        {
+                                          (employee as any).clearance_progress
+                                            .total
+                                        }
+                                      </span>
+                                    )}
+                                </>
+                              ) : isFullyComplete ? (
                                 <Badge
                                   variant="outline"
                                   className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border-emerald-100"

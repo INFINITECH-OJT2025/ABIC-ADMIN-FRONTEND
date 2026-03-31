@@ -48,12 +48,12 @@ import {
   Clock3,
   ArrowUpAZ,
   ArrowDownAZ,
+  ChevronLeft,
   Eye,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
   SelectContent,
@@ -116,105 +116,6 @@ const statusLabels: Record<string, string> = {
   rehired_employee: "Rehired Employee",
   termination_pending: "Pending Termination",
   resignation_pending: "Pending Resignation",
-};
-
-const normalizeExitStatus = (value: unknown) => {
-  const status = String(value ?? "")
-    .toLowerCase()
-    .trim();
-
-  if (status === "termination_pending") return "terminated";
-  if (status === "resignation_pending") return "resigned";
-  return status;
-};
-
-const pad2 = (value: number) => String(value).padStart(2, "0");
-
-const formatDateForInput = (date: Date) =>
-  `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-
-const formatTimeForInput = (date: Date) =>
-  `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
-
-const formatDateTimeForInput = (date: Date) =>
-  `${formatDateForInput(date)}T${formatTimeForInput(date)}`;
-
-const parseDateTimeValue = (value?: string | null): Date | null => {
-  const raw = String(value ?? "").trim();
-  if (!raw) return null;
-
-  const normalized = raw.includes("T") ? raw : raw.replace(" ", "T");
-  const parsed = new Date(normalized);
-  if (!Number.isNaN(parsed.getTime())) return parsed;
-
-  const match = normalized.match(
-    /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/,
-  );
-  if (!match) return null;
-
-  const [, year, month, day, hour = "00", minute = "00"] = match;
-  const fallback = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-  );
-
-  return Number.isNaN(fallback.getTime()) ? null : fallback;
-};
-
-const getDatePartFromDateTime = (value?: string | null) => {
-  const parsed = parseDateTimeValue(value);
-  return parsed ? formatDateForInput(parsed) : "";
-};
-
-const getTimePartFromDateTime = (value?: string | null) => {
-  const parsed = parseDateTimeValue(value);
-  return parsed ? formatTimeForInput(parsed) : "";
-};
-
-const joinDateAndTime = (
-  datePart?: string | null,
-  timePart?: string | null,
-  fallback?: string | null,
-) => {
-  const safeDate = String(datePart ?? "").trim();
-  const safeTime = String(timePart ?? "").trim();
-  if (safeDate && safeTime) return `${safeDate}T${safeTime}`;
-
-  const fallbackParsed = parseDateTimeValue(fallback);
-  if (fallbackParsed) return formatDateTimeForInput(fallbackParsed);
-
-  return formatDateTimeForInput(new Date());
-};
-
-const DISPLAY_DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  month: "2-digit",
-  day: "2-digit",
-  year: "numeric",
-});
-
-const DISPLAY_TIME_FORMATTER = new Intl.DateTimeFormat("en-US", {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: true,
-});
-
-const formatDisplayDate = (value?: string | null) => {
-  const parsed = parseDateTimeValue(value);
-  return parsed ? DISPLAY_DATE_FORMATTER.format(parsed) : "N/A";
-};
-
-const formatDisplayTime = (value?: string | null) => {
-  const parsed = parseDateTimeValue(value);
-  return parsed ? DISPLAY_TIME_FORMATTER.format(parsed) : "";
-};
-
-const formatDisplayDateTime = (value?: string | null) => {
-  const parsed = parseDateTimeValue(value);
-  if (!parsed) return "N/A";
-  return `${DISPLAY_DATE_FORMATTER.format(parsed)} ${DISPLAY_TIME_FORMATTER.format(parsed)}`;
 };
 
 interface TerminationFormData {
@@ -321,16 +222,28 @@ function TerminatePageContent() {
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [rehireLoading, setRehireLoading] = useState<string | null>(null);
   const [formData, setFormData] = useState<TerminationFormData>({
-    termination_date: formatDateTimeForInput(new Date()),
-    rehire_date: formatDateTimeForInput(new Date()),
+    termination_date: new Date()
+      .toLocaleString("sv-SE")
+      .replace(" ", "T")
+      .slice(0, 16),
+    rehire_date: new Date()
+      .toLocaleString("sv-SE")
+      .replace(" ", "T")
+      .slice(0, 16),
     reason: "",
     notes: "",
     recommended_by: "",
     notice_modes: [],
-    notice_date: formatDateTimeForInput(new Date()),
+    notice_date: new Date()
+      .toLocaleString("sv-SE")
+      .replace(" ", "T")
+      .slice(0, 16),
     reviewed_by: "",
     approved_by: "Mr. Angelle S. Sarmiento",
-    approval_date: formatDateTimeForInput(new Date()),
+    approval_date: new Date()
+      .toLocaleString("sv-SE")
+      .replace(" ", "T")
+      .slice(0, 16),
   });
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -354,8 +267,288 @@ function TerminatePageContent() {
   const router = useRouter();
   const pathname = usePathname();
 
+  // Clearance Checklist States
+  const [view, setView] = useState<"main" | "checklist">("main");
+  const [checklistEmployee, setChecklistEmployee] =
+    useState<TerminationRecord | null>(null);
+  const [clearanceTasks, setClearanceTasks] = useState<string[]>([]);
+  const [completedClearanceTasks, setCompletedClearanceTasks] = useState<
+    Record<string, string>
+  >({});
+  const [savedClearanceTasks, setSavedClearanceTasks] = useState<Set<string>>(
+    new Set(),
+  );
+  const [checklistRecordId, setChecklistRecordId] = useState<string | null>(
+    null,
+  );
+  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [isSavingChecklist, setIsSavingChecklist] = useState(false);
   const searchParams = useSearchParams();
   const isHistoryView = searchParams.get("view") === "history";
+
+  const prepareClearanceChecklist = async (
+    employeeRec: TerminationRecord,
+    options?: { forceFresh?: boolean },
+  ) => {
+    setLoadingTasks(true);
+    try {
+      const empName = `${employeeRec.employee?.first_name} ${employeeRec.employee?.last_name}`;
+      const department = employeeRec.employee?.department || "";
+      const targetEmployeeId = String(employeeRec.employee_id ?? "").trim();
+      const normalizeDateOnly = (value: unknown) => {
+        const raw = String(value ?? "").trim();
+        if (!raw) return "";
+        const parsed = new Date(raw);
+        if (!Number.isNaN(parsed.getTime()))
+          return parsed.toISOString().slice(0, 10);
+        const datePart = raw.includes("T") ? raw.split("T")[0] : raw;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return datePart;
+        return "";
+      };
+      const targetLastDay = normalizeDateOnly(employeeRec.termination_date);
+
+      // 1. Fetch Template Tasks per department
+      let tasksArray: string[] = [];
+      const templateRes = await fetch(
+        `${getApiUrl()}/api/department-checklist-templates?checklist_type=CLEARANCE`,
+        { headers: { Accept: "application/json" } },
+      );
+      if (templateRes.ok) {
+        const templateData = await templateRes.json();
+        if (templateData && templateData.data) {
+          const template = templateData.data.find(
+            (t: any) => t.department_name === department,
+          );
+          if (template && template.tasks && template.tasks.length > 0) {
+            tasksArray = template.tasks.map((t: any) => t.task);
+          }
+        }
+      }
+      setClearanceTasks(tasksArray);
+
+      const newCompleted: Record<string, string> = {};
+      const newSaved = new Set<string>();
+
+      if (options?.forceFresh) {
+        setChecklistRecordId(null);
+        setCompletedClearanceTasks(newCompleted);
+        setSavedClearanceTasks(newSaved);
+        return;
+      }
+
+      // 2. Fetch employee's clearance record
+      const recordRes = await fetch(`${getApiUrl()}/api/clearance-checklist`, {
+        headers: { Accept: "application/json" },
+      });
+
+      if (recordRes.ok) {
+        const recordData = await recordRes.json();
+        const list = Array.isArray(recordData?.data) ? recordData.data : [];
+        const normalizeName = (value: unknown) =>
+          String(value || "")
+            .toLowerCase()
+            .replace(/\s+/g, " ")
+            .trim();
+        const candidates = list
+          .filter(
+            (item: any) => normalizeName(item?.name) === normalizeName(empName),
+          )
+          .filter((item: any) => {
+            const recordEmployeeId = String(
+              item?.employeeId ?? item?.employee_id ?? "",
+            ).trim();
+            if (recordEmployeeId && targetEmployeeId) {
+              return recordEmployeeId === targetEmployeeId;
+            }
+            return true;
+          });
+
+        const sameDayMatches = candidates.filter((item: any) => {
+          const recordLastDay = normalizeDateOnly(
+            item?.lastDay ??
+              item?.last_day ??
+              item?.termination_date ??
+              item?.resignationDate ??
+              item?.resignation_date,
+          );
+          return Boolean(targetLastDay) && recordLastDay === targetLastDay;
+        });
+
+        const pool = sameDayMatches.length > 0 ? sameDayMatches : candidates;
+        const sortedByLatest = [...pool].sort((a: any, b: any) => {
+          const aTs = new Date(a?.updated_at ?? a?.created_at ?? 0).getTime();
+          const bTs = new Date(b?.updated_at ?? b?.created_at ?? 0).getTime();
+          return bTs - aTs;
+        });
+
+        const match =
+          sortedByLatest.find(
+            (item: any) => String(item?.status ?? "").toUpperCase() !== "DONE",
+          ) ?? sortedByLatest[0];
+
+        if (match) {
+          setChecklistRecordId(String(match.id));
+          if (Array.isArray(match.tasks)) {
+            match.tasks.forEach((t: any) => {
+              if (String(t.status).toUpperCase() === "DONE") {
+                newCompleted[t.task] =
+                  t.date || new Date().toLocaleString("en-CA").split(",")[0];
+                newSaved.add(t.task);
+              }
+            });
+          }
+        } else {
+          setChecklistRecordId(null);
+        }
+      }
+      setCompletedClearanceTasks(newCompleted);
+      setSavedClearanceTasks(newSaved);
+    } catch (e) {
+      console.error("Error fetching clearance tasks:", e);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  const handleSaveClearance = async (isFinalSave = false) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return false;
+    }
+
+    if (!checklistEmployee) return false;
+
+    setIsSavingChecklist(true);
+    try {
+      const emp = checklistEmployee.employee;
+      const tasksPayload = clearanceTasks.map((task) => ({
+        task,
+        status: completedClearanceTasks[task] ? "DONE" : "PENDING",
+        date: completedClearanceTasks[task] || "",
+      }));
+
+      const isResigned = checklistEmployee.exit_type === "resigned";
+      const lastDay =
+        checklistEmployee.termination_date ||
+        new Date().toISOString().slice(0, 10);
+
+      const payload = {
+        name: `${emp.first_name} ${emp.last_name}`,
+        position: emp.position || "Unknown",
+        department: emp.department || "Unknown",
+        startDate:
+          (emp as any).date_hired || new Date().toISOString().slice(0, 10),
+        resignationDate: isResigned
+          ? lastDay
+          : new Date().toISOString().slice(0, 10),
+        lastDay: lastDay,
+        tasks: tasksPayload,
+        status:
+          isFinalSave ||
+          Object.keys(completedClearanceTasks).length === clearanceTasks.length
+            ? "DONE"
+            : "PENDING",
+      };
+
+      const method = checklistRecordId ? "PUT" : "POST";
+      const url = checklistRecordId
+        ? `${getApiUrl()}/api/clearance-checklist/${checklistRecordId}`
+        : `${getApiUrl()}/api/clearance-checklist`;
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (data.success || res.ok) {
+        toast.success("Clearance Progress Saved!");
+        setSavedClearanceTasks(new Set(Object.keys(completedClearanceTasks)));
+        if (!checklistRecordId && data.data?.id) {
+          setChecklistRecordId(String(data.data.id));
+        }
+
+        // Ensure final termination transition
+        if (isFinalSave && emp.id) {
+          try {
+            const finalStatus = isResigned ? "resigned" : "terminated";
+            await fetch(`${getApiUrl()}/api/employees/${emp.id}`, {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              body: JSON.stringify({ status: finalStatus }),
+            });
+            toast.success(`Employee fully marked as ${finalStatus}!`);
+          } catch (err) {
+            console.error("Final termination status update failed", err);
+          }
+        }
+
+        return true;
+      } else {
+        toast.error(data.message || "Failed to save clearance progress");
+        return false;
+      }
+    } catch (e) {
+      toast.error("Submission failed. Check your network or backend.");
+      return false;
+    } finally {
+      setIsSavingChecklist(false);
+    }
+  };
+
+  const toggleClearanceTask = (task: string) => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
+    if (savedClearanceTasks.has(task)) {
+      toast.error("Saved progress cannot be undone");
+      return;
+    }
+    setCompletedClearanceTasks((prev) => {
+      const next = { ...prev };
+      if (next[task]) delete next[task];
+      else next[task] = new Date().toLocaleDateString("en-CA");
+      return next;
+    });
+  };
+
+  const toggleAllClearanceTasks = () => {
+    if (isViewOnly) {
+      notifyViewOnly();
+      return;
+    }
+
+    const allDone = clearanceTasks.every((t) => completedClearanceTasks[t]);
+    if (allDone) {
+      const next = { ...completedClearanceTasks };
+      let removed = 0;
+      clearanceTasks.forEach((task) => {
+        if (!savedClearanceTasks.has(task) && next[task]) {
+          delete next[task];
+          removed++;
+        }
+      });
+      if (removed === 0) {
+        toast.error("Saved progress cannot be undone");
+        return;
+      }
+      setCompletedClearanceTasks(next);
+    } else {
+      const all: Record<string, string> = { ...completedClearanceTasks };
+      const today = new Date().toLocaleDateString("en-CA");
+      clearanceTasks.forEach((t) => (all[t] = today));
+      setCompletedClearanceTasks(all);
+    }
+  };
 
   const getLatestPerEmployee = (records: TerminationRecord[]) => {
     const latestMap = new Map<string, TerminationRecord>();
@@ -415,7 +608,9 @@ function TerminatePageContent() {
         const fullName =
           `${record.employee?.last_name ?? ""}, ${record.employee?.first_name ?? ""}`.toLowerCase();
         const reason = (record.reason ?? "").toLowerCase();
-        const date = formatDisplayDateTime(record.termination_date).toLowerCase();
+        const date = record.termination_date
+          ? new Date(record.termination_date).toLocaleString()
+          : "";
         return fullName.includes(q) || reason.includes(q) || date.includes(q);
       })
       .sort((a, b) => {
@@ -684,6 +879,12 @@ function TerminatePageContent() {
     const status = getRecordStatusValue(r);
     return status === "resigned" || status === "resignation_pending";
   }).length;
+  const completedClearanceCount = Object.keys(completedClearanceTasks).length;
+  const clearanceCompletionPercentage =
+    clearanceTasks.length > 0
+      ? Math.round((completedClearanceCount / clearanceTasks.length) * 100)
+      : 0;
+
   // Modal State
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -759,12 +960,12 @@ function TerminatePageContent() {
           .trim()
           .toLowerCase();
 
-        return normalizeExitStatus(
+        return (
           employeeStatusById.get(employeeId) ??
           employeeStatusByEmail.get(employeeEmail) ??
           String(record?.employee?.status ?? record?.status ?? "")
             .toLowerCase()
-              .trim(),
+            .trim()
         );
       };
 
@@ -900,6 +1101,49 @@ function TerminatePageContent() {
           exit_type: "resigned",
         }));
         setResigned(normalizedResigned);
+
+        // Auto-open checklist if requested via URL
+        const checklistEmployeeId = searchParams.get("employeeId");
+        const actionParam = searchParams.get("action");
+        if (actionParam === "checklist" && checklistEmployeeId) {
+          const byLatestActive = (list: any[]) =>
+            [...list].sort((a: any, b: any) => {
+              const aActive = a?.rehired_at ? 0 : 1;
+              const bActive = b?.rehired_at ? 0 : 1;
+              if (aActive !== bActive) return bActive - aActive;
+
+              const aPending =
+                String(a?.status ?? "").toLowerCase() === "pending" ? 1 : 0;
+              const bPending =
+                String(b?.status ?? "").toLowerCase() === "pending" ? 1 : 0;
+              if (aPending !== bPending) return bPending - aPending;
+
+              const aTs = new Date(
+                a?.created_at ?? a?.updated_at ?? 0,
+              ).getTime();
+              const bTs = new Date(
+                b?.created_at ?? b?.updated_at ?? 0,
+              ).getTime();
+              return bTs - aTs;
+            })[0];
+
+          const foundRecord =
+            byLatestActive(
+              (Array.isArray(termData.data) ? termData.data : []).filter(
+                (r: any) => String(r.employee_id) === checklistEmployeeId,
+              ),
+            ) ||
+            byLatestActive(
+              normalizedResigned.filter(
+                (r: any) => String(r.employee_id) === checklistEmployeeId,
+              ),
+            );
+          if (foundRecord && foundRecord.exit_type === "resigned") {
+            setChecklistEmployee(foundRecord);
+            setView("checklist");
+            prepareClearanceChecklist(foundRecord);
+          }
+        }
       } else {
         toast.error("Failed to load resigned history");
       }
@@ -932,36 +1176,6 @@ function TerminatePageContent() {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
-    }));
-  };
-
-  const setDateTimeDatePart = (
-    field: "termination_date" | "notice_date" | "approval_date" | "rehire_date",
-    date: Date | undefined,
-  ) => {
-    if (!date) return;
-    const datePart = formatDateForInput(date);
-    setFormData((prev) => ({
-      ...prev,
-      [field]: joinDateAndTime(
-        datePart,
-        getTimePartFromDateTime(prev[field]) || "00:00",
-        prev[field],
-      ),
-    }));
-  };
-
-  const setDateTimeTimePart = (
-    field: "termination_date" | "notice_date" | "approval_date" | "rehire_date",
-    timeValue: string,
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [field]: joinDateAndTime(
-        getDatePartFromDateTime(prev[field]) || formatDateForInput(new Date()),
-        timeValue,
-        prev[field],
-      ),
     }));
   };
 
@@ -999,7 +1213,8 @@ function TerminatePageContent() {
     employee: Employee,
     payload: TerminationFormData,
   ) => {
-    const formatDate = (value?: string) => formatDisplayDateTime(value);
+    const formatDate = (value?: string) =>
+      value ? new Date(value).toLocaleString() : "N/A";
     return `
       <!doctype html>
       <html>
@@ -1071,11 +1286,6 @@ function TerminatePageContent() {
     printWindow.document.close();
   };
 
-  const normalizedReason = formData.reason.trim();
-  const hasValidReasonLength =
-    normalizedReason.length >= 5 && normalizedReason.length <= 50;
-  const hasValidReasonCharacters = /^[A-Za-z0-9 ]+$/.test(normalizedReason);
-
   const handleSubmit = async (e: React.FormEvent) => {
     if (isViewOnly) {
       notifyViewOnly();
@@ -1089,22 +1299,22 @@ function TerminatePageContent() {
       return;
     }
 
-    if (!normalizedReason) {
+    if (!formData.reason.trim()) {
       toast.error("Reason is required");
       return;
     }
 
-    if (normalizedReason.length < 5) {
+    if (formData.reason.length < 5) {
       toast.error("Reason must be at least 5 characters");
       return;
     }
 
-    if (normalizedReason.length > 50) {
+    if (formData.reason.length > 50) {
       toast.error("Reason must not exceed 50 characters");
       return;
     }
 
-    if (!hasValidReasonCharacters) {
+    if (!/^[A-Za-z0-9 ]+$/.test(formData.reason)) {
       toast.error("Reason must only contain letters, numbers, and spaces");
       return;
     }
@@ -1176,94 +1386,38 @@ function TerminatePageContent() {
           }
 
           requestTimeout = setTimeout(() => controller.abort(), 30000);
-          const submitExitRequest = async (reasonValue: string) => {
-            const response = await fetch(
-              `${getApiUrl()}/api/employees/${selectedEmployeeId}/terminate`,
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                signal: controller.signal,
-                body: JSON.stringify({
-                  termination_date: formData.termination_date,
-                  reason: reasonValue,
-                  notes: formData.notes,
-                  exit_type: exitActionType,
-                  recommended_by: formData.recommended_by || null,
-                  notice_mode: formData.notice_modes.includes("both")
-                    ? "both"
-                    : formData.notice_modes.join(","),
-                  notice_date: formData.notice_date || null,
-                  reviewed_by: formData.reviewed_by || null,
-                  approved_by: formData.approved_by,
-                  approval_date: formData.approval_date || null,
-                }),
+          const response = await fetch(
+            `${getApiUrl()}/api/employees/${selectedEmployeeId}/terminate`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
               },
-            );
+              signal: controller.signal,
+              body: JSON.stringify({
+                termination_date: formData.termination_date,
+                reason: formData.reason,
+                notes: formData.notes,
+                // Backend terminate endpoint currently validates "pending" for
+                // termination requests. We finalize to "terminated" right after.
+                status:
+                  exitActionType === "resigned" ? "resigned" : "pending",
+                exit_type: exitActionType,
+                recommended_by: formData.recommended_by || null,
+                notice_mode: formData.notice_modes.includes("both")
+                  ? "both"
+                  : formData.notice_modes.join(","),
+                notice_date: formData.notice_date || null,
+                reviewed_by: formData.reviewed_by || null,
+                approved_by: formData.approved_by,
+                approval_date: formData.approval_date || null,
+              }),
+            },
+          );
 
-            const data = await response.json();
-            return { response, data };
-          };
-
-          const reasonForApi =
-            normalizedReason.length >= 5 && normalizedReason.length < 10
-              ? normalizedReason.padEnd(10, " ")
-              : normalizedReason;
-
-          let { data } = await submitExitRequest(reasonForApi);
-
-          const backendErrorDetails = [
-            String(data?.message ?? ""),
-            ...(data?.errors
-              ? Object.values(data.errors)
-                  .flat()
-                  .map((value) => String(value ?? ""))
-              : []),
-          ]
-            .join(" ")
-            .toLowerCase()
-            .trim();
-
-          const needsHardPaddingRetry =
-            !data?.success &&
-            normalizedReason.length >= 5 &&
-            normalizedReason.length < 10 &&
-            backendErrorDetails.includes("at least 10 characters");
-
-          if (needsHardPaddingRetry) {
-            const hardPaddedReason = normalizedReason.padEnd(
-              10,
-              normalizedReason.slice(-1) || "x",
-            );
-            const retryResult = await submitExitRequest(hardPaddedReason);
-            data = retryResult.data;
-          }
+          const data = await response.json();
 
           if (data.success) {
-            if (exitActionType === "terminate") {
-              try {
-                await fetch(
-                  `${getApiUrl()}/api/employees/${encodeURIComponent(selectedEmployeeId)}`,
-                  {
-                    method: "PUT",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Accept: "application/json",
-                    },
-                    body: JSON.stringify({
-                      status: "terminated",
-                    }),
-                  },
-                );
-              } catch (statusError) {
-                console.error(
-                  "Failed to enforce terminated status after termination:",
-                  statusError,
-                );
-              }
-            }
-
             if (exitActionType === "terminate") {
               if (wantsPrinted && selectedEmployee && reservedPrintWindow) {
                 openPrintNotice(
@@ -1271,6 +1425,18 @@ function TerminatePageContent() {
                   selectedEmployee,
                   snapshot,
                 );
+              }
+              try {
+                await fetch(`${getApiUrl()}/api/employees/${selectedEmployeeId}`, {
+                  method: "PUT",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Accept: "application/json",
+                  },
+                  body: JSON.stringify({ status: "terminated" }),
+                });
+              } catch (err) {
+                console.error("Failed to finalize termination status:", err);
               }
               if (data.email_notice_status === "failed") {
                 toast.error(
@@ -1288,19 +1454,48 @@ function TerminatePageContent() {
             );
             setSelectedEmployeeId("");
             setFormData({
-              termination_date: formatDateTimeForInput(new Date()),
-              rehire_date: formatDateTimeForInput(new Date()),
+              termination_date: new Date()
+                .toLocaleString("sv-SE")
+                .replace(" ", "T")
+                .slice(0, 16),
+              rehire_date: new Date()
+                .toLocaleString("sv-SE")
+                .replace(" ", "T")
+                .slice(0, 16),
               reason: "",
               notes: "",
               recommended_by: "",
               notice_modes: [],
-              notice_date: formatDateTimeForInput(new Date()),
+              notice_date: new Date()
+                .toLocaleString("sv-SE")
+                .replace(" ", "T")
+                .slice(0, 16),
               reviewed_by: "",
               approved_by: "Mr. Angelle S. Sarmiento",
-              approval_date: formatDateTimeForInput(new Date()),
+              approval_date: new Date()
+                .toLocaleString("sv-SE")
+                .replace(" ", "T")
+                .slice(0, 16),
             });
             setIsRequestFormOpen(false);
             fetchData();
+
+            // Resignation keeps checklist flow; termination finishes directly.
+            if (selectedEmployee && exitActionType === "resigned") {
+              const tempRecord: TerminationRecord = {
+                id: data.data?.id || Date.now(),
+                employee_id: selectedEmployeeId,
+                termination_date: snapshot.termination_date,
+                reason: snapshot.reason,
+                notes: snapshot.notes,
+                exit_type: exitActionType,
+                status: "resigned",
+                employee: selectedEmployee,
+              };
+              setChecklistEmployee(tempRecord);
+              prepareClearanceChecklist(tempRecord, { forceFresh: true });
+              setView("checklist");
+            }
           } else {
             if (data.errors) {
               const errorMessages = Object.values(data.errors).flat().join(" ");
@@ -1863,7 +2058,8 @@ function TerminatePageContent() {
           </div>
 
           <div className="w-full px-4 md:px-8 space-y-6">
-            <>
+            {view === "main" && (
+              <>
                 <div
                   className={cn(
                     "overflow-hidden transition-all duration-500 ease-in-out",
@@ -1963,34 +2159,14 @@ function TerminatePageContent() {
                         <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                           Termination Date & Time
                         </Label>
-                        <div className="grid grid-cols-[1fr_130px] gap-2">
-                          <DatePicker
-                            value={getDatePartFromDateTime(
-                              formData.termination_date,
-                            )}
-                            onChange={(date) =>
-                              setDateTimeDatePart("termination_date", date)
-                            }
-                            disabled={isViewOnly || submitting}
-                            placeholder="mm/dd/yyyy"
-                            className="h-10"
-                          />
-                          <Input
-                            type="time"
-                            step={60}
-                            value={getTimePartFromDateTime(
-                              formData.termination_date,
-                            )}
-                            onChange={(e) =>
-                              setDateTimeTimePart(
-                                "termination_date",
-                                e.target.value,
-                              )
-                            }
-                            className="h-10"
-                            disabled={isViewOnly || submitting}
-                          />
-                        </div>
+                        <Input
+                          type="datetime-local"
+                          name="termination_date"
+                          value={formData.termination_date}
+                          onChange={handleInputChange}
+                          className="h-10"
+                          disabled={isViewOnly || submitting}
+                        />
                       </div>
 
                       <div className="space-y-1.5">
@@ -2014,12 +2190,6 @@ function TerminatePageContent() {
                         <p className="text-[10px] text-slate-500 text-right">
                           {formData.reason.length}/50
                         </p>
-                        {normalizedReason.length > 0 &&
-                          normalizedReason.length < 5 && (
-                            <p className="text-[10px] text-rose-600">
-                              Minimum 5 characters required.
-                            </p>
-                          )}
                       </div>
 
                       {exitActionType === "terminate" && (
@@ -2072,34 +2242,14 @@ function TerminatePageContent() {
                             <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                               Date of Notice
                             </Label>
-                            <div className="grid grid-cols-[1fr_130px] gap-2">
-                              <DatePicker
-                                value={getDatePartFromDateTime(
-                                  formData.notice_date,
-                                )}
-                                onChange={(date) =>
-                                  setDateTimeDatePart("notice_date", date)
-                                }
-                                disabled={isViewOnly || submitting}
-                                placeholder="mm/dd/yyyy"
-                                className="h-10"
-                              />
-                              <Input
-                                type="time"
-                                step={60}
-                                value={getTimePartFromDateTime(
-                                  formData.notice_date,
-                                )}
-                                onChange={(e) =>
-                                  setDateTimeTimePart(
-                                    "notice_date",
-                                    e.target.value,
-                                  )
-                                }
-                                className="h-10"
-                                disabled={isViewOnly || submitting}
-                              />
-                            </div>
+                            <Input
+                              type="datetime-local"
+                              name="notice_date"
+                              value={formData.notice_date}
+                              onChange={handleInputChange}
+                              className="h-10"
+                              disabled={isViewOnly || submitting}
+                            />
                           </div>
 
                           <div className="space-y-1.5">
@@ -2209,31 +2359,14 @@ function TerminatePageContent() {
                         <Label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
                           Date of Approval
                         </Label>
-                        <div className="grid grid-cols-[1fr_130px] gap-2">
-                          <DatePicker
-                            value={getDatePartFromDateTime(
-                              formData.approval_date,
-                            )}
-                            onChange={(date) =>
-                              setDateTimeDatePart("approval_date", date)
-                            }
-                            disabled={isViewOnly || submitting}
-                            placeholder="mm/dd/yyyy"
-                            className="h-10"
-                          />
-                          <Input
-                            type="time"
-                            step={60}
-                            value={getTimePartFromDateTime(
-                              formData.approval_date,
-                            )}
-                            onChange={(e) =>
-                              setDateTimeTimePart("approval_date", e.target.value)
-                            }
-                            className="h-10"
-                            disabled={isViewOnly || submitting}
-                          />
-                        </div>
+                        <Input
+                          type="datetime-local"
+                          name="approval_date"
+                          value={formData.approval_date}
+                          onChange={handleInputChange}
+                          className="h-10"
+                          disabled={isViewOnly || submitting}
+                        />
                       </div>
                     </div>
 
@@ -2244,8 +2377,9 @@ function TerminatePageContent() {
                           isViewOnly ||
                           submitting ||
                           !selectedEmployeeId ||
-                          !hasValidReasonLength ||
-                          !hasValidReasonCharacters ||
+                          formData.reason.trim().length < 5 ||
+                          formData.reason.trim().length > 50 ||
+                          !/^[A-Za-z0-9 ]+$/.test(formData.reason.trim()) ||
                           !formData.reviewed_by ||
                           !formData.approval_date ||
                           (exitActionType === "terminate" &&
@@ -2406,14 +2540,17 @@ function TerminatePageContent() {
                                           {record.termination_date ? (
                                             <div className="flex flex-col">
                                               <span className="font-semibold text-rose-700">
-                                                {formatDisplayDate(
+                                                {new Date(
                                                   record.termination_date,
-                                                )}
+                                                ).toLocaleDateString()}
                                               </span>
                                               <span className="text-[10px] text-slate-400 mt-0.5">
-                                                {formatDisplayTime(
+                                                {new Date(
                                                   record.termination_date,
-                                                )}
+                                                ).toLocaleTimeString([], {
+                                                  hour: "2-digit",
+                                                  minute: "2-digit",
+                                                })}
                                               </span>
                                             </div>
                                           ) : (
@@ -2427,14 +2564,17 @@ function TerminatePageContent() {
                                             record.rehired_at ? (
                                               <div className="flex flex-col">
                                                 <span className="font-semibold text-emerald-700">
-                                                  {formatDisplayDate(
+                                                  {new Date(
                                                     record.rehired_at,
-                                                  )}
+                                                  ).toLocaleDateString()}
                                                 </span>
                                                 <span className="text-[10px] text-slate-400 mt-0.5">
-                                                  {formatDisplayTime(
+                                                  {new Date(
                                                     record.rehired_at,
-                                                  )}
+                                                  ).toLocaleTimeString([], {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                  })}
                                                 </span>
                                               </div>
                                             ) : (
@@ -2471,10 +2611,10 @@ function TerminatePageContent() {
                                                   );
                                                   setFormData((prev) => ({
                                                     ...prev,
-                                                    rehire_date:
-                                                      formatDateTimeForInput(
-                                                        new Date(),
-                                                      ),
+                                                    rehire_date: new Date()
+                                                      .toLocaleString("sv-SE")
+                                                      .replace(" ", "T")
+                                                      .slice(0, 16),
                                                   }));
                                                   setShowDetailDialog(true);
                                                 }}
@@ -2680,14 +2820,17 @@ function TerminatePageContent() {
                                           {record.termination_date ? (
                                             <div className="flex flex-col">
                                               <span className="font-semibold text-rose-700">
-                                                {formatDisplayDate(
+                                                {new Date(
                                                   record.termination_date,
-                                                )}
+                                                ).toLocaleDateString()}
                                               </span>
                                               <span className="text-[10px] text-slate-400 mt-0.5">
-                                                {formatDisplayTime(
+                                                {new Date(
                                                   record.termination_date,
-                                                )}
+                                                ).toLocaleTimeString([], {
+                                                  hour: "2-digit",
+                                                  minute: "2-digit",
+                                                })}
                                               </span>
                                             </div>
                                           ) : (
@@ -2701,14 +2844,17 @@ function TerminatePageContent() {
                                             record.rehired_at ? (
                                               <div className="flex flex-col">
                                                 <span className="font-semibold text-emerald-700">
-                                                  {formatDisplayDate(
+                                                  {new Date(
                                                     record.rehired_at,
-                                                  )}
+                                                  ).toLocaleDateString()}
                                                 </span>
                                                 <span className="text-[10px] text-slate-400 mt-0.5">
-                                                  {formatDisplayTime(
+                                                  {new Date(
                                                     record.rehired_at,
-                                                  )}
+                                                  ).toLocaleTimeString([], {
+                                                    hour: "2-digit",
+                                                    minute: "2-digit",
+                                                  })}
                                                 </span>
                                               </div>
                                             ) : (
@@ -2745,10 +2891,10 @@ function TerminatePageContent() {
                                                   );
                                                   setFormData((prev) => ({
                                                     ...prev,
-                                                    rehire_date:
-                                                      formatDateTimeForInput(
-                                                        new Date(),
-                                                      ),
+                                                    rehire_date: new Date()
+                                                      .toLocaleString("sv-SE")
+                                                      .replace(" ", "T")
+                                                      .slice(0, 16),
                                                   }));
                                                   setShowDetailDialog(true);
                                                 }}
@@ -2857,6 +3003,218 @@ function TerminatePageContent() {
                   </div>
                 )}
               </>
+            )}
+
+            {view === "checklist" && checklistEmployee && (
+              <div className="w-full pb-12 pt-2 px-4 md:px-6 text-stone-900 animate-in fade-in zoom-in-95 duration-500">
+                <div className="mb-4 md:mb-6">
+                  <Button
+                    variant="ghost"
+                    onClick={() => setView("main")}
+                    className="text-slate-600 hover:text-slate-900 -ml-4"
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Back to Records
+                  </Button>
+                </div>
+
+                <div className="relative bg-[#FCFBF7] shadow-[0_20px_50px_rgba(0,0,0,0.15)] rounded-sm border border-stone-200 overflow-hidden before:content-[''] before:absolute before:inset-0 before:border-[16px] before:border-double before:border-stone-100/50 before:pointer-events-none">
+                  <div className="mx-6 md:mx-8 mt-6 bg-gradient-to-r from-[#4A081A]/10 to-transparent border-b-2 border-[#630C22] p-4 flex justify-between items-center gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-[#A0153E]/70 uppercase tracking-widest leading-none mb-1 text-left">
+                        Clearance Representative
+                      </span>
+                      <span className="text-lg md:text-xl font-black text-[#4A081A] leading-none text-left">
+                        {checklistEmployee.employee?.first_name}{" "}
+                        {checklistEmployee.employee?.last_name}
+                      </span>
+                    </div>
+                    <div className="text-right flex flex-col items-end">
+                      <span className="text-[10px] font-black text-[#630C22]/70 uppercase tracking-widest leading-none mb-1">
+                        Completion Index
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#C9184A]" />
+                        <span className="text-xl md:text-2xl font-black text-[#4A081A] leading-none">
+                          {clearanceCompletionPercentage}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-6 md:px-8 pt-4 pb-2">
+                    <div className="w-full h-1.5 bg-stone-100 rounded-full overflow-hidden border border-stone-200">
+                      <div
+                        className="h-full bg-[#A4163A] transition-all duration-1000 shadow-[0_0_10px_rgba(164,22,58,0.4)]"
+                        style={{ width: `${clearanceCompletionPercentage}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="px-6 md:px-8 py-4">
+                    <div className="border border-stone-300 rounded-sm">
+                      <Table>
+                        <TableHeader className="bg-stone-50 border-b border-stone-300">
+                          <TableRow className="hover:bg-transparent">
+                            <TableHead className="w-[200px] font-black text-stone-500 uppercase tracking-widest text-[10px] py-3 text-center border-r border-stone-200">
+                              Complete Date
+                            </TableHead>
+                            <TableHead className="w-[100px] font-black text-stone-500 uppercase tracking-widest text-[10px] py-3 text-center border-r border-stone-200">
+                              Status
+                            </TableHead>
+                            <TableHead className="font-black text-stone-500 uppercase tracking-widest text-[10px] py-3 text-left px-6">
+                              <div className="flex items-center justify-between w-full">
+                                <span>
+                                  Tasks for{" "}
+                                  {checklistEmployee.employee?.department ||
+                                    "Department"}
+                                </span>
+                                <div className="flex items-center pr-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      toggleAllClearanceTasks();
+                                    }}
+                                    className="h-7 px-3 border-[#A4163A]/20 bg-white hover:bg-[#A4163A]/5 text-[#A4163A] font-black text-[9px] uppercase tracking-widest rounded transition-all shadow-sm flex items-center gap-2"
+                                  >
+                                    <Check className="h-3 w-3" />
+                                    {clearanceTasks.length > 0 &&
+                                    clearanceTasks.every(
+                                      (task) => completedClearanceTasks[task],
+                                    )
+                                      ? "Uncheck All"
+                                      : "Check All"}
+                                  </Button>
+                                </div>
+                              </div>
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {loadingTasks ? (
+                            <TableRow>
+                              <TableCell
+                                colSpan={3}
+                                className="py-10 text-center text-stone-400 italic"
+                              >
+                                Retrieving clearance records...
+                              </TableCell>
+                            </TableRow>
+                          ) : clearanceTasks.length === 0 ? (
+                            <TableRow>
+                              <TableCell
+                                colSpan={3}
+                                className="py-10 text-center text-stone-400 italic text-lg"
+                              >
+                                No required tasks identified
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            clearanceTasks.map((task, index) => {
+                              const isSavedLocked =
+                                Boolean(completedClearanceTasks[task]) &&
+                                savedClearanceTasks.has(task);
+                              return (
+                                <TableRow
+                                  key={index}
+                                  onClick={() => {
+                                    if (!isSavedLocked)
+                                      toggleClearanceTask(task);
+                                  }}
+                                  className={cn(
+                                    "border-b border-dashed border-stone-200 last:border-0 transition-colors group",
+                                    isSavedLocked
+                                      ? "cursor-not-allowed bg-stone-50/70"
+                                      : "hover:bg-stone-50 cursor-pointer",
+                                  )}
+                                >
+                                  <TableCell className="text-center py-2 text-[11px] font-medium text-stone-400">
+                                    {completedClearanceTasks[task] || "PENDING"}
+                                  </TableCell>
+                                  <TableCell className="py-2">
+                                    <div className="flex justify-center">
+                                      <div
+                                        className={cn(
+                                          "w-6 h-6 rounded-full border-[1.5px] flex items-center justify-center transition-all",
+                                          completedClearanceTasks[task]
+                                            ? "border-[#A4163A] bg-[#A4163A]/10 text-[#A4163A] scale-110 shadow-sm"
+                                            : "border-stone-300 group-hover:border-[#A4163A]",
+                                        )}
+                                      >
+                                        {completedClearanceTasks[task] && (
+                                          <Check className="h-4 w-4 stroke-[3px]" />
+                                        )}
+                                      </div>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="py-2 px-6">
+                                    <span
+                                      className={cn(
+                                        "text-sm font-medium transition-all duration-500",
+                                        completedClearanceTasks[task]
+                                          ? "text-stone-300 line-through"
+                                          : "text-stone-700",
+                                      )}
+                                    >
+                                      {task}
+                                    </span>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 px-6 md:px-8 pb-6 pt-4 border-t border-dashed border-stone-300 mx-6 md:mx-8 flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div className="flex flex-col items-center md:items-start">
+                      <p className="text-[9px] font-black tracking-widest text-[#A4163A]/60 uppercase mb-0.5 font-sans">
+                        Authenticated by
+                      </p>
+                      <p className="text-lg font-bold text-stone-800 font-sans tracking-tight">
+                        ABIC Administration
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={async () => {
+                          const success = await handleSaveClearance(false);
+                          if (success) {
+                            router.push("/admin/employee/masterfile");
+                          }
+                        }}
+                        disabled={isViewOnly || isSavingChecklist}
+                        variant="outline"
+                        className="h-10 px-6 border-stone-300 rounded-lg font-bold text-[10px] uppercase tracking-wider hover:bg-stone-50 transition-all shadow-sm font-sans"
+                      >
+                        {isSavingChecklist ? "Saving..." : "Save Progress"}
+                      </Button>
+                      <Button
+                        onClick={async () => {
+                          const success = await handleSaveClearance(true);
+                          if (success) {
+                            router.push("/admin/employee/masterfile");
+                          }
+                        }}
+                        disabled={
+                          isViewOnly ||
+                          completedClearanceCount < clearanceTasks.length ||
+                          isSavingChecklist
+                        }
+                        className="h-10 px-6 bg-[#A4163A] hover:bg-[#800020] text-white rounded-lg font-bold text-[10px] uppercase tracking-wider shadow-md transform active:scale-95 transition-all font-sans"
+                      >
+                        Complete Clearance
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Termination Detail View Modal */}
@@ -2898,16 +3256,19 @@ function TerminatePageContent() {
                     <div className="flex flex-col">
                       <p className="font-semibold text-rose-700">
                         {selectedTermination?.termination_date
-                          ? formatDisplayDate(
+                          ? new Date(
                               selectedTermination.termination_date,
-                            )
+                            ).toLocaleDateString()
                           : "N/A"}
                       </p>
                       <p className="text-xs text-slate-400 mt-0.5 font-medium">
                         {selectedTermination?.termination_date
-                          ? formatDisplayTime(
+                          ? new Date(
                               selectedTermination.termination_date,
-                            )
+                            ).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
                           : ""}
                       </p>
                     </div>
@@ -2919,11 +3280,18 @@ function TerminatePageContent() {
                       </p>
                       <div className="flex flex-col">
                         <p className="font-semibold text-emerald-700">
-                          {formatDisplayDate(selectedTermination.rehired_at)}
+                          {new Date(
+                            selectedTermination.rehired_at,
+                          ).toLocaleDateString()}
                         </p>
                         <p className="text-xs text-emerald-500/70 mt-0.5 font-medium italic">
                           Restored at{" "}
-                          {formatDisplayTime(selectedTermination.rehired_at)}
+                          {new Date(
+                            selectedTermination.rehired_at,
+                          ).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                         </p>
                       </div>
                     </div>
@@ -2965,27 +3333,14 @@ function TerminatePageContent() {
                         <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">
                           Re-hire Date & Time
                         </Label>
-                        <div className="grid grid-cols-[1fr_120px] gap-2">
-                          <DatePicker
-                            value={getDatePartFromDateTime(formData.rehire_date)}
-                            onChange={(date) =>
-                              setDateTimeDatePart("rehire_date", date)
-                            }
-                            disabled={rehireLoading !== null}
-                            placeholder="mm/dd/yyyy"
-                            className="h-9"
-                          />
-                          <Input
-                            type="time"
-                            step={60}
-                            value={getTimePartFromDateTime(formData.rehire_date)}
-                            onChange={(e) =>
-                              setDateTimeTimePart("rehire_date", e.target.value)
-                            }
-                            className="h-9"
-                            disabled={rehireLoading !== null}
-                          />
-                        </div>
+                        <Input
+                          type="datetime-local"
+                          name="rehire_date"
+                          value={formData.rehire_date}
+                          onChange={handleInputChange}
+                          className="h-9 px-2 bg-transparent border-0 focus:outline-none focus:ring-0 text-slate-600 font-medium text-sm w-[200px]"
+                          disabled={rehireLoading !== null}
+                        />
                       </div>
                       <div className="flex-1 text-xs text-slate-400 italic">
                         Specify the official re-hire date for this employee.
