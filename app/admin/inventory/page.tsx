@@ -57,7 +57,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { getApiUrl } from "@/lib/api";
-import { ensureOkResponse } from "@/lib/api/error-message";
+import { ensureOkResponse, getApiErrorMessage } from "@/lib/api/error-message";
 import { useUserRole } from "@/lib/hooks/useUserRole";
 import { PageErrorState } from "@/components/state/page-feedback";
 import { toast } from "sonner";
@@ -526,6 +526,9 @@ export default function InventoryPage() {
   const isTransactionFxSuccess = transactionFxStage === "success";
   const isTransactionFxError = transactionFxStage === "error";
   const quantityFxTimeoutRef = useRef<number | null>(null);
+  const transactionLoadAbortRef = useRef<AbortController | null>(null);
+  const transactionLoadBlockedUntilRef = useRef<number>(0);
+  const transactionLoadLastToastAtRef = useRef<number>(0);
 
   const adminSupervisorHrEmployee = useMemo(() => {
     return (
@@ -1191,7 +1194,17 @@ export default function InventoryPage() {
     }
   };
 
-  const loadTransactions = async (year: number) => {
+  const loadTransactions = async (year: number, options?: { force?: boolean }) => {
+    const force = options?.force ?? false;
+    const now = Date.now();
+    if (!force && transactionLoadBlockedUntilRef.current > now) {
+      return;
+    }
+
+    transactionLoadAbortRef.current?.abort();
+    const controller = new AbortController();
+    transactionLoadAbortRef.current = controller;
+
     try {
       setLoadingTransactions(true);
       const params = new URLSearchParams({
@@ -1202,15 +1215,51 @@ export default function InventoryPage() {
         `${getApiUrl()}/api/office-supply/transactions?${params.toString()}`,
         {
           headers: { Accept: "application/json" },
+          signal: controller.signal,
         },
       );
-      await ensureOkResponse(
-        response,
-        "Unable to load inventory transaction logs.",
-      );
+
+      if (!response.ok) {
+        if (response.status === 429) {
+          const retryAfterRaw = Number(response.headers.get("Retry-After") || "10");
+          const retryAfterSeconds = Number.isFinite(retryAfterRaw) && retryAfterRaw > 0
+            ? retryAfterRaw
+            : 10;
+          transactionLoadBlockedUntilRef.current =
+            Date.now() + retryAfterSeconds * 1000;
+        }
+
+        throw new Error(
+          await getApiErrorMessage(
+            response,
+            "Unable to load inventory transaction logs.",
+          ),
+        );
+      }
+
       const result = await response.json();
       setTransactions(Array.isArray(result?.data) ? result.data : []);
+      transactionLoadBlockedUntilRef.current = 0;
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
+
+      const message =
+        err instanceof Error
+          ? err.message
+          : "Unable to load inventory transaction logs.";
+      const shouldToast = Date.now() - transactionLoadLastToastAtRef.current > 3000;
+      if (shouldToast) {
+        toast.error("Transaction Logs Unavailable", {
+          description: message,
+        });
+        transactionLoadLastToastAtRef.current = Date.now();
+      }
     } finally {
+      if (transactionLoadAbortRef.current === controller) {
+        transactionLoadAbortRef.current = null;
+      }
       setLoadingTransactions(false);
     }
   };
@@ -1275,6 +1324,12 @@ export default function InventoryPage() {
   useEffect(() => {
     void loadTransactions(transactionYearFilter);
   }, [transactionYearFilter]);
+
+  useEffect(() => {
+    return () => {
+      transactionLoadAbortRef.current?.abort();
+    };
+  }, []);
 
   useEffect(() => {
     setTransactionDraft((prev) => {
@@ -1689,7 +1744,7 @@ export default function InventoryPage() {
       setItemEditDraft(null);
       await Promise.all([
         loadItems(selectedYear),
-        loadTransactions(transactionYearFilter),
+        loadTransactions(transactionYearFilter, { force: true }),
       ]);
     } catch (err) {
       const message =
@@ -1769,7 +1824,7 @@ export default function InventoryPage() {
 
       await Promise.all([
         loadItems(selectedYear),
-        loadTransactions(transactionYearFilter),
+        loadTransactions(transactionYearFilter, { force: true }),
       ]);
     } catch (err) {
       const message =
@@ -1892,7 +1947,7 @@ export default function InventoryPage() {
       setMovementType("in");
       await Promise.all([
         loadItems(selectedYear),
-        loadTransactions(transactionYearFilter),
+        loadTransactions(transactionYearFilter, { force: true }),
       ]);
       await new Promise<void>((resolve) => {
         window.setTimeout(resolve, TRANSACTION_SUCCESS_FEEDBACK_MS);
@@ -1975,7 +2030,7 @@ export default function InventoryPage() {
                 onClick={() => {
                   void Promise.all([
                     loadAll({ silent: true }),
-                    loadTransactions(transactionYearFilter),
+                    loadTransactions(transactionYearFilter, { force: true }),
                   ]);
                 }}
                 className="bg-white text-[#A4163A] hover:bg-rose-50 font-black rounded-lg"

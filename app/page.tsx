@@ -14,22 +14,16 @@ export default function Home() {
         const data = await res.json();
         if (res.ok && data.success) {
           const role = data.user?.role;
-          if (role === "admin_head") {
+          if (role === "super_admin" || role === "admin" || role === "super_admin_viewer") {
             router.push("/admin");
-          } else if (role === "super_admin") {
-            router.push("/super-admin");
-          } else if (role === "accountant") {
-            router.push("/accountant");
           } else {
             router.push("/login");
           }
         } else {
-          // Temporarily redirect to admindevelopment
-          router.push("/admin");
+          router.push("/login");
         }
       } catch (err) {
-        // Temporarily redirect to admindevelopment
-        router.push("/admin");
+        router.push("/login");
       } finally {
         setLoading(false);
       }

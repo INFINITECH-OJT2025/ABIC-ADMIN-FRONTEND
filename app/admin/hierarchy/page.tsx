@@ -10,6 +10,7 @@ import { Building2, GitBranch, Plus, ShieldCheck, Users, Clock, X, Save, Edit2, 
 import { getApiUrl } from "@/lib/api"
 import { toast } from "sonner"
 import { useUserRole } from "@/lib/hooks/useUserRole"
+import { useConfirmation } from "@/components/providers/confirmation-provider"
 
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -188,6 +189,7 @@ const HierarchySkeleton = () => (
 )
 
 export default function AdminHeadHierarchyPage() {
+  const { confirm } = useConfirmation()
   const { isViewOnly } = useUserRole()
   const viewOnlyDescription = "Create, update, and delete actions are disabled in view only mode."
   const notifyViewOnly = () => {
@@ -396,7 +398,14 @@ export default function AdminHeadHierarchyPage() {
       }
 
       const hierArray = (Array.isArray(hierData?.data) ? hierData.data : (Array.isArray(hierData) ? hierData : []))
-      setAvailablePositions(hierArray.map((p: any) => p.name))
+      const dedupedPositionNames: string[] = Array.from(
+        new Set(
+          hierArray
+            .map((p: any) => (typeof p?.name === 'string' ? p.name.trim() : ''))
+            .filter((name: string) => name.length > 0)
+        )
+      )
+      setAvailablePositions(dedupedPositionNames)
 
       // 1. Map explicit hierarchy records from database
       const mappedPos = hierArray.map((h: any) => ({
@@ -697,29 +706,36 @@ export default function AdminHeadHierarchyPage() {
       return
     }
 
-    if (!window.confirm(`Delete office \"${office.name}\"?`)) return
+    confirm({
+      title: 'Delete Office?',
+      description: `Delete office "${office.name}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+      onConfirm: async () => {
+        setLoading(true)
+        try {
+          const res = await fetch(`${getApiUrl()}/api/offices/${office.id}`, {
+            method: 'DELETE',
+            headers: { Accept: 'application/json' },
+          })
 
-    setLoading(true)
-    try {
-      const res = await fetch(`${getApiUrl()}/api/offices/${office.id}`, {
-        method: 'DELETE',
-        headers: { Accept: 'application/json' },
-      })
+          const payload = await res.json().catch(() => null)
+          if (!res.ok || payload?.success === false) {
+            throw new Error(payload?.message || 'Failed to delete office')
+          }
 
-      const payload = await res.json().catch(() => null)
-      if (!res.ok || payload?.success === false) {
-        throw new Error(payload?.message || 'Failed to delete office')
+          setOffices((prev) => prev.filter((o) => o.id !== office.id))
+          if (selectedOffice === office.id) setSelectedOffice("")
+          toast.success('Office deleted successfully')
+        } catch (err) {
+          console.error(err)
+          toast.error(err instanceof Error ? err.message : 'Failed to delete office')
+        } finally {
+          setLoading(false)
+        }
       }
-
-      setOffices((prev) => prev.filter((o) => o.id !== office.id))
-      if (selectedOffice === office.id) setSelectedOffice("")
-      toast.success('Office deleted successfully')
-    } catch (err) {
-      console.error(err)
-      toast.error(err instanceof Error ? err.message : 'Failed to delete office')
-    } finally {
-      setLoading(false)
-    }
+    })
   }
 
   const handleDeleteDepartment = async (department: Department) => {
@@ -734,29 +750,36 @@ export default function AdminHeadHierarchyPage() {
       return
     }
 
-    if (!window.confirm(`Delete department \"${department.name}\"?`)) return
+    confirm({
+      title: 'Delete Department?',
+      description: `Delete department "${department.name}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      variant: 'danger',
+      onConfirm: async () => {
+        setLoading(true)
+        try {
+          const res = await fetch(`${getApiUrl()}/api/departments/${department.id}`, {
+            method: 'DELETE',
+            headers: { Accept: 'application/json' },
+          })
 
-    setLoading(true)
-    try {
-      const res = await fetch(`${getApiUrl()}/api/departments/${department.id}`, {
-        method: 'DELETE',
-        headers: { Accept: 'application/json' },
-      })
+          const payload = await res.json().catch(() => null)
+          if (!res.ok || payload?.success === false) {
+            throw new Error(payload?.message || 'Failed to delete department')
+          }
 
-      const payload = await res.json().catch(() => null)
-      if (!res.ok || payload?.success === false) {
-        throw new Error(payload?.message || 'Failed to delete department')
+          setDepartments((prev) => prev.filter((d) => d.id !== department.id))
+          if (selectedDepartment === department.id) setSelectedDepartment("")
+          toast.success('Department deleted successfully')
+        } catch (err) {
+          console.error(err)
+          toast.error(err instanceof Error ? err.message : 'Failed to delete department')
+        } finally {
+          setLoading(false)
+        }
       }
-
-      setDepartments((prev) => prev.filter((d) => d.id !== department.id))
-      if (selectedDepartment === department.id) setSelectedDepartment("")
-      toast.success('Department deleted successfully')
-    } catch (err) {
-      console.error(err)
-      toast.error(err instanceof Error ? err.message : 'Failed to delete department')
-    } finally {
-      setLoading(false)
-    }
+    })
   }
 
   const handleAddOffice = async () => {
@@ -1166,9 +1189,18 @@ export default function AdminHeadHierarchyPage() {
                             size="icon"
                             className="h-7 w-7 text-slate-400 hover:text-[#A4163A] hover:bg-white transition-colors"
                             onClick={() => handleOpenShiftModal(office)}
-                            disabled={isViewOnly}
+                            disabled={isViewOnly || loading}
                           >
                             <Clock className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-slate-400 hover:text-red-600 hover:bg-white transition-colors"
+                            onClick={() => handleDeleteOffice(office)}
+                            disabled={isViewOnly || loading}
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                         <div className="h-[2px] flex-1 bg-slate-200" />
@@ -1191,6 +1223,15 @@ export default function AdminHeadHierarchyPage() {
                                 <span className="font-bold text-black/80 tracking-wide relative z-10 flex-1">
                                   {department.name}
                                 </span>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-black/60 hover:text-red-700 hover:bg-white/70 relative z-10"
+                                  onClick={() => handleDeleteDepartment(department)}
+                                  disabled={isViewOnly || loading}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
                               </div>
 
                               <div className="p-5 md:p-6 flex-1 bg-slate-50/40 overflow-x-hidden">

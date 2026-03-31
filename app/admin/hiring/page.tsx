@@ -73,6 +73,10 @@ function normalizeText(value: string): string {
   return value.trim().toLowerCase();
 }
 
+function isCeoPosition(value: string): boolean {
+  return normalizePosition(value) === "ceo";
+}
+
 function toOnboardedRow(item: Record<string, unknown>): OnboardedRow {
   return {
     id: Number(item.id ?? 0),
@@ -270,7 +274,7 @@ export default function HiringReportPage() {
           .map((row: { name?: unknown }) =>
             typeof row.name === "string" ? row.name.trim() : "",
           )
-          .filter(Boolean),
+          .filter((name: string) => Boolean(name) && !isCeoPosition(name)),
       ),
     ).sort((a, b) => a.localeCompare(b));
 

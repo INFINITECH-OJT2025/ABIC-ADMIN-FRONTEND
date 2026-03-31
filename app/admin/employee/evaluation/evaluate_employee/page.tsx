@@ -27,6 +27,7 @@ import { getApiUrl } from "@/lib/api";
 import { toast } from "sonner";
 import { format, addMonths } from "date-fns";
 import { useUserRole } from "@/lib/hooks/useUserRole";
+import { useConfirmation } from "@/components/providers/confirmation-provider";
 
 interface Employee {
   id: string;
@@ -36,6 +37,9 @@ interface Employee {
   position: string;
   department: string;
   status: string;
+  office_id?: string | number | null;
+  office_name?: string | null;
+  office?: { id?: string | number | null; name?: string | null } | string | null;
 }
 
 interface Evaluation {
@@ -64,7 +68,7 @@ interface Evaluation {
 interface Department {
   id: string;
   name: string;
-  office_id: string;
+  office_id?: string | number | null;
 }
 
 interface Office {
@@ -72,6 +76,8 @@ interface Office {
   name: string;
   header_logo_image?: string | null;
   header_details?: string | null;
+  headerLogoImage?: string | null;
+  headerDetails?: string | null;
 }
 
 type EvaluationTemplate = {
@@ -260,6 +266,7 @@ const EvaluationFormSkeleton = () => (
 
 function EvaluateEmployeeForm() {
   const { isViewOnly } = useUserRole();
+  const { confirm } = useConfirmation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const viewOnlyDescription =
@@ -303,6 +310,12 @@ function EvaluateEmployeeForm() {
   const [ratedBy, setRatedBy] = useState("");
   const [reviewedBy, setReviewedBy] = useState("");
   const [approvedBy, setApprovedBy] = useState("");
+
+  const toValidDate = (value: unknown): Date | null => {
+    if (!value) return null;
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
 
   useEffect(() => {
     fetchInitialData();
@@ -399,7 +412,7 @@ function EvaluateEmployeeForm() {
       if (evalData.success) {
         const evalMap: Record<string, Evaluation> = {};
         evalData.data.forEach((ev: Evaluation) => {
-          evalMap[ev.employee_id] = ev;
+          evalMap[String(ev.employee_id)] = ev;
         });
         setEvaluations(evalMap);
       }
@@ -416,7 +429,7 @@ function EvaluateEmployeeForm() {
   const probeeEmployees = useMemo(() => {
     return employees
       .filter((emp) => {
-        const evalRecord = evaluations[emp.id];
+        const evalRecord = evaluations[String(emp.id)];
         return (
           (emp.status === "employed" || emp.status === "rehired_employee") &&
           (!evalRecord ||
@@ -434,22 +447,23 @@ function EvaluateEmployeeForm() {
   const selectableEmployees = useMemo(() => {
     if (!selectedEmployeeId) return probeeEmployees;
     const currentSelected = employees.find(
-      (emp) => emp.id === selectedEmployeeId,
+      (emp) => String(emp.id) === String(selectedEmployeeId),
     );
     if (!currentSelected) return probeeEmployees;
     const existsInProbee = probeeEmployees.some(
-      (emp) => emp.id === currentSelected.id,
+      (emp) => String(emp.id) === String(currentSelected.id),
     );
     if (existsInProbee) return probeeEmployees;
     return [currentSelected, ...probeeEmployees];
   }, [selectedEmployeeId, employees, probeeEmployees]);
 
   const selectedEmployee = useMemo(
-    () => employees.find((e) => e.id === selectedEmployeeId),
+    () => employees.find((e) => String(e.id) === String(selectedEmployeeId)),
     [selectedEmployeeId, employees],
   );
   const selectedEvaluation = useMemo(
-    () => (selectedEmployee ? evaluations[selectedEmployee.id] : undefined),
+    () =>
+      selectedEmployee ? evaluations[String(selectedEmployee.id)] : undefined,
     [selectedEmployee, evaluations],
   );
   const firstBreakdown = selectedEvaluation?.score_1_breakdown ?? null;
@@ -556,17 +570,6 @@ function EvaluateEmployeeForm() {
   ]);
 
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty]);
-
-  useEffect(() => {
     if (!selectedEmployee) {
       setEvaluationView("first");
       return;
@@ -616,27 +619,46 @@ function EvaluateEmployeeForm() {
 
   const handleBackWindow = () => {
     if (isDirty) {
-      if (
-        window.confirm(
+      confirm({
+        title: "Leave Evaluation?",
+        description:
           "You have unsaved evaluation progress. Are you sure you want to leave?",
-        )
-      ) {
-        router.back();
-      }
-    } else {
-      router.back();
+        confirmText: "Leave",
+        cancelText: "Stay",
+        variant: "warning",
+        onConfirm: () => {
+          router.back();
+        },
+      });
+      return;
     }
+
+    router.back();
   };
 
   const handleEmployeeChange = (employeeId: string) => {
-    if (
-      isDirty &&
-      !window.confirm(
-        "You have unsaved progress. Are you sure you want to change candidate? Unsaved changes will be lost.",
-      )
-    ) {
+    if (isDirty) {
+      confirm({
+        title: "Change Candidate?",
+        description:
+          "You have unsaved progress. Are you sure you want to change candidate? Unsaved changes will be lost.",
+        confirmText: "Change",
+        cancelText: "Stay",
+        variant: "warning",
+        onConfirm: () => {
+          setSelectedEmployeeId(employeeId);
+          setScores({ ...EMPTY_SCORES });
+          setRemarks("");
+          setAgreement(null);
+          setRecommendation(null);
+          setRatedBy("");
+          setReviewedBy("");
+          setApprovedBy("");
+        },
+      });
       return;
     }
+
     setSelectedEmployeeId(employeeId);
     setScores({ ...EMPTY_SCORES });
     setRemarks("");
@@ -648,16 +670,38 @@ function EvaluateEmployeeForm() {
   };
   const employeeDetails = useMemo(() => {
     if (!selectedEmployee) return null;
+    const normalizedDepartment = String(selectedEmployee.department || "")
+      .trim()
+      .toLowerCase();
     const deptObj = departments.find(
       (d) =>
         String(d.id) === String(selectedEmployee.department) ||
-        d.name === selectedEmployee.department,
+        String(d.name || "").trim().toLowerCase() === normalizedDepartment,
     );
-    const officeId = deptObj?.office_id ?? (selectedEmployee as any)?.office_id;
-    const officeObj = offices.find((o) => String(o.id) === String(officeId));
-    const hiredDate = selectedEmployee.date_hired
-      ? new Date(selectedEmployee.date_hired)
-      : null;
+    const officeId =
+      deptObj?.office_id ??
+      selectedEmployee?.office_id ??
+      (typeof selectedEmployee?.office === "object"
+        ? selectedEmployee.office?.id
+        : null);
+    let officeObj = offices.find((o) => String(o.id) === String(officeId));
+    if (!officeObj) {
+      const candidateOfficeName = [
+        selectedEmployee?.office_name,
+        typeof selectedEmployee?.office === "string"
+          ? selectedEmployee.office
+          : selectedEmployee?.office?.name,
+      ]
+        .map((value) => String(value || "").trim())
+        .find(Boolean);
+      if (candidateOfficeName) {
+        officeObj = offices.find(
+          (o) =>
+            String(o.name || "").trim().toLowerCase() ===
+            candidateOfficeName.toLowerCase(),
+        );
+      }
+    }
     return {
       name: `${selectedEmployee.first_name} ${selectedEmployee.last_name}`,
       position: selectedEmployee.position,
@@ -665,8 +709,10 @@ function EvaluateEmployeeForm() {
         deptObj?.name || selectedEmployee.department || "Not Assigned",
       office: officeObj?.name || "",
       officeId: officeObj?.id ? String(officeObj.id) : "",
-      officeHeaderLogo: officeObj?.header_logo_image || null,
-      officeHeaderDetails: officeObj?.header_details || "",
+      officeHeaderLogo:
+        officeObj?.header_logo_image || officeObj?.headerLogoImage || null,
+      officeHeaderDetails:
+        officeObj?.header_details || officeObj?.headerDetails || "",
     };
   }, [selectedEmployee, departments, offices]);
 
@@ -682,9 +728,15 @@ function EvaluateEmployeeForm() {
   }, [employeeDetails?.office]);
 
   const selectedLetterheadAddress = useMemo(() => {
-    const raw = employeeDetails?.officeHeaderDetails || "";
-    return String(raw).trim();
-  }, [employeeDetails?.officeHeaderDetails]);
+    const officeAddress = String(employeeDetails?.officeHeaderDetails || "").trim();
+    if (officeAddress) return officeAddress;
+    const templateAddress = String(
+      (evaluationTemplate as any)?.headerDetails ||
+        (evaluationTemplate as any)?.header_details ||
+        "",
+    ).trim();
+    return templateAddress;
+  }, [employeeDetails?.officeHeaderDetails, evaluationTemplate]);
 
   const totalScore = useMemo(() => {
     return Object.values(scores).reduce(
@@ -742,22 +794,22 @@ function EvaluateEmployeeForm() {
         targetSignature: "signature_1" as const,
       };
     }
-    const prevEval = evaluations[selectedEmployee.id];
+    const prevEval = evaluations[String(selectedEmployee.id)];
 
-    const hiredDate = new Date(selectedEmployee.date_hired);
-    const firstEvalDate = addMonths(hiredDate, 3);
-    const secondEvalDate = addMonths(hiredDate, 5);
+    const hiredDate = toValidDate(selectedEmployee.date_hired);
+    const firstEvalDate = hiredDate ? addMonths(hiredDate, 3) : null;
+    const secondEvalDate = hiredDate ? addMonths(hiredDate, 5) : null;
 
     // Check if 1st eval failed (<= 30)
     const failedFirst =
       prevEval && prevEval.score_1 !== null && prevEval.score_1 <= 30;
+    const targetDate = failedFirst ? secondEvalDate : firstEvalDate;
 
     return {
       isSecond: !!failedFirst,
-      ratingPeriod: format(
-        failedFirst ? secondEvalDate : firstEvalDate,
-        "MMMM dd, yyyy (EEEE)",
-      ),
+      ratingPeriod: targetDate
+        ? format(targetDate, "MMMM dd, yyyy (EEEE)")
+        : "N/A",
       targetScore: failedFirst ? "score_2" : "score_1",
       targetRemarks: failedFirst ? "remarks_2" : "remarks_1",
       targetBreakdown: failedFirst ? "score_2_breakdown" : "score_1_breakdown",
@@ -805,6 +857,7 @@ function EvaluateEmployeeForm() {
         companyName: selectedLetterheadOfficeName,
         evaluationLogoImage: selectedLetterheadLogo,
         headerDetails: selectedLetterheadAddress,
+        header_details: selectedLetterheadAddress,
       };
       const response = await fetch(
         `${getApiUrl()}/api/evaluations/${selectedEmployeeId}/pdf`,
@@ -868,6 +921,7 @@ function EvaluateEmployeeForm() {
         companyName: selectedLetterheadOfficeName,
         evaluationLogoImage: selectedLetterheadLogo,
         headerDetails: selectedLetterheadAddress,
+        header_details: selectedLetterheadAddress,
       };
       const response = await fetch(
         `${getApiUrl()}/api/evaluations/${selectedEmployeeId}/email-pdf`,
@@ -979,10 +1033,11 @@ function EvaluateEmployeeForm() {
   }
 
   const firstEvaluationDate = selectedEmployee
-    ? format(
-        addMonths(new Date(selectedEmployee.date_hired), 3),
-        "MMMM dd, yyyy (EEEE)",
-      )
+    ? (() => {
+        const hiredDate = toValidDate(selectedEmployee.date_hired);
+        if (!hiredDate) return "N/A";
+        return format(addMonths(hiredDate, 3), "MMMM dd, yyyy (EEEE)");
+      })()
     : "";
   const firstEvaluationRemark = selectedEvaluation?.remarks_1 ?? "N/A";
   const firstEvaluationScore = selectedEvaluation?.score_1 ?? "N/A";

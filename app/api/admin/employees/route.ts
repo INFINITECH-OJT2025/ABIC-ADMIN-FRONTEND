@@ -1,84 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { query } from '@/lib/db'
-import bcrypt from 'bcryptjs'
+import { getApiUrl } from '@/lib/api'
 
-export async function POST(request: NextRequest) {
-  try {
-    const { name, email, password } = await request.json()
-
-    // Validation
-    if (!name || !email || !password) {
-      return NextResponse.json(
-        { success: false, message: 'All fields are required' },
-        { status: 400 }
-      )
-    }
-
-    if (password.length < 6) {
-      return NextResponse.json(
-        { success: false, message: 'Password must be at least 6 characters' },
-        { status: 400 }
-      )
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10)
-
-    // Split name into first and last name (simple split)
-    const nameParts = name.trim().split(' ')
-    const firstName = nameParts[0]
-    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ''
-
-    // Insert employee using actual columns
-    const result = await query(
-      'INSERT INTO employees (first_name, last_name, email, password) VALUES (?, ?, ?, ?)',
-      [firstName, lastName, email, hashedPassword]
-    )
-
-    return NextResponse.json(
-      { success: true, message: 'Employee created successfully', data: result },
-      { status: 201 }
-    )
-  } catch (error: any) {
-    if (error.code === 'ER_DUP_ENTRY') {
-      return NextResponse.json(
-        { success: false, message: 'Email already exists' },
-        { status: 409 }
-      )
-    }
-
-    console.error('API Error:', error)
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    )
-  }
-}
-
-export async function GET(request: NextRequest) {
+async function handler(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const status = searchParams.get('status')
+    const queryString = searchParams.toString()
+    
+    // All Admin API routes in Laravel are prefixed with /api/...
+    // Based on routes/admin.php: Route::apiResource('employees', EmployeeController::class);
+    const backendUrl = `${getApiUrl()}/api/employees${queryString ? `?${queryString}` : ''}`
 
-    let sqlQuery = "SELECT id, first_name, last_name, CONCAT(first_name, ' ', last_name) AS name, email, department, position, gender, created_at FROM employees"
-    const values: any[] = []
-
-    if (status) {
-      const statusArray = status.split(',')
-      const placeholders = statusArray.map(() => '?').join(', ')
-      sqlQuery += ` WHERE status IN (${placeholders})`
-      values.push(...statusArray)
+    const headers: Record<string, string> = {
+      'Accept': 'application/json',
     }
 
-    sqlQuery += " ORDER BY created_at DESC"
+    // Forward Content-Type if present
+    const contentType = request.headers.get('Content-Type')
+    if (contentType) {
+      headers['Content-Type'] = contentType
+    }
 
-    const results = await query(sqlQuery, values)
-    return NextResponse.json({ success: true, data: results })
+    // Forward Authorization token from cookies if present
+    const token = request.cookies.get('token')?.value
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
+    const fetchOptions: RequestInit = {
+      method: request.method,
+      headers,
+      cache: 'no-store',
+    }
+
+    if (!['GET', 'HEAD'].includes(request.method)) {
+      fetchOptions.body = await request.text()
+    }
+
+    const response = await fetch(backendUrl, fetchOptions)
+    const data = await response.json()
+
+    return NextResponse.json(data, { status: response.status })
   } catch (error: any) {
-    console.error('API Error in GET /api/adminoyees:', error)
+    console.error(`[Employee Proxy] ${request.method} Error:`, error)
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch employees', error: error.message },
+      { 
+        success: false, 
+        message: 'Internal server error while connecting to backend',
+        error: error.message 
+      },
       { status: 500 }
     )
   }
 }
+
+export const GET = handler
+export const POST = handler

@@ -22,9 +22,9 @@ import {
   AlertCircle,
   X,
   PanelLeft,
-  Activity,
   GitBranch,
   Boxes,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -48,56 +48,80 @@ export default function AdminHeadSidebar() {
   const [isHiringOpen, setIsHiringOpen] = useState(false);
   const [logoError, setLogoError] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{
+    name: string;
+    role: string;
+  } | null>(null);
   const [pendingEmployeeCount, setPendingEmployeeCount] = useState(0);
   const [showTardinessReminder, setShowTardinessReminder] = useState(false);
   const router = useRouter();
 
   const toggleSidebar = () => setIsCollapsed(!isCollapsed);
+  const currentUserName = currentUser?.name?.trim() || "User";
+  const currentUserRole = (currentUser?.role || "user")
+    .replace(/_/g, " ")
+    .toUpperCase();
 
-  const handleLogout = () => {
-    // Perform any logout logic here (e.g., clearing tokens)
-    router.push("/logout");
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+
+    try {
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Redirect anyway - server route clears cookies even on backend errors.
+    } finally {
+      setShowLogoutConfirm(false);
+      router.replace("/login");
+      router.refresh();
+      setIsLoggingOut(false);
+    }
   };
 
-  const fetchUnreadCount = useCallback(async () => {
+  const fetchCurrentUser = useCallback(async () => {
     try {
-      const response = await fetch(
-        "/api/laravel/api/activity-logs/unread-count",
-        { cache: "no-store" },
-      );
+      const response = await fetch("/api/auth/me", {
+        credentials: "include",
+        cache: "no-store",
+      });
       const result = await response.json();
-      if (response.ok && result?.success) {
-        setUnreadCount(Number(result?.data?.count ?? 0));
+
+      if (response.ok && result?.success && result?.user) {
+        setCurrentUser({
+          name: String(result.user.name || "User"),
+          role: String(result.user.role || "user"),
+        });
+        return;
       }
     } catch {
-      // Ignore sidebar counter failures.
+      // Fallback to cookie below.
+    }
+
+    try {
+      const cookieValue = document.cookie
+        .split("; ")
+        .find((entry) => entry.startsWith("user_info="))
+        ?.split("=")[1];
+
+      if (!cookieValue) return;
+
+      const parsed = JSON.parse(decodeURIComponent(cookieValue));
+      setCurrentUser({
+        name: String(parsed?.name || "User"),
+        role: String(parsed?.role || "user"),
+      });
+    } catch {
+      // Keep defaults when cookies are missing or malformed.
     }
   }, []);
 
   useEffect(() => {
-    void fetchUnreadCount();
-    const intervalId = setInterval(fetchUnreadCount, 1000);
-
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        void fetchUnreadCount();
-      }
-    };
-
-    const handleFocus = () => {
-      void fetchUnreadCount();
-    };
-
-    document.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("focus", handleFocus);
-
-    return () => {
-      clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, [fetchUnreadCount]);
+    void fetchCurrentUser();
+  }, [fetchCurrentUser]);
 
   const fetchPendingEmployeeCount = useCallback(async () => {
     try {
@@ -130,7 +154,6 @@ export default function AdminHeadSidebar() {
 
   useEffect(() => {
     void fetchPendingEmployeeCount();
-    const intervalId = setInterval(fetchPendingEmployeeCount, 10000);
 
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
@@ -146,32 +169,10 @@ export default function AdminHeadSidebar() {
     window.addEventListener("focus", handleFocus);
 
     return () => {
-      clearInterval(intervalId);
       document.removeEventListener("visibilitychange", handleVisibility);
       window.removeEventListener("focus", handleFocus);
     };
   }, [fetchPendingEmployeeCount]);
-
-  useEffect(() => {
-    const onUnreadChanged = (event: Event) => {
-      const customEvent = event as CustomEvent<{ count: number }>;
-      if (typeof customEvent.detail?.count === "number") {
-        setUnreadCount(customEvent.detail.count);
-      }
-    };
-
-    window.addEventListener(
-      "activity-log-unread-changed",
-      onUnreadChanged as EventListener,
-    );
-
-    return () => {
-      window.removeEventListener(
-        "activity-log-unread-changed",
-        onUnreadChanged as EventListener,
-      );
-    };
-  }, []);
 
   const fetchTardinessReminder = useCallback(async () => {
     const now = new Date();
@@ -195,13 +196,10 @@ export default function AdminHeadSidebar() {
 
   useEffect(() => {
     fetchTardinessReminder();
-    const intervalId = setInterval(fetchTardinessReminder, 60000);
-
     const handleReminderSync = () => fetchTardinessReminder();
     window.addEventListener("tardiness-reminder-sync", handleReminderSync);
 
     return () => {
-      clearInterval(intervalId);
       window.removeEventListener("tardiness-reminder-sync", handleReminderSync);
     };
   }, [fetchTardinessReminder]);
@@ -270,10 +268,10 @@ export default function AdminHeadSidebar() {
             </div>
             <div className="flex flex-col justify-center overflow-hidden">
               <span className="text-[9px] font-medium text-white/40 uppercase tracking-widest leading-none mb-0.5">
-                Admin Head
+                {currentUserRole}
               </span>
               <h2 className="text-sm font-semibold text-white/90 truncate leading-tight">
-                Sachi
+                {currentUserName}
               </h2>
             </div>
           </div>
@@ -288,50 +286,38 @@ export default function AdminHeadSidebar() {
 
       {/* Navigation Menu */}
       <nav className="flex-1 space-y-2 overflow-y-auto no-scrollbar py-2">
-        {/* ACTIVITY LOGS */}
-        {/* <div className="group relative">
-          <Link
-            href="/admin
-            className={cn(
-              "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
-              isCollapsed ? "justify-center" : "",
-            )}
-          >
-            <Activity size={22} className="shrink-0" />
-            {!isCollapsed && (
-              <div className="flex items-center gap-2">
-                <span className="font-medium whitespace-nowrap">
-                  ACTIVITY LOGS
-                </span>
-                {unreadCount > 0 && (
-                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1.5 py-0.5 text-[10px] font-bold leading-none text-[#7B0F2B]">
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </span>
-                )}
+        {/* ADMINS */}
+        {(currentUser?.role === "super_admin" ||
+          currentUser?.role === "super_admin_viewer") && (
+          <div className="group relative">
+            <Link
+              href="/admin/admins"
+              className={cn(
+                "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
+                isCollapsed ? "justify-center" : "",
+              )}
+            >
+              <ShieldCheck size={22} className="shrink-0" />
+              {!isCollapsed && (
+                <span className="font-medium whitespace-nowrap">ADMINS</span>
+              )}
+            </Link>
+            {isCollapsed && (
+              <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
+                <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
+                  ADMINS
+                </div>
+                <Link
+                  href="/admin/admins"
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
+                >
+                  <ShieldCheck size={18} />
+                  <span>Admins</span>
+                </Link>
               </div>
             )}
-            {isCollapsed && unreadCount > 0 && (
-              <span className="absolute right-4 top-2 inline-flex min-w-5 items-center justify-center rounded-full bg-white px-1 py-0.5 text-[10px] font-bold leading-none text-[#7B0F2B]">
-                {unreadCount > 99 ? '99+' : unreadCount}
-              </span>
-            )}
-          </Link>
-          {isCollapsed && (
-            <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
-              <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
-                ACTIVITY LOGS
-              </div>
-              <Link
-                href="/admin
-                className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
-              >
-                <Activity size={18} />
-                <span>Activity Logs</span>
-              </Link>
-            </div>
-          )}
-        </div> */}
-
+          </div>
+        )}
         {/* EMPLOYEE with Dropdown */}
         <div className="group relative">
           <button
@@ -634,10 +620,11 @@ export default function AdminHeadSidebar() {
           )}
         </div>
 
+
         {/* HIERARCHY */}
         <div className="group relative">
           <Link
-            href="/admin/heirarchy"
+            href="/admin/hierarchy"
             className={cn(
               "flex items-center gap-3 px-4 py-3.5 rounded-lg hover:bg-white/10 transition-all duration-200 font-semibold text-base",
               isCollapsed ? "justify-center" : "",
@@ -645,16 +632,16 @@ export default function AdminHeadSidebar() {
           >
             <GitBranch size={22} className="shrink-0" />
             {!isCollapsed && (
-              <span className="font-medium whitespace-nowrap">HEIRARCHY</span>
+              <span className="font-medium whitespace-nowrap">HIERARCHY</span>
             )}
           </Link>
           {isCollapsed && (
             <div className="fixed left-20 top-auto w-52 z-50 bg-[#7B0F2B]/95 rounded-lg p-2 border border-white/10 backdrop-blur-md hidden group-hover:block">
               <div className="px-3 py-2 text-xs font-bold text-white/50 border-b border-white/10 mb-1 leading-none uppercase tracking-widest">
-                HEIRARCHY
+                HIERARCHY
               </div>
               <Link
-                href="/admin/heirarchy"
+                href="/admin/hierarchy"
                 className="flex items-center gap-2 px-3 py-2.5 rounded-md hover:bg-white/10 transition-all duration-150 text-sm font-medium text-red-50 hover:text-white"
               >
                 <GitBranch size={18} />
@@ -767,16 +754,18 @@ export default function AdminHeadSidebar() {
           <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
             <Button
               variant="outline"
+              disabled={isLoggingOut}
               onClick={() => setShowLogoutConfirm(false)}
               className="flex-1 border-2 border-stone-100 text-stone-600 hover:bg-stone-50 font-bold h-12 rounded-xl"
             >
               Cancel
             </Button>
             <Button
+              disabled={isLoggingOut}
               onClick={handleLogout}
               className="flex-1 bg-gradient-to-r from-[#4A081A] to-[#800020] hover:from-[#630C22] hover:to-[#A0153E] text-white font-bold h-12 rounded-xl shadow-md transition-all active:scale-95"
             >
-              Logout
+              {isLoggingOut ? "Logging out..." : "Logout"}
             </Button>
           </DialogFooter>
         </DialogContent>

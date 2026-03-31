@@ -1,8 +1,10 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useUserRole } from "@/lib/hooks/useUserRole";
 import {
   Calendar,
+
   Plus,
   Pencil,
   Trash2,
@@ -349,6 +351,8 @@ export default function DayOffsPage() {
   const [activePreset, setActivePreset] = useState<string | null>(null);
 
   const { confirm } = useConfirmation();
+  const { isViewOnly } = useUserRole();
+
 
   // Load data
   useEffect(() => {
@@ -670,20 +674,10 @@ export default function DayOffsPage() {
       }
     };
 
-    // 2. External Navigation (Browser Back, Refresh, Close Tab)
-    const handleExternalNavigation = (e: BeforeUnloadEvent) => {
-      if (hasActiveDraft) {
-        e.preventDefault();
-        e.returnValue = "Changes you made may not be saved.";
-      }
-    };
-
     document.addEventListener("click", handleInternalNavigation, true);
-    window.addEventListener("beforeunload", handleExternalNavigation);
 
     return () => {
       document.removeEventListener("click", handleInternalNavigation, true);
-      window.removeEventListener("beforeunload", handleExternalNavigation);
     };
   }, [isFormOpen, currentSchedule, isLoading, confirm]);
 
@@ -717,10 +711,12 @@ export default function DayOffsPage() {
               }
               variant="outline"
               size="sm"
+              disabled={isViewOnly}
               className={cn(
                 "px-6 font-semibold uppercase tracking-widest flex items-center gap-2 bg-white text-[#7B0F2B] hover:bg-rose-50 border-transparent",
                 isFormOpen &&
                   "bg-white text-[#7B0F2B] border-white/20 shadow-inner translate-y-[1px]",
+                isViewOnly && "cursor-not-allowed opacity-50",
               )}
             >
               {isFormOpen ? (
@@ -821,7 +817,11 @@ export default function DayOffsPage() {
                       <Button
                         variant="outline"
                         role="combobox"
-                        className="w-full justify-between h-11 px-5 rounded-lg border-stone-300 bg-white hover:border-[#7B0F2B] transition-all font-semibold text-stone-800 shadow-sm ring-offset-white focus:ring-2 focus:ring-[#7B0F2B]/20 uppercase text-[11px] tracking-widest"
+                        disabled={isViewOnly}
+                        className={cn(
+                          "w-full justify-between h-11 px-5 rounded-lg border-stone-300 bg-white hover:border-[#7B0F2B] transition-all font-semibold text-stone-800 shadow-sm ring-offset-white focus:ring-2 focus:ring-[#7B0F2B]/20 uppercase text-[11px] tracking-widest",
+                          isViewOnly && "cursor-not-allowed opacity-50",
+                        )}
                       >
                         <div className="flex items-center gap-3">
                           <Search className="h-4 w-4 text-[#7B0F2B]" />
@@ -913,8 +913,10 @@ export default function DayOffsPage() {
                           activePreset === "10-7" ? "default" : "outline"
                         }
                         size="sm"
+                        disabled={isViewOnly}
                         className={cn(
                           "w-36 font-semibold uppercase tracking-widest text-center",
+                          isViewOnly && "cursor-not-allowed opacity-50",
                         )}
                       >
                         10AM - 7PM
@@ -934,8 +936,10 @@ export default function DayOffsPage() {
                         }}
                         variant={activePreset === "9-6" ? "default" : "outline"}
                         size="sm"
+                        disabled={isViewOnly}
                         className={cn(
                           "w-36 font-semibold uppercase tracking-widest text-center",
+                          isViewOnly && "cursor-not-allowed opacity-50",
                         )}
                       >
                         9AM - 6PM
@@ -962,12 +966,14 @@ export default function DayOffsPage() {
                     <button
                       key={day}
                       type="button"
+                      disabled={isViewOnly}
                       onClick={() => toggleDayOff(day)}
                       className={cn(
                         "h-12 flex flex-col items-center justify-center rounded-xl border-2 transition-all duration-300",
                         currentSchedule.day_offs?.includes(day)
                           ? "bg-[#4A081A] border-[#4A081A] text-white shadow-xl scale-[1.02]"
                           : "bg-stone-50 border-stone-200 text-stone-600 font-black hover:border-[#A4163A] hover:text-[#A4163A]",
+                        isViewOnly && "cursor-not-allowed opacity-50 hover:border-stone-200 hover:text-stone-600",
                       )}
                     >
                       <span className="text-[11px] font-black tracking-widest">
@@ -1017,12 +1023,14 @@ export default function DayOffsPage() {
                           </span>
 
                           <button
-                            onClick={() => toggleDayOff(day)}
+                            onClick={() => !isViewOnly && toggleDayOff(day)}
+                            disabled={isViewOnly}
                             className={cn(
                               "px-3 py-1.5 rounded-lg font-black uppercase tracking-[0.2em] transition-all text-[9px] shadow-sm",
                               isDayOff
                                 ? "bg-[#4A081A] text-white"
                                 : "bg-white border border-stone-300 text-stone-800 hover:bg-[#A4163A] hover:text-white hover:border-[#A4163A]",
+                              isViewOnly && "cursor-not-allowed opacity-50 hover:bg-white hover:text-stone-800 hover:border-stone-300",
                             )}
                           >
                             {isDayOff ? "REST DAY" : "SET OFF"}
@@ -1042,6 +1050,7 @@ export default function DayOffsPage() {
                               <div className="flex-1">
                                 <CustomTimePicker
                                   value={start}
+                                  disabled={isViewOnly}
                                   onChange={(s) => {
                                     const nextDaily = {
                                       ...currentSchedule.daily_scheds,
@@ -1124,8 +1133,11 @@ export default function DayOffsPage() {
                   variant="default"
                   size="default"
                   onClick={handleSaveSchedule}
-                  disabled={isLoading}
-                  className="w-full md:w-56 font-semibold uppercase tracking-widest flex items-center justify-center gap-3"
+                  disabled={isLoading || isViewOnly}
+                  className={cn(
+                    "w-full md:w-56 font-semibold uppercase tracking-widest flex items-center justify-center gap-3",
+                    isViewOnly && "cursor-not-allowed opacity-50",
+                  )}
                 >
                   {isLoading ? (
                     <Loader2 className="w-4 h-4 animate-spin text-white/70" />
@@ -1223,15 +1235,23 @@ export default function DayOffsPage() {
                             className="w-44 rounded-2xl p-2 shadow-xl border-stone-100"
                           >
                             <DropdownMenuItem
-                              onClick={() => handleOpenEditDialog(schedule)}
-                              className="flex items-center gap-3 py-3 px-4 rounded-xl cursor-pointer focus:bg-rose-50 focus:text-[#A4163A]"
+                              onClick={() => !isViewOnly && handleOpenEditDialog(schedule)}
+                              disabled={isViewOnly}
+                              className={cn(
+                                "flex items-center gap-3 py-3 px-4 rounded-xl cursor-pointer focus:bg-rose-50 focus:text-[#A4163A]",
+                                isViewOnly && "cursor-not-allowed opacity-50",
+                              )}
                             >
                               <Pencil className="w-4 h-4" />
                               <span className="font-bold text-sm">Modify</span>
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleDeleteSchedule(schedule.id)}
-                              className="flex items-center gap-3 py-3 px-4 rounded-xl cursor-pointer text-red-500 focus:bg-red-50 focus:text-red-600"
+                              onClick={() => !isViewOnly && handleDeleteSchedule(schedule.id)}
+                              disabled={isViewOnly}
+                              className={cn(
+                                "flex items-center gap-3 py-3 px-4 rounded-xl cursor-pointer text-red-500 focus:bg-red-50 focus:text-red-600",
+                                isViewOnly && "cursor-not-allowed opacity-50",
+                              )}
                             >
                               <Trash2 className="w-4 h-4" />
                               <span className="font-bold text-sm">Remove</span>
@@ -1391,18 +1411,24 @@ export default function DayOffsPage() {
                                   Options
                                 </div>
                                 <DropdownMenuItem
-                                  onClick={() => handleOpenEditDialog(schedule)}
-                                  className="flex items-center gap-3 rounded-xl py-3 px-4 cursor-pointer focus:bg-rose-50 focus:text-[#A4163A] font-bold"
+                                  onClick={() => !isViewOnly && handleOpenEditDialog(schedule)}
+                                  disabled={isViewOnly}
+                                  className={cn(
+                                    "flex items-center gap-3 rounded-xl py-3 px-4 cursor-pointer focus:bg-rose-50 focus:text-[#A4163A] font-bold",
+                                    isViewOnly && "cursor-not-allowed opacity-50",
+                                  )}
                                 >
                                   <Pencil className="w-4 h-4" />
                                   <span>Edit</span>
                                 </DropdownMenuItem>
 
                                 <DropdownMenuItem
-                                  onClick={() =>
-                                    handleDeleteSchedule(schedule.id)
-                                  }
-                                  className="flex items-center gap-3 rounded-xl py-3 px-4 cursor-pointer text-red-500 focus:bg-red-50 focus:text-red-600 font-bold"
+                                  onClick={() => !isViewOnly && handleDeleteSchedule(schedule.id)}
+                                  disabled={isViewOnly}
+                                  className={cn(
+                                    "flex items-center gap-3 rounded-xl py-3 px-4 cursor-pointer text-red-500 focus:bg-red-50 focus:text-red-600 font-bold",
+                                    isViewOnly && "cursor-not-allowed opacity-50",
+                                  )}
                                 >
                                   <Trash2 className="w-4 h-4" />
                                   <span>Delete</span>

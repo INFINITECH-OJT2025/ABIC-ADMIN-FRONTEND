@@ -1478,8 +1478,17 @@ export default function MasterfilePage() {
             },
           );
 
-          const data = await response.json();
-          if (data.success) {
+          let data: any = {};
+          try {
+            data = await response.json();
+          } catch {
+            data = {};
+          }
+
+          const isSuccess =
+            response.ok && (typeof data?.success === "undefined" || data.success);
+
+          if (isSuccess) {
             toast.success(
               `${selectedEmployee.first_name} ${isRehire ? "re-hired" : "set as employed"} successfully`,
             );
@@ -1487,12 +1496,50 @@ export default function MasterfilePage() {
             setViewMode("list");
             setSelectedEmployee(null);
           } else {
+            // Some backend paths may update the status but still return 5xx.
+            // Verify persisted status before showing failure.
+            let statusVerified = false;
+            try {
+              const verifyRes = await fetch(
+                `${apiUrl}/api/employees/${selectedEmployee.id}`,
+              );
+              if (verifyRes.ok) {
+                const verifyData = await verifyRes.json();
+                const persistedStatus = String(
+                  verifyData?.data?.status ??
+                    verifyData?.employee?.status ??
+                    verifyData?.status ??
+                    "",
+                )
+                  .toLowerCase()
+                  .trim();
+                if (persistedStatus === finalStatus) {
+                  statusVerified = true;
+                }
+              }
+            } catch (verifyErr) {
+              console.error("Status verification failed:", verifyErr);
+            }
+
+            if (statusVerified) {
+              toast.success(
+                `${selectedEmployee.first_name} ${isRehire ? "re-hired" : "set as employed"} successfully`,
+              );
+              await fetchEmployees();
+              setViewMode("list");
+              setSelectedEmployee(null);
+              return;
+            }
+
             // Parse validation errors if present
             if (data.errors) {
               const errorMessages = Object.values(data.errors).flat().join(" ");
               toast.error(errorMessages || data.message);
             } else {
-              toast.error(data.message || "Failed to update status");
+              toast.error(
+                data.message ||
+                  `Failed to update status${response.status ? ` (HTTP ${response.status})` : ""}`,
+              );
             }
           }
         } catch (error) {

@@ -59,6 +59,32 @@ type Office = {
   name: string;
 };
 
+const formatEntriesListForTemplate = (
+  templateBody: string,
+  entriesList: string,
+) => {
+  const withIndent = (indent: string) =>
+    entriesList
+      .split(/\r?\n/)
+      .map((line) => (line ? `${indent}${line}` : ""))
+      .join("\n");
+
+  let out = templateBody.replace(
+    /(^|[\r\n])([ \t]*)\{\{\s*(entries_list|etr(?:i|ie)s_list)\s*\}\}[ \t]*$/gim,
+    (_match, prefix: string, indent: string) => `${prefix}${withIndent(indent)}`,
+  );
+
+  out = out.replace(
+    /([ \t]+)\{\{\s*(entries_list|etr(?:i|ie)s_list)\s*\}\}/gim,
+    (_match, indent: string) => withIndent(indent),
+  );
+
+  return out.replace(
+    /\{\{\s*(entries_list|etr(?:i|ie)s_list)\s*\}\}/gim,
+    entriesList,
+  );
+};
+
 const DEFAULT_TARDINESS_REGULAR_TEMPLATE = {
   title: "TARDINESS WARNING LETTER",
   body: `Dear {{salutation}} {{last_name}},
@@ -574,6 +600,36 @@ export default function EditFormsPage() {
 
   const [hasLocalOnlyChanges, setHasLocalOnlyChanges] = useState(false);
 
+  const handleTabChange = (nextTab: string) => {
+    if (nextTab === activeTab) return;
+
+    if (hasLocalOnlyChanges) {
+      confirm({
+        title: "Unsaved Changes",
+        description:
+          "You have unsaved changes that are not synced to the database. Do you want to switch tabs without syncing?",
+        confirmText: "Switch Tab",
+        cancelText: "Stay Here",
+        variant: "warning",
+        onConfirm: () => setActiveTab(nextTab),
+      });
+      return;
+    }
+
+    setActiveTab(nextTab);
+  };
+
+  useEffect(() => {
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasLocalOnlyChanges) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [hasLocalOnlyChanges]);
+
   // Load templates from API on mount
   useEffect(() => {
     const fetchTemplates = async () => {
@@ -744,18 +800,6 @@ export default function EditFormsPage() {
 
     fetchTemplates();
   }, []);
-
-  // Browser-level navigation guard for refreshing/closing
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasLocalOnlyChanges) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [hasLocalOnlyChanges]);
 
   const handleSave = async (silent = false) => {
     if (isViewOnly) {
@@ -1206,33 +1250,31 @@ export default function EditFormsPage() {
     const todayLabel = "[Letter Date]";
 
     // Placeholder replacements for preview instead of mock data
-    const mockEntriesList = `• [Entry 1 — Attendance/Leave Detail]
+    const mockEntriesList = `\u2022 [Entry 1 - Attendance/Leave Detail]
 
-    • [Entry 2 — Attendance/Leave Detail]
+\u2022 [Entry 2 - Attendance/Leave Detail]
 
-    • [Entry 3 — Attendance/Leave Detail]`;
+\u2022 [Entry 3 - Attendance/Leave Detail]`;
 
     if (type.startsWith("tardiness")) {
-      content = content
+      content = formatEntriesListForTemplate(content, mockEntriesList)
         .replace(/{{salutation}}/g, "[Salutation]")
         .replace(/{{last_name}}/g, "[Last Name]")
         .replace(/{{shift_time}}/g, "[Shift Time]")
         .replace(/{{grace_period}}/g, "[Grace Period]")
         .replace(/{{instances_text}}/g, "[Count in words]")
-        .replace(/{{instances_count}}/g, "[#]")
-        .replace(/{{entries_list}}/g, mockEntriesList);
+        .replace(/{{instances_count}}/g, "[#]");
     } else if (type === "leave") {
-      content = content
+      content = formatEntriesListForTemplate(content, mockEntriesList)
         .replace(/{{salutation}}/g, "[Salutation]")
         .replace(/{{last_name}}/g, "[Last Name]")
         .replace(/{{instances_text}}/g, "[Count in words]")
         .replace(/{{instances_count}}/g, "[#]")
         .replace(/{{cutoff_text}}/g, "[Cut-off Period]")
         .replace(/{{month}}/g, "[Month]")
-        .replace(/{{year}}/g, "[Year]")
-        .replace(/{{entries_list}}/g, mockEntriesList);
+        .replace(/{{year}}/g, "[Year]");
     } else if (type === "supervisor-tardiness") {
-      content = content
+      content = formatEntriesListForTemplate(content, mockEntriesList)
         .replace(
           /{{salutation}}\s+{{supervisor first name}}/g,
           "[Sir/Ma'am] [Supervisor First Name]",
@@ -1246,10 +1288,9 @@ export default function EditFormsPage() {
         .replace(/{{instances_count}}/g, "[#]")
         .replace(/{{instances_count_ordinal}}/g, "[#th]")
         .replace(/{{grace_period}}/g, "[Grace Period]")
-        .replace(/{{supervisor first name}}/g, "[Supervisor First Name]")
-        .replace(/{{entries_list}}/g, mockEntriesList);
+        .replace(/{{supervisor first name}}/g, "[Supervisor First Name]");
     } else if (type === "supervisor-leave") {
-      content = content
+      content = formatEntriesListForTemplate(content, mockEntriesList)
         .replace(
           /{{salutation}}\s+{{supervisor first name}}/g,
           "[Sir/Ma'am] [Supervisor First Name]",
@@ -1264,8 +1305,7 @@ export default function EditFormsPage() {
         .replace(/{{cutoff_text}}/g, "[Cut-off Period]")
         .replace(/{{month}}/g, "[Month]")
         .replace(/{{year}}/g, "[Year]")
-        .replace(/{{supervisor first name}}/g, "[Supervisor First Name]")
-        .replace(/{{entries_list}}/g, mockEntriesList);
+        .replace(/{{supervisor first name}}/g, "[Supervisor First Name]");
     }
 
     const isSupervisor = type.startsWith("supervisor");
@@ -1335,10 +1375,10 @@ export default function EditFormsPage() {
               if (!trimmed) return <div key={idx} className="h-4" />;
 
               // Bullet points
-              if (trimmed.startsWith("•")) {
+              if (trimmed.startsWith("\u2022")) {
                 return (
                   <div key={idx} className="flex gap-4 pl-10 mb-2">
-                    <span className="shrink-0">•</span>
+                    <span className="shrink-0">{"\u2022"}</span>
                     <span>{trimmed.substring(1).trim()}</span>
                   </div>
                 );
@@ -1372,8 +1412,8 @@ export default function EditFormsPage() {
                 );
               }
 
-              // Paragraph with first-line indent (only if line starts with 4 spaces)
-              const hasIndent = line.startsWith("    ");
+              // Paragraph with first-line indent (any leading spaces/tabs)
+              const hasIndent = /^[ \t]+/.test(line);
               return (
                 <div
                   key={idx}
@@ -1440,7 +1480,7 @@ export default function EditFormsPage() {
 
   return (
     <div className="min-h-screen bg-[#FDF4F6] overflow-x-hidden">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
         {/* ----- INTEGRATED HEADER & TOOLBAR ----- */}
         <div className="bg-gradient-to-r from-[#A4163A] to-[#7B0F2B] text-white shadow-lg mb-6 sticky top-0 z-50">
           {/* Main Header Row */}
