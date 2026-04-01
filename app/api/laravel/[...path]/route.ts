@@ -1,13 +1,36 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-const LARAVEL_BASE = process.env.LARAVEL_INTERNAL_URL || 'http://127.0.0.1:8000'
+function normalizeBase(base?: string | null): string | null {
+    if (!base) return null
+    const trimmed = base.trim()
+    if (!trimmed) return null
+    let normalized = trimmed.replace(/\/$/, '')
+    if (normalized.endsWith('/api')) {
+        normalized = normalized.slice(0, -4)
+    }
+    return normalized
+}
 
 function getCandidateBases() {
     const candidates = new Set<string>()
-    candidates.add(LARAVEL_BASE)
+    const configuredBases = [
+        process.env.LARAVEL_INTERNAL_URL,
+        process.env.LARAVEL_API_URL,
+        process.env.BACKEND_URL,
+        'http://127.0.0.1:8000',
+    ]
+
+    for (const base of configuredBases) {
+        const normalized = normalizeBase(base)
+        if (normalized) {
+            candidates.add(normalized)
+        }
+    }
+
+    const firstBase = Array.from(candidates)[0] || 'http://127.0.0.1:8000'
 
     try {
-        const parsed = new URL(LARAVEL_BASE)
+        const parsed = new URL(firstBase)
         if (parsed.hostname === '127.0.0.1') {
             parsed.hostname = 'localhost'
             candidates.add(parsed.toString().replace(/\/$/, ''))
@@ -19,7 +42,6 @@ function getCandidateBases() {
         // Keep defaults if URL parsing fails.
     }
 
-    candidates.add('http://127.0.0.1:8000')
     candidates.add('http://localhost:8000')
 
     return Array.from(candidates).map((base) => base.replace(/\/$/, ''))

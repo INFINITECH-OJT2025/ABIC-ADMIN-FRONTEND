@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState, useEffect } from "react"
-import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui"
+import { Badge, Button, Card, CardContent, CardHeader, CardTitle, Input, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -321,12 +321,21 @@ export default function AdminHeadHierarchyPage() {
 
     setLoading(true)
     try {
-      const res = await fetch(`${getApiUrl()}/api/hierarchies/${editingPosition.id}`, {
-        method: 'DELETE',
-        headers: {
-          Accept: 'application/json'
-        }
-      })
+      const requestDelete = () =>
+        fetch(`${getApiUrl()}/api/hierarchies/${editingPosition.id}`, {
+          method: 'DELETE',
+          headers: {
+            Accept: 'application/json'
+          }
+        })
+
+      let res = await requestDelete()
+
+      // Retry once for transient upstream proxy failures.
+      if (res.status === 502 || res.status === 503 || res.status === 504) {
+        await new Promise((resolve) => setTimeout(resolve, 350))
+        res = await requestDelete()
+      }
 
       if (res.status === 404) {
         await fetchData()
@@ -1287,6 +1296,9 @@ export default function AdminHeadHierarchyPage() {
               <Clock className="w-5 h-5 text-[#A4163A]" />
               Shift Schedule: {editingSchedule?.office_name}
             </DialogTitle>
+            <DialogDescription>
+              Configure up to two shift options for the selected office schedule.
+            </DialogDescription>
           </DialogHeader>
           <fieldset disabled={isViewOnly || loading} className="space-y-4 py-4 disabled:opacity-75">
             <div className="space-y-3">
@@ -1402,9 +1414,9 @@ export default function AdminHeadHierarchyPage() {
       </Dialog>
 
       <Dialog
-        open={!!editingPosition}
+        open={!!editingPosition && !isDeleteConfirmOpen}
         onOpenChange={(open) => {
-          if (!open) {
+          if (!open && !isDeleteConfirmOpen) {
             setIsDeleteConfirmOpen(false)
             setEditingPosition(null)
           }
@@ -1416,6 +1428,9 @@ export default function AdminHeadHierarchyPage() {
               <Edit2 className="w-5 h-5 text-[#A4163A]" />
               Edit Position: {editingPosition?.title}
             </DialogTitle>
+            <DialogDescription>
+              Update the position title, department, and reporting parent.
+            </DialogDescription>
           </DialogHeader>
           <fieldset disabled={isViewOnly || loading} className="space-y-4 py-4 disabled:opacity-75">
             <div className="space-y-2">
@@ -1493,10 +1508,11 @@ export default function AdminHeadHierarchyPage() {
         <DialogContent className="sm:max-w-[420px]">
           <DialogHeader>
             <DialogTitle>Delete Position</DialogTitle>
+            <DialogDescription>
+              This action will remove the selected position and reassign its child positions to the deleted position&apos;s parent.
+            </DialogDescription>
           </DialogHeader>
-          <div className="text-sm text-slate-600">
-            Delete "{editingPosition?.title}"? Its child positions will be moved to this position&apos;s parent.
-          </div>
+          <div className="text-sm text-slate-600">Delete "{editingPosition?.title}"?</div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteConfirmOpen(false)} disabled={loading}>
               Cancel
