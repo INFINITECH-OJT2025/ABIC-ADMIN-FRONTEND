@@ -1174,21 +1174,8 @@ function OnboardPageContent() {
     templateRefreshTick,
   ]);
 
-  // Realtime sync: keep onboarding tasks fresh while checklist is open.
-  useEffect(() => {
-    if (view !== "checklist") return;
-
-    const intervalId = window.setInterval(() => {
-      setTemplateRefreshTick((prev) => prev + 1);
-    }, 5000);
-
-    return () => window.clearInterval(intervalId);
-  }, [
-    view,
-    checklistData?.department,
-    progressionFormData?.department,
-    onboardFormData?.department,
-  ]);
+  // Keep task sync event-driven (storage/focus/visibility) to avoid disruptive
+  // auto-refresh behavior while users are actively working on the checklist.
 
   // Cross-tab realtime sync: when onboarding templates are saved in Forms,
   // refresh tasks immediately in Continue Onboarding.
