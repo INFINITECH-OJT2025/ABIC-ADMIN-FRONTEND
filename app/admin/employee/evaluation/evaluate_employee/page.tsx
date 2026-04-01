@@ -824,6 +824,56 @@ function EvaluateEmployeeForm() {
   ] as number | null | undefined;
   const hasSavedCurrentEvaluation =
     typeof currentSavedScore === "number" && currentSavedScore > 0;
+  const isEvaluationFinalized = (remark?: string | null) => {
+    const normalized = String(remark ?? "")
+      .trim()
+      .toLowerCase();
+    return normalized === "passed" || normalized === "failed";
+  };
+  const isFirstEvaluationFinalized = isEvaluationFinalized(
+    selectedEvaluation?.remarks_1,
+  );
+  const isSecondEvaluationFinalized = isEvaluationFinalized(
+    selectedEvaluation?.remarks_2,
+  );
+  const canExportOrSend = useMemo(() => {
+    if (!selectedEmployeeId || isViewOnly) return false;
+    if (!failedFirstEvaluation) return isFirstEvaluationFinalized;
+    if (evaluationView === "first") return isFirstEvaluationFinalized;
+    if (evaluationView === "second") return isSecondEvaluationFinalized;
+    return isFirstEvaluationFinalized && isSecondEvaluationFinalized;
+  }, [
+    selectedEmployeeId,
+    isViewOnly,
+    failedFirstEvaluation,
+    evaluationView,
+    isFirstEvaluationFinalized,
+    isSecondEvaluationFinalized,
+  ]);
+  const exportSendBlockedMessage = useMemo(() => {
+    if (!selectedEmployeeId) return "Please select an employee first";
+    if (!failedFirstEvaluation && !isFirstEvaluationFinalized) {
+      return "Complete the 1st evaluation first (must be Passed or Failed)";
+    }
+    if (failedFirstEvaluation) {
+      if (evaluationView === "second" && !isSecondEvaluationFinalized) {
+        return "Complete the 2nd evaluation first (must be Passed or Failed)";
+      }
+      if (
+        evaluationView === "both" &&
+        (!isFirstEvaluationFinalized || !isSecondEvaluationFinalized)
+      ) {
+        return "Both evaluations must be finalized (Passed or Failed) before exporting/sending";
+      }
+    }
+    return "Evaluation is not ready for export/email";
+  }, [
+    selectedEmployeeId,
+    failedFirstEvaluation,
+    evaluationView,
+    isFirstEvaluationFinalized,
+    isSecondEvaluationFinalized,
+  ]);
 
   useEffect(() => {
     if (!selectedEmployee) {
@@ -847,6 +897,10 @@ function EvaluateEmployeeForm() {
   const handleExportPdf = async () => {
     if (!selectedEmployeeId) {
       toast.error("Please select an employee first");
+      return;
+    }
+    if (!canExportOrSend) {
+      toast.error(exportSendBlockedMessage);
       return;
     }
 
@@ -911,6 +965,10 @@ function EvaluateEmployeeForm() {
   const handleSendPdfToEmail = async () => {
     if (!selectedEmployeeId) {
       toast.error("Please select an employee first");
+      return;
+    }
+    if (!canExportOrSend) {
+      toast.error(exportSendBlockedMessage);
       return;
     }
 
@@ -1144,7 +1202,7 @@ function EvaluateEmployeeForm() {
                   type="button"
                   variant="outline"
                   onClick={handleExportPdf}
-                  disabled={isViewOnly || isExportingPdf || !selectedEmployeeId}
+                  disabled={!canExportOrSend || isExportingPdf}
                   className="h-10 px-4 rounded-lg font-bold bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all text-sm uppercase tracking-wider gap-2"
                 >
                   {isExportingPdf ? (
@@ -1159,7 +1217,7 @@ function EvaluateEmployeeForm() {
                   type="button"
                   variant="outline"
                   onClick={handleSendPdfToEmail}
-                  disabled={isViewOnly || isEmailSending || !selectedEmployeeId}
+                  disabled={!canExportOrSend || isEmailSending}
                   className="h-10 px-4 rounded-lg font-bold bg-white border-transparent text-[#7B0F2B] hover:bg-rose-50 hover:text-[#4A081A] shadow-sm transition-all text-sm uppercase tracking-wider gap-2"
                 >
                   {isEmailSending ? (
