@@ -123,6 +123,12 @@ export default function EvaluationPage() {
     fetchData();
   }, []);
 
+  const toValidDate = (value: unknown): Date | null => {
+    if (!value) return null;
+    const parsed = new Date(String(value));
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  };
+
   const deriveStatusFromRemarks = (evalData?: Partial<Evaluation>) => {
     const remarks1 = String(evalData?.remarks_1 ?? "").toLowerCase();
     const remarks2 = String(evalData?.remarks_2 ?? "").toLowerCase();
@@ -147,7 +153,7 @@ export default function EvaluationPage() {
       if (data.success) {
         const evalMap: Record<string, Evaluation> = {};
         data.data.forEach((evalItem: Evaluation) => {
-          evalMap[evalItem.employee_id] = evalItem;
+          evalMap[String(evalItem.employee_id)] = evalItem;
         });
         setEvaluations(evalMap);
         setPersistedEvaluations(JSON.parse(JSON.stringify(evalMap)));
@@ -186,9 +192,11 @@ export default function EvaluationPage() {
     evaluationContext?: { id?: string } & Partial<Evaluation>,
   ) => {
     if (!dateHired) return null;
-    const hiredDate = new Date(dateHired);
+    const hiredDate = toValidDate(dateHired);
+    if (!hiredDate) return null;
 
-    const liveEvaluation = evaluations[evaluationContext?.id || ""];
+    const evaluationId = String(evaluationContext?.id || "");
+    const liveEvaluation = evaluations[evaluationId];
     const evaluation = (liveEvaluation ||
       evaluationContext ||
       {}) as Partial<Evaluation>;
@@ -197,8 +205,8 @@ export default function EvaluationPage() {
     const secondEval = addMonths(hiredDate, 5);
 
     // Check if employee has regularization date set
-    const hasRegularizationDate =
-      evaluation?.regularization_date && evaluation.regularization_date !== "";
+    const regularizationDate = toValidDate(evaluation?.regularization_date);
+    const hasRegularizationDate = Boolean(regularizationDate);
 
     // Check evaluation results
     const remarks1 = String(evaluation?.remarks_1 ?? "").toLowerCase();
@@ -220,11 +228,6 @@ export default function EvaluationPage() {
       status = "For Recommendation";
     }
 
-    let regularizationDate = null;
-    if (hasRegularizationDate) {
-      regularizationDate = new Date(evaluation.regularization_date!);
-    }
-
     return {
       firstEval: format(firstEval, "MM/dd/yyyy"),
       secondEval: format(secondEval, "MM/dd/yyyy"),
@@ -236,17 +239,16 @@ export default function EvaluationPage() {
   };
 
   const formatDisplayDate = (dateValue: string | null | undefined) => {
-    if (!dateValue) return "-";
-    const parsed = new Date(dateValue);
-    if (Number.isNaN(parsed.getTime())) return "-";
+    const parsed = toValidDate(dateValue);
+    if (!parsed) return "-";
     return format(parsed, "MM/dd/yyyy");
   };
 
   const isBenefitQualified = (
     regularizationDate: string | null | undefined,
   ) => {
-    if (!regularizationDate || regularizationDate === "") return false;
-    const regDate = new Date(regularizationDate);
+    const regDate = toValidDate(regularizationDate);
+    if (!regDate) return false;
     const oneYearLater = new Date(regDate);
     oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
     return new Date() >= oneYearLater;
@@ -254,10 +256,11 @@ export default function EvaluationPage() {
 
   // Helper to calculate dates for an employee
   const getDatesForEmployee = (emp: Employee) => {
-    const evalRecord = evaluations[emp.id] || persistedEvaluations[emp.id];
+    const employeeId = String(emp.id);
+    const evalRecord = evaluations[employeeId] || persistedEvaluations[employeeId];
     if (evalRecord) {
       return calculateEvaluationDates(emp.date_hired, {
-        id: emp.id,
+        id: employeeId,
         ...evalRecord,
       });
     }
@@ -265,10 +268,11 @@ export default function EvaluationPage() {
   };
 
   const getStatusForFilter = (emp: Employee) => {
-    const persisted = persistedEvaluations[emp.id];
+    const employeeId = String(emp.id);
+    const persisted = persistedEvaluations[employeeId];
     if (persisted) {
       return (
-        calculateEvaluationDates(emp.date_hired, { id: emp.id, ...persisted })
+        calculateEvaluationDates(emp.date_hired, { id: employeeId, ...persisted })
           ?.status || "Probee"
       );
     }
@@ -335,17 +339,29 @@ export default function EvaluationPage() {
     try {
       const response = await fetch(`${getApiUrl()}/api/evaluations`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify(evalData),
       });
-      const data = await response.json();
+      const raw = await response.text();
+      let data: any = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        data = null;
+      }
       if (data.success) {
         toast.success("Evaluation saved successfully");
         setLockedScores((prev) => ({ ...prev, [employeeId]: true }));
         setEditingScores((prev) => ({ ...prev, [employeeId]: false }));
         fetchData(); // Refresh to get updated regularization dates and status
       } else {
-        toast.error(data.message || "Failed to save evaluation");
+        toast.error(
+          data?.message ||
+            (response.ok ? "Failed to save evaluation" : "Server error while saving evaluation"),
+        );
       }
     } catch (error) {
       console.error("Error saving evaluation:", error);
@@ -410,19 +426,33 @@ export default function EvaluationPage() {
 
       const response = await fetch(`${getApiUrl()}/api/evaluations`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
         body: JSON.stringify({
           ...currentEval,
           regularization_date: selectedDate,
           status: "Regular",
         }),
       });
-      const data = await response.json();
+      const raw = await response.text();
+      let data: any = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        data = null;
+      }
       if (data.success) {
         toast.success("Regularization date saved");
         fetchData();
       } else {
-        toast.error(data.message || "Failed to save regularization date");
+        toast.error(
+          data?.message ||
+            (response.ok
+              ? "Failed to save regularization date"
+              : "Server error while saving regularization date"),
+        );
       }
     } catch (error) {
       console.error("Error saving regularization date:", error);
@@ -692,9 +722,10 @@ export default function EvaluationPage() {
                       </tr>
                     ) : (
                       filteredEmployees.map((emp) => {
+                        const employeeId = String(emp.id);
                         const dates = getDatesForEmployee(emp);
                         const evalData =
-                          evaluations[emp.id] ?? persistedEvaluations[emp.id];
+                          evaluations[employeeId] ?? persistedEvaluations[employeeId];
                         const remarks1 = evalData?.remarks_1 ?? null;
                         const remarks2 = evalData?.remarks_2 ?? null;
                         const score1 = evalData?.score_1 ?? null;

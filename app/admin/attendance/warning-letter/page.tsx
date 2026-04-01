@@ -143,6 +143,7 @@ interface LeaveEntry {
   approved_by: string;
   warning_level?: number;
   is_email_sent?: boolean;
+  leave_entries?: any[];
 }
 
 interface SentLetter {
@@ -333,8 +334,53 @@ export default function WarningLetterPage() {
         );
       }
 
-      // Group and summarize leave entries for ALL months in the selected year to calculate warning levels
-      // Deduct from vacation credits first if eligible
+      const hasOneYearRegularByYear = (creditInfo: any, year: number) => {
+        if (!creditInfo) return false;
+
+        const regularizationDateRaw = creditInfo.regularization_date;
+        if (regularizationDateRaw) {
+          const regularizationDate = new Date(regularizationDateRaw);
+          if (!isNaN(regularizationDate.getTime())) {
+            const oneYearAnniversary = new Date(regularizationDate);
+            oneYearAnniversary.setFullYear(
+              oneYearAnniversary.getFullYear() + 1,
+            );
+            const yearEnd = new Date(`${year}-12-31T23:59:59`);
+            return oneYearAnniversary <= yearEnd;
+          }
+        }
+
+        return Boolean(creditInfo.has_one_year_regular);
+      };
+
+      const getAnnualVlCredits = (creditInfo: any) => {
+        const vlTotal = Number(creditInfo?.vl_total);
+        if (Number.isFinite(vlTotal) && vlTotal > 0) return vlTotal;
+        return creditInfo?.has_one_year_regular ? 5 : 0;
+      };
+
+      const toIsoDate = (d: Date) => {
+        const year = d.getFullYear();
+        const month = `${d.getMonth() + 1}`.padStart(2, "0");
+        const day = `${d.getDate()}`.padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      };
+      const addDays = (dateStr: string, days: number) => {
+        const d = new Date(dateStr);
+        d.setDate(d.getDate() + days);
+        return toIsoDate(d);
+      };
+      const isVacationLeave = (remarksValue: unknown) => {
+        const normalized = String(remarksValue || "").trim().toLowerCase();
+        return (
+          normalized === "vl" ||
+          normalized.includes("vacation leave") ||
+          normalized.includes("vacation")
+        );
+      };
+
+      // Group and summarize leave entries for ALL months in the selected year.
+      // For warning purposes, eligible employees first consume annual VL credits before days qualify.
       const runningCredits = new Map<string, { vl: number }>();
 
       const allLeaveGroups = new Map<string, any>();
@@ -353,24 +399,56 @@ export default function WarningLetterPage() {
         );
 
       sortedLeaves.forEach((entry: any) => {
-        const date = new Date(entry.start_date);
-        const m = date.getMonth();
-        const day = date.getDate();
-        const cutoff = day <= 15 ? "cutoff1" : "cutoff2";
-        const key = `${entry.employee_id}-${months[m]}-${cutoff}`;
-        // WARNING SYSTEM: Count ACTUAL days, not deducted days
-        // Credit deduction is for reporting, not for warning qualification
-        let daysToCount = Number(entry.number_of_days);
-        const remarks = String(entry.remarks || "").toLowerCase();
+        const totalDays = Number(entry.number_of_days) || 0;
+        if (totalDays <= 0) return;
 
+        const remarks = String(entry.remarks || "").toLowerCase();
         const empId = String(entry.employee_id);
+        const creditInfo = creditsMap.get(empId);
+        const isEligible = hasOneYearRegularByYear(creditInfo, selectedYear);
+
+        if (!runningCredits.has(empId)) {
+          const annualVlCredits = isEligible ? getAnnualVlCredits(creditInfo) : 0;
+          runningCredits.set(empId, { vl: annualVlCredits });
+        }
+
+        const creditBucket = runningCredits.get(empId)!;
+        const isVl = isVacationLeave(remarks);
+        let coveredVlDays = 0;
+        let daysToCount = totalDays;
+        if (isEligible && isVl && creditBucket.vl > 0) {
+          coveredVlDays = Math.min(creditBucket.vl, totalDays);
+          creditBucket.vl -= coveredVlDays;
+          daysToCount = totalDays - coveredVlDays;
+        }
+
+        if (daysToCount <= 0) {
+          return;
+        }
+
+        const chargedStartDate = addDays(entry.start_date, coveredVlDays);
+        const chargedEndDate = addDays(chargedStartDate, daysToCount - 1);
+        const chargedDate = new Date(chargedStartDate);
+        const chargedMonthIndex = chargedDate.getMonth();
+        const chargedDay = chargedDate.getDate();
+        const cutoff = chargedDay <= 15 ? "cutoff1" : "cutoff2";
+        const monthLabel = months[chargedMonthIndex];
+        const key = `${entry.employee_id}-${monthLabel}-${cutoff}`;
+        const warningEntry = {
+          ...entry,
+          number_of_days: daysToCount,
+          start_date: chargedStartDate,
+          leave_end_date: chargedEndDate,
+        };
 
         console.log(`[Warning Letter List] Processing leave:`, {
           empId,
           date: entry.start_date,
           type: remarks,
-          actualDays: daysToCount,
-          monthStr: months[m],
+          actualDays: totalDays,
+          coveredVlDays,
+          chargedDays: daysToCount,
+          monthStr: monthLabel,
           cutoff,
         });
 
@@ -378,16 +456,18 @@ export default function WarningLetterPage() {
           allLeaveGroups.set(key, {
             ...entry,
             cutoff,
-            month: months[m],
+            month: monthLabel,
             total_days: daysToCount,
-            actual_total_days: Number(entry.number_of_days),
+            actual_total_days: totalDays,
             remarks_list: [entry.remarks],
             reasons_list: entry.cite_reason ? [entry.cite_reason] : [],
+            leave_entries: [warningEntry],
           });
         } else {
           const existing = allLeaveGroups.get(key);
           existing.total_days += daysToCount;
-          existing.actual_total_days += Number(entry.number_of_days);
+          existing.actual_total_days += totalDays;
+          existing.leave_entries.push(warningEntry);
           if (entry.remarks && !existing.remarks_list.includes(entry.remarks)) {
             existing.remarks_list.push(entry.remarks);
           }
@@ -467,6 +547,7 @@ export default function WarningLetterPage() {
             remarks: entry.remarks_list.join("; "),
             cite_reason: entry.reasons_list.join("; "),
             is_regular: isRegular,
+            leave_entries: entry.leave_entries || [],
           };
         });
 

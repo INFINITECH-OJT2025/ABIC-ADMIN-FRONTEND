@@ -152,6 +152,32 @@ const numberToText = (n: number) => {
   return texts[n] || n.toString();
 };
 
+const formatEntriesListForTemplate = (
+  templateBody: string,
+  entriesList: string,
+) => {
+  const withIndent = (indent: string) =>
+    entriesList
+      .split(/\r?\n/)
+      .map((line) => (line ? `${indent}${line}` : ""))
+      .join("\n");
+
+  let out = templateBody.replace(
+    /(^|[\r\n])([ \t]*)\{\{\s*(entries_list|etr(?:i|ie)s_list)\s*\}\}[ \t]*$/gim,
+    (_match, prefix: string, indent: string) => `${prefix}${withIndent(indent)}`,
+  );
+
+  out = out.replace(
+    /([ \t]+)\{\{\s*(entries_list|etr(?:i|ie)s_list)\s*\}\}/gim,
+    (_match, indent: string) => withIndent(indent),
+  );
+
+  return out.replace(
+    /\{\{\s*(entries_list|etr(?:i|ie)s_list)\s*\}\}/gim,
+    entriesList,
+  );
+};
+
 // --- Dynamic Schedule Types & Helpers ---
 interface ShiftInfo {
   startTimeMinutes: number;
@@ -474,8 +500,8 @@ function FormLetterContent() {
   const type = searchParams.get("type"); // 'late' or 'leave'
   const normalizedType = type === "tardiness" ? "late" : type;
   const effectiveType = normalizedType === "leave" ? "leave" : "late";
-  const month = searchParams.get("month");
-  const year = searchParams.get("year");
+  const month = searchParams.get("month") ?? MONTHS[new Date().getMonth()];
+  const year = searchParams.get("year") ?? String(new Date().getFullYear());
   const cutoff = searchParams.get("cutoff");
   const warningLevelFromQuery = Math.max(
     0,
@@ -965,13 +991,33 @@ function FormLetterContent() {
             );
           }
 
-          const runningCredits = { vl: 15, sl: 15 };
+          const toIsoDate = (d: Date) => {
+            const yr = d.getFullYear();
+            const mo = `${d.getMonth() + 1}`.padStart(2, "0");
+            const da = `${d.getDate()}`.padStart(2, "0");
+            return `${yr}-${mo}-${da}`;
+          };
+          const addDays = (dateStr: string, days: number) => {
+            const d = new Date(dateStr);
+            d.setDate(d.getDate() + days);
+            return toIsoDate(d);
+          };
+          const isVacationLeave = (remarksValue: unknown) => {
+            const normalized = String(remarksValue || "").trim().toLowerCase();
+            return (
+              normalized === "vl" ||
+              normalized.includes("vacation leave") ||
+              normalized.includes("vacation")
+            );
+          };
+
+          const runningCredits = { vl: 0 };
           const creditInfo = creditsMap.get(String(employeeId));
           const isEligible = creditInfo?.has_one_year_regular;
+          runningCredits.vl = isEligible ? 5 : 0;
 
-          // Group by month and cutoff to identify qualifying incidents (>= 3 days)
-          // WARNING SYSTEM: Count ACTUAL days, not deducted days
-          // Credit deduction is for reporting, not for warning qualification
+          // Group by month/cutoff using chargeable days:
+          // eligible employees consume first 5 VL days before warning counting.
           const yearLeavesSorted = [...empLeaves].sort(
             (a, b) =>
               new Date(a.start_date).getTime() -
@@ -990,36 +1036,63 @@ function FormLetterContent() {
 
           const leaveGroups = new Map<string, any>();
           yearLeavesSorted.forEach((e: any) => {
-            const date = new Date(e.start_date);
-            const m = date.getMonth();
-            const day = date.getDate();
-            const co = day <= 15 ? "cutoff1" : "cutoff2";
-            const key = `${MONTHS[m]}-${co}`;
+            const totalDays = Number(e.number_of_days) || 0;
+            if (totalDays <= 0) return;
 
-            // Count ACTUAL days - no credit deduction for warning purposes
-            let daysToCharge = Number(e.number_of_days);
             const remarks = String(e.remarks || "").toLowerCase();
+            const isVl = isVacationLeave(remarks);
+            let coveredVlDays = 0;
+            let daysToCharge = totalDays;
+            if (isEligible && isVl && runningCredits.vl > 0) {
+              coveredVlDays = Math.min(runningCredits.vl, totalDays);
+              runningCredits.vl -= coveredVlDays;
+              daysToCharge = totalDays - coveredVlDays;
+            }
+
+            if (daysToCharge <= 0) return;
+
+            const chargedStartDate = addDays(e.start_date, coveredVlDays);
+            const chargedEndDate = addDays(chargedStartDate, daysToCharge - 1);
+            const chargedDate = new Date(chargedStartDate);
+            const monthIndex = chargedDate.getMonth();
+            const day = chargedDate.getDate();
+            const co = day <= 15 ? "cutoff1" : "cutoff2";
+            const monthLabel = MONTHS[monthIndex];
+            const key = `${monthLabel}-${co}`;
+            const warningEntry = {
+              ...e,
+              number_of_days: daysToCharge,
+              start_date: chargedStartDate,
+              leave_end_date: chargedEndDate,
+            };
 
             console.log(`[Leave Letter] Leave entry:`, {
               key,
               type: remarks,
-              actualDays: daysToCharge,
+              actualDays: totalDays,
+              coveredVlDays,
+              chargedDays: daysToCharge,
             });
 
             if (!leaveGroups.has(key)) {
               leaveGroups.set(key, {
-                ...e,
-                month: MONTHS[m],
+                ...warningEntry,
+                month: monthLabel,
                 cutoff: co,
                 total_days: daysToCharge,
-                actual_total_days: Number(e.number_of_days),
+                actual_total_days: totalDays,
+                leave_entries: [warningEntry],
               });
             } else {
               const existing = leaveGroups.get(key);
               existing.total_days += daysToCharge;
-              existing.actual_total_days += Number(e.number_of_days);
-              if (new Date(e.start_date) < new Date(existing.start_date)) {
-                existing.start_date = e.start_date;
+              existing.actual_total_days += totalDays;
+              existing.leave_entries.push(warningEntry);
+              if (
+                new Date(chargedStartDate).getTime() <
+                new Date(existing.start_date).getTime()
+              ) {
+                existing.start_date = chargedStartDate;
               }
             }
           });
@@ -1168,6 +1241,9 @@ function FormLetterContent() {
           });
           const pageW = pdf.internal.pageSize.getWidth();
           const pageH = pdf.internal.pageSize.getHeight();
+          const margin = 18; // ~0.25in
+          const contentW = pageW - margin * 2;
+          const contentH = pageH - margin * 2;
 
           for (let i = 0; i < formIds.length; i++) {
             const { id } = formIds[i];
@@ -1188,15 +1264,14 @@ function FormLetterContent() {
             const imgData = canvas.toDataURL("image/jpeg", 0.95);
             const imgW = canvas.width;
             const imgH = canvas.height;
-            const ratio = pageW / imgW;
-            const finalW = pageW;
-            const scaledH = imgH * ratio;
-            const totalSlices = Math.max(1, Math.ceil((scaledH - 20) / pageH));
+            const scale = Math.min(contentW / imgW, contentH / imgH);
+            const finalW = imgW * scale;
+            const finalH = imgH * scale;
+            const offsetX = margin + (contentW - finalW) / 2;
+            const offsetY = margin + (contentH - finalH) / 2;
 
-            for (let p = 0; p < totalSlices; p++) {
-              if (i > 0 || p > 0) pdf.addPage();
-              pdf.addImage(imgData, "JPEG", 0, -(p * pageH), finalW, scaledH);
-            }
+            if (i > 0) pdf.addPage();
+            pdf.addImage(imgData, "JPEG", offsetX, offsetY, finalW, finalH);
           }
 
           const pdfBase64 = pdf.output("datauristring").split(",")[1];
@@ -1416,30 +1491,38 @@ function FormLetterContent() {
             ? (() => {
                 const expanded: any[] = [];
                 entries.forEach((entry: any) => {
-                  const isPersonalLeave =
-                    entry.remarks?.toUpperCase() === "PERSONAL LEAVE";
-                  const reasonDetail = isPersonalLeave
-                    ? `Personal Leave (${entry.cite_reason || "no stated reason"})`
-                    : entry.remarks || entry.cite_reason || "No stated reason";
+                  const sourceLeaveEntries = Array.isArray(entry.leave_entries)
+                    ? entry.leave_entries
+                    : [entry];
 
-                  if (entry.start_date && entry.number_of_days) {
-                    const count = Number(entry.number_of_days);
-                    const startDate = new Date(entry.start_date);
-                    for (let i = 0; i < count; i++) {
-                      const currentDate = new Date(startDate);
-                      currentDate.setDate(startDate.getDate() + i);
+                  sourceLeaveEntries.forEach((leaveEntry: any) => {
+                    const isPersonalLeave =
+                      leaveEntry.remarks?.toUpperCase() === "PERSONAL LEAVE";
+                    const reasonDetail = isPersonalLeave
+                      ? `Personal Leave (${leaveEntry.cite_reason || "no stated reason"})`
+                      : leaveEntry.remarks ||
+                        leaveEntry.cite_reason ||
+                        "No stated reason";
+
+                    if (leaveEntry.start_date && leaveEntry.number_of_days) {
+                      const count = Number(leaveEntry.number_of_days);
+                      const startDate = new Date(leaveEntry.start_date);
+                      for (let i = 0; i < count; i++) {
+                        const currentDate = new Date(startDate);
+                        currentDate.setDate(startDate.getDate() + i);
+                        expanded.push({
+                          ...leaveEntry,
+                          date: currentDate.toISOString().split("T")[0],
+                          displayRemarks: reasonDetail,
+                        });
+                      }
+                    } else {
                       expanded.push({
-                        ...entry,
-                        date: currentDate.toISOString().split("T")[0],
+                        ...leaveEntry,
                         displayRemarks: reasonDetail,
                       });
                     }
-                  } else {
-                    expanded.push({
-                      ...entry,
-                      displayRemarks: reasonDetail,
-                    });
-                  }
+                  });
                 });
                 return expanded.sort(
                   (a, b) =>
@@ -1464,7 +1547,10 @@ function FormLetterContent() {
         // Form 1 body (Supervisor)
         let initialF1 = "";
         if (customSupervisorTemplate) {
-          initialF1 = customSupervisorTemplate.body
+          initialF1 = formatEntriesListForTemplate(
+            customSupervisorTemplate.body,
+            entryListStr,
+          )
             .replace(/{{employee_name}}/g, employee.name)
             .replace(/{{last_name}}/g, lastName)
             .replace(
@@ -1495,7 +1581,6 @@ function FormLetterContent() {
                     ? "3rd"
                     : `${totalCount}th`,
             )
-            .replace(/{{entries_list}}/g, entryListStr)
             .replace(
               /{{(supervisor first name|supervisor(_|\s)?name)}}/g,
               supervisorSalutation && supervisorFirstName
@@ -1535,7 +1620,10 @@ function FormLetterContent() {
             : customLeaveTemplate;
 
         if (targetTemplate) {
-          initialF2 = targetTemplate.body
+          initialF2 = formatEntriesListForTemplate(
+            targetTemplate.body,
+            entryListStr,
+          )
             .replace(/{{salutation}}/g, salutationPrefix)
             .replace(/{{last_name}}/g, lastName)
             .replace(/{{shift_time}}/g, shiftTime)
@@ -1545,7 +1633,6 @@ function FormLetterContent() {
             .replace(/{{cutoff_text}}/g, cutoffText)
             .replace(/{{month}}/g, month)
             .replace(/{{year}}/g, year)
-            .replace(/{{entries_list}}/g, entryListStr)
             .replace(/Employee Acknowledgment:[\s\S]*$/, ""); // Remove if present in stored template
         } else {
           if (effectiveType === "late") {
@@ -2305,8 +2392,8 @@ function FormOneTemplate({
                     );
                   }
 
-                  // Paragraph with first-line indent (only if line starts with 4 spaces)
-                  const hasIndent = line.startsWith("    ");
+                  // Paragraph with first-line indent (any leading spaces/tabs)
+                  const hasIndent = /^[ \t]+/.test(line);
                   return (
                     <div
                       key={idx}
@@ -2576,8 +2663,8 @@ function FormTwoTemplate({
                     );
                   }
 
-                  // Paragraph with first-line indent (only if line starts with 4 spaces)
-                  const hasIndent = line.startsWith("    ");
+                  // Paragraph with first-line indent (any leading spaces/tabs)
+                  const hasIndent = /^[ \t]+/.test(line);
                   return (
                     <div
                       key={idx}
