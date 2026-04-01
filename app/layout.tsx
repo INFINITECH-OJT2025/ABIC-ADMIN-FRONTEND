@@ -12,8 +12,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ABIC Accounting System",
-  description: "Professional accounting management system for ABIC",
+  title: "ABIC Administrator",
+  description: "ABIC Administrator",
 };
 
 export default function RootLayout({
