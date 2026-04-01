@@ -83,42 +83,67 @@ async function handler(request: NextRequest, { params }: { params: Promise<{ pat
 
     const candidateBases = getCandidateBases()
     let lastError: unknown = null
+    let lastGatewayResponse: Response | null = null
+
+    const forwardResponse = async (response: Response) => {
+        const responseBuffer = await response.arrayBuffer()
+        const outHeaders = new Headers()
+        const contentType = response.headers.get('Content-Type') || 'application/json'
+        outHeaders.set('Content-Type', contentType)
+        const contentDisposition = response.headers.get('Content-Disposition')
+        if (contentDisposition) outHeaders.set('Content-Disposition', contentDisposition)
+        const cacheControl = response.headers.get('Cache-Control')
+        if (cacheControl) {
+            outHeaders.set('Cache-Control', cacheControl)
+        } else {
+            outHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+        }
+        outHeaders.set('Pragma', 'no-cache')
+        outHeaders.set('Expires', '0')
+        outHeaders.set('Access-Control-Allow-Origin', '*')
+
+        return new NextResponse(responseBuffer, {
+            status: response.status,
+            headers: outHeaders,
+        })
+    }
 
     for (const base of candidateBases) {
         const targetUrl = `${base}${targetSuffix}`
 
         try {
-            const response = await fetch(targetUrl, {
+            let response = await fetch(targetUrl, {
                 method: request.method,
                 headers,
                 body,
                 cache: 'no-store',
             })
 
-            const responseBuffer = await response.arrayBuffer()
-            const outHeaders = new Headers()
-            const contentType = response.headers.get('Content-Type') || 'application/json'
-            outHeaders.set('Content-Type', contentType)
-            const contentDisposition = response.headers.get('Content-Disposition')
-            if (contentDisposition) outHeaders.set('Content-Disposition', contentDisposition)
-            const cacheControl = response.headers.get('Cache-Control')
-            if (cacheControl) {
-                outHeaders.set('Cache-Control', cacheControl)
-            } else {
-                outHeaders.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-            }
-            outHeaders.set('Pragma', 'no-cache')
-            outHeaders.set('Expires', '0')
-            outHeaders.set('Access-Control-Allow-Origin', '*')
+            // Retry once for transient upstream gateway responses.
+            if (response.status === 502 || response.status === 503 || response.status === 504) {
+                await new Promise((resolve) => setTimeout(resolve, 300))
+                response = await fetch(targetUrl, {
+                    method: request.method,
+                    headers,
+                    body,
+                    cache: 'no-store',
+                })
 
-            return new NextResponse(responseBuffer, {
-                status: response.status,
-                headers: outHeaders,
-            })
+                if (response.status === 502 || response.status === 503 || response.status === 504) {
+                    lastGatewayResponse = response
+                    continue
+                }
+            }
+
+            return await forwardResponse(response)
         } catch (error) {
             lastError = error
             console.error('[Laravel Proxy] Error connecting to:', targetUrl, error)
         }
+    }
+
+    if (lastGatewayResponse) {
+        return await forwardResponse(lastGatewayResponse)
     }
 
     return NextResponse.json(

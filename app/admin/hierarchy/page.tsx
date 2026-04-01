@@ -321,20 +321,36 @@ export default function AdminHeadHierarchyPage() {
 
     setLoading(true)
     try {
-      const requestDelete = () =>
-        fetch(`${getApiUrl()}/api/hierarchies/${editingPosition.id}`, {
-          method: 'DELETE',
-          headers: {
-            Accept: 'application/json'
-          }
+      const res = await fetch(`${getApiUrl()}/api/hierarchies/${editingPosition.id}`, {
+        method: 'DELETE',
+        headers: {
+          Accept: 'application/json'
+        }
+      })
+
+      if (res.status === 502 || res.status === 503 || res.status === 504) {
+        // Avoid issuing a second DELETE; verify if the record is already gone.
+        const verifyRes = await fetch(`${getApiUrl()}/api/hierarchies`, {
+          headers: { Accept: 'application/json' }
         })
 
-      let res = await requestDelete()
+        if (verifyRes.ok) {
+          const verifyPayload = await verifyRes.json()
+          const items = Array.isArray(verifyPayload?.data)
+            ? verifyPayload.data
+            : Array.isArray(verifyPayload)
+              ? verifyPayload
+              : []
+          const stillExists = items.some((item: any) => String(item?.id) === String(editingPosition.id))
 
-      // Retry once for transient upstream proxy failures.
-      if (res.status === 502 || res.status === 503 || res.status === 504) {
-        await new Promise((resolve) => setTimeout(resolve, 350))
-        res = await requestDelete()
+          if (!stillExists) {
+            await fetchData()
+            setIsDeleteConfirmOpen(false)
+            setEditingPosition(null)
+            toast.success('Position deleted successfully')
+            return
+          }
+        }
       }
 
       if (res.status === 404) {
