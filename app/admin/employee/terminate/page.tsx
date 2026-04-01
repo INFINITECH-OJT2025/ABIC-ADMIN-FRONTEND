@@ -1138,7 +1138,7 @@ function TerminatePageContent() {
                 (r: any) => String(r.employee_id) === checklistEmployeeId,
               ),
             );
-          if (foundRecord && foundRecord.exit_type === "resigned") {
+          if (foundRecord) {
             setChecklistEmployee(foundRecord);
             setView("checklist");
             prepareClearanceChecklist(foundRecord);
