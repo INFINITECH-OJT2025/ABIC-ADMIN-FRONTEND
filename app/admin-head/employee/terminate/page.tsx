@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { toast } from 'sonner'
 import { getApiUrl } from '@/lib/api'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
@@ -80,6 +80,14 @@ interface TerminationFormData {
 }
 
 export default function TerminatePage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen">Loading...</div>}>
+      <TerminatePageContent />
+    </Suspense>
+  )
+}
+
+function TerminatePageContent() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [terminations, setTerminations] = useState<TerminationRecord[]>([])
   const [resigned, setResigned] = useState<TerminationRecord[]>([])

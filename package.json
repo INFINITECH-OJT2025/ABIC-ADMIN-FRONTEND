@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --hostname localhost --port 3000",
+    "dev": "powershell -ExecutionPolicy Bypass -File scripts/dev-ip.ps1",
     "build": "next build",
     "start": "next start",
     "serve": "next dev",
-    "lint": "eslint"
+    "lint": "eslint",
+    "backend": "cd backend && php artisan serve --host=0.0.0.0 --port=8000"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -15,6 +16,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
     "lucide-react": "^0.563.0",
     "mysql2": "^3.17.0",
     "next": "16.1.6",

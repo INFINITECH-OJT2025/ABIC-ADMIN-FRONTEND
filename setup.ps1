@@ -128,12 +128,14 @@ Write-Host "   php artisan migrate" -ForegroundColor Yellow
 Write-Host "   cd .."
 Write-Host ""
 Write-Host "3. Start the Servers:" -ForegroundColor White
-Write-Host "   Terminal A: cd backend && php artisan serve" -ForegroundColor Yellow
+Write-Host "   Terminal A: cd backend && php artisan serve --host=0.0.0.0 --port=8000" -ForegroundColor Yellow
 Write-Host "   Terminal B: npm run dev" -ForegroundColor Yellow
 Write-Host ""
 Write-Host "4. Access the Application:" -ForegroundColor White
-Write-Host "   Frontend: http://localhost:3000"
-Write-Host "   Backend:  http://localhost:8000" -ForegroundColor Green
+Write-Host "   Frontend: http://localhost:3000 (or http://YOUR_LAN_IP:3000 for network access)"
+Write-Host "   Backend:  http://localhost:8000 (or http://YOUR_LAN_IP:8000 for network access)" -ForegroundColor Green
+Write-Host ""
+Write-Host "   (Run 'ipconfig' in PowerShell to find YOUR_LAN_IP)" -ForegroundColor DarkGray
 Write-Host ""
 Write-Host "Happy coding! 🚀" -ForegroundColor Green
 Write-Host ""

@@ -1,6 +1,7 @@
 // API client for activity logs
+import { getApiUrl } from '@/lib/api';
 
-const API_BASE_URL = 'http://localhost:8000/api';
+const getBaseUrl = () => `${getApiUrl()}/api`;
 
 export interface ActivityLog {
     id: number;
@@ -79,7 +80,7 @@ export async function fetchActivityLogs(
     if (filters.page) params.append('page', filters.page.toString());
     if (filters.per_page) params.append('per_page', filters.per_page.toString());
 
-    const response = await fetch(`${API_BASE_URL}/activity-logs?${params.toString()}`);
+    const response = await fetch(`${getBaseUrl()}/activity-logs?${params.toString()}`);
 
     if (!response.ok) {
         throw new Error('Failed to fetch activity logs');
@@ -92,7 +93,7 @@ export async function fetchActivityLogs(
  * Fetch activity log statistics
  */
 export async function fetchActivityStats(): Promise<{ success: boolean; data: ActivityLogStats }> {
-    const response = await fetch(`${API_BASE_URL}/activity-logs/stats`);
+    const response = await fetch(`${getBaseUrl()}/activity-logs/stats`);
 
     if (!response.ok) {
         throw new Error('Failed to fetch activity statistics');
@@ -105,7 +106,7 @@ export async function fetchActivityStats(): Promise<{ success: boolean; data: Ac
  * Fetch a single activity log by ID
  */
 export async function fetchActivityDetails(id: number): Promise<{ success: boolean; data: ActivityLog }> {
-    const response = await fetch(`${API_BASE_URL}/activity-logs/${id}`);
+    const response = await fetch(`${getBaseUrl()}/activity-logs/${id}`);
 
     if (!response.ok) {
         throw new Error('Failed to fetch activity details');

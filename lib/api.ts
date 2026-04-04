@@ -1,28 +1,18 @@
 /**
- * Get the correct API URL based on configuration or current hostname
- * This allows the app to work from any IP address or localhost
+ * Returns the base API URL.
  * 
- * Priority:
- * 1. NEXT_PUBLIC_API_URL environment variable (if set)
- * 2. Dynamic detection based on current hostname
+ * All browser-side requests go through the Next.js proxy at /api/laravel/*
+ * which then forwards to Laravel at 127.0.0.1:8000 server-side.
+ * 
+ * This means the browser only needs port 3000, avoiding all firewall/binding issues.
  */
 export function getApiUrl(): string {
+  // Server-side (SSR/API routes): call Laravel directly
   if (typeof window === 'undefined') {
-    return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    return process.env.LARAVEL_INTERNAL_URL || 'http://127.0.0.1:8000'
   }
 
-  // If NEXT_PUBLIC_API_URL is set, use it
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL
-  }
-
-  const hostname = window.location.hostname
-  
-  // For localhost or 127.0.0.1, use localhost:8000
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'http://localhost:8000'
-  }
-
-  // For any other IP/hostname, use the same hostname with port 8000
-  return `http://${hostname}:8000`
+  // Client-side: use the Next.js proxy route (relative URL, always port 3000)
+  return '/api/laravel'
 }
+

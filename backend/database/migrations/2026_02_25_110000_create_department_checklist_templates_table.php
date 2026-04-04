@@ -4,10 +4,12 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     public function up(): void
     {
+        Schema::dropIfExists('department_checklist_template_tasks');
+        Schema::dropIfExists('department_checklist_templates');
+
         Schema::create('department_checklist_templates', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('department_id');
@@ -15,7 +17,7 @@ return new class extends Migration
             $table->unsignedBigInteger('updated_by')->nullable();
             $table->timestamps();
 
-            $table->unique(['department_id', 'checklist_type']);
+            $table->unique(['department_id', 'checklist_type'], 'dept_checklist_unique');
             $table->foreign('department_id')->references('id')->on('departments')->onDelete('cascade');
         });
 

@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\PositionController;
 use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\OnboardingChecklistController;
+use App\Http\Controllers\EvaluationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -59,6 +60,10 @@ Route::post('/employees/{id}/additional-values', [EmployeeAdditionalFieldControl
 Route::get('/activity-logs', [ActivityLogController::class, 'index']);
 Route::get('/activity-logs/stats', [ActivityLogController::class, 'stats']);
 Route::get('/activity-logs/{id}', [ActivityLogController::class, 'show']);
+
+// Evaluation API Routes
+Route::get('/evaluations', [EvaluationController::class, 'index']);
+Route::post('/evaluations', [EvaluationController::class, 'store']);
 
 
 

@@ -1620,13 +1620,19 @@ function OnboardPageContent() {
                       <div className="flex justify-between items-center mb-2">
                         <label className="block text-sm font-semibold text-slate-700">First Name <span className="text-red-500">*</span></label>
                         {!isRehireFlow && nameChecking && (<div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium"><Loader2 className="w-3 h-3 animate-spin" />Checking...</div>)}
-                        {!isRehireFlow && !nameChecking && nameExists && (<div className="flex items-center gap-1.5 text-xs text-rose-500 font-bold animate-in fade-in slide-in-from-right-2"><AlertCircle className="w-3 h-3" />Name already exists</div>)}
+                        {!isRehireFlow && !nameChecking && onboardFormData.first_name.length >= 2 && onboardFormData.last_name.length >= 2 && (
+                          nameExists ? (<div className="flex items-center gap-1.5 text-xs text-rose-500 font-bold animate-in fade-in slide-in-from-right-2"><AlertCircle className="w-3 h-3" />Name already exists</div>)
+                          : (<div className="flex items-center gap-1.5 text-xs text-emerald-500 font-bold animate-in fade-in slide-in-from-right-2"><CheckCircle2 className="w-3 h-3" />Name available</div>)
+                        )}
                       </div>
                       <Input 
                         value={onboardFormData.first_name} 
                         onChange={(e) => setOnboardFormData(prev => ({ ...prev, first_name: e.target.value }))} 
                         placeholder="John" 
-                        className={cn("transition-all duration-300", !isRehireFlow && nameExists && "border-rose-400 focus-visible:ring-rose-400 bg-rose-50/30")}
+                        className={cn("transition-all duration-300", 
+                          !isRehireFlow && nameExists && onboardFormData.first_name.length >= 2 && onboardFormData.last_name.length >= 2 && "border-rose-400 focus-visible:ring-rose-400 bg-rose-50/30",
+                          !isRehireFlow && !nameExists && onboardFormData.first_name.length >= 2 && onboardFormData.last_name.length >= 2 && "border-emerald-400 focus-visible:ring-emerald-400 bg-emerald-50/30"
+                        )}
                       />
                     </div>
                     <div>
@@ -1637,7 +1643,10 @@ function OnboardPageContent() {
                         value={onboardFormData.last_name} 
                         onChange={(e) => setOnboardFormData(prev => ({ ...prev, last_name: e.target.value }))} 
                         placeholder="Doe" 
-                        className={cn("transition-all duration-300", !isRehireFlow && nameExists && "border-rose-400 focus-visible:ring-rose-400 bg-rose-50/30")}
+                        className={cn("transition-all duration-300", 
+                          !isRehireFlow && nameExists && onboardFormData.first_name.length >= 2 && onboardFormData.last_name.length >= 2 && "border-rose-400 focus-visible:ring-rose-400 bg-rose-50/30",
+                          !isRehireFlow && !nameExists && onboardFormData.first_name.length >= 2 && onboardFormData.last_name.length >= 2 && "border-emerald-400 focus-visible:ring-emerald-400 bg-emerald-50/30"
+                        )}
                       />
                     </div>
                     <div className="md:col-span-2">
